@@ -292,50 +292,50 @@ section{position:relative;}
 .svc p{font-size:14.5px;color:var(--mute);}
 .svc .n{position:absolute;top:20px;right:22px;font-family:var(--disp);font-size:12px;color:var(--faint);letter-spacing:.1em;}
 
-/* ---------- 3D palette ---------- */
-.pal-grid{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:clamp(14px,1.8vw,24px);margin-top:52px;perspective:1100px;
+/* ---------- most requested colors ---------- */
+.sw-wrap{margin-top:44px;padding-inline:clamp(10px,4vw,46px);}
+.swatches{
+  display:grid;grid-template-columns:repeat(8,1fr);gap:6px;
+  perspective:900px;
 }
-.chip{
-  position:relative;border:0;background:none;cursor:pointer;padding:0;
-  transform-style:preserve-3d;
-  transition:transform .5s var(--ease),filter .5s var(--ease);
-  will-change:transform;
+@media(max-width:900px){.swatches{grid-template-columns:repeat(6,1fr);}}
+@media(max-width:620px){.swatches{grid-template-columns:repeat(4,1fr);gap:5px;}}
+.sw{
+  position:relative;aspect-ratio:1;border:0;padding:0;cursor:pointer;border-radius:3px;
+  transform:translateZ(0);transform-origin:center center;
+  transition:transform .34s var(--ease),box-shadow .34s var(--ease),filter .34s var(--ease);
+  will-change:transform;outline-offset:4px;
 }
-.chip-face{
-  position:relative;aspect-ratio:4/5;border-radius:3px;overflow:hidden;
-  box-shadow:0 10px 26px -14px rgba(0,0,0,.9);
-  transition:box-shadow .5s var(--ease);
-  transform-style:preserve-3d;
+.sw::after{ /* wet sheen, only visible once it lifts */
+  content:"";position:absolute;inset:0;border-radius:3px;opacity:0;
+  background:linear-gradient(130deg,rgba(255,255,255,.5),rgba(255,255,255,.05) 42%,transparent 62%);
+  transition:opacity .34s var(--ease);
 }
-.chip-face::before{ /* wet sheen */
-  content:"";position:absolute;inset:0;z-index:2;
-  background:linear-gradient(125deg,rgba(255,255,255,.42) 0%,rgba(255,255,255,.06) 32%,transparent 55%);
-  opacity:.5;transition:opacity .5s var(--ease),transform .6s var(--ease);
-  transform:translateX(-22%);
+.sw.up{
+  transform:scale(1.95);z-index:20;
+  filter:brightness(1.16) saturate(1.12);
+  box-shadow:0 0 0 2px rgba(255,255,255,.55),0 26px 54px -14px rgba(0,0,0,.95),
+             0 0 44px -6px var(--glow,rgba(255,255,255,.35));
 }
-.chip:hover .chip-face::before,.chip:focus-visible .chip-face::before{opacity:.95;transform:translateX(12%);}
-.chip:hover,.chip:focus-visible{filter:saturate(1.06);}
-.chip:hover .chip-face,.chip:focus-visible .chip-face{box-shadow:0 34px 60px -22px rgba(0,0,0,.95),0 0 0 1px rgba(242,238,230,.18);}
-.chip-meta{
-  position:absolute;left:0;right:0;bottom:0;z-index:3;padding:14px 14px 13px;
-  background:linear-gradient(to top,rgba(6,8,11,.92),rgba(6,8,11,.55) 55%,transparent);
-  transform:translate3d(0,0,30px);
+.sw.up::after{opacity:1;}
+.sw-name{
+  margin-top:38px;min-height:62px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;gap:6px;
 }
-.chip-meta b{display:block;font-family:var(--disp);font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:#fff;}
-.chip-meta span{display:block;font-family:var(--disp);font-size:10px;letter-spacing:.16em;color:rgba(255,255,255,.72);margin-top:4px;}
-.chip-pop{
-  position:absolute;left:50%;top:-14px;z-index:6;
-  transform:translate3d(-50%,10px,90px) scale(.86);
-  opacity:0;visibility:hidden;pointer-events:none;white-space:nowrap;
-  background:var(--cream);color:#15181D;border-radius:3px;padding:9px 14px;
-  font-family:var(--disp);font-size:11.5px;font-weight:600;letter-spacing:.06em;
-  box-shadow:0 18px 40px -14px rgba(0,0,0,.85);
-  transition:opacity .38s var(--ease),transform .48s var(--ease),visibility .38s;
+.sw-name b{
+  font-family:var(--disp);font-size:clamp(20px,2.6vw,28px);font-weight:700;
+  letter-spacing:-.01em;color:var(--cream);
+  opacity:0;transform:translateY(8px);
+  transition:opacity .28s var(--ease),transform .34s var(--ease);
 }
-.chip-pop::after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;background:var(--cream);transform:translateX(-50%) rotate(45deg);}
-.chip:hover .chip-pop,.chip:focus-visible .chip-pop{opacity:1;visibility:visible;transform:translate3d(-50%,-8px,90px) scale(1);}
+.sw-name span{
+  font-family:var(--disp);font-size:12px;letter-spacing:.18em;color:var(--mute);
+  opacity:0;transition:opacity .28s var(--ease);
+}
+.sw-name.on b{opacity:1;transform:none;}
+.sw-name.on span{opacity:1;}
+.sw-name em{font-style:normal;font-size:14px;color:var(--faint);}
+.sw-name.on em{display:none;}
 .pal-note{margin-top:26px;font-size:13px;color:var(--faint);}
 
 /* ---------- before / after ---------- */
@@ -859,16 +859,22 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
   </div>
 </section>
 
-<!-- ============ 3D COLOR PALETTE ============ -->
+<!-- ============ MOST REQUESTED COLORS ============ -->
 <section class="sec-pad px-wrap" id="palette">
   <div class="orb orb-b px" data-px=".08" aria-hidden="true"></div>
   <div class="shell" style="position:relative;z-index:1">
-    <div class="rv" style="max-width:640px">
-      <p class="eyebrow">Color</p>
-      <h2 class="kicker-h">Pick up a color.</h2>
-      <p class="lede dim">Hover or tap a chip — it lifts off the wall so you can see the finish move in the light. Bring us any color you like; these are a place to start the conversation.</p>
+    <div class="rv" style="max-width:680px">
+      <p class="eyebrow">Most Requested Colors</p>
+      <h2 class="kicker-h">Select the color that catches your eye.</h2>
     </div>
-    <div class="pal-grid" id="palGrid"></div>
+    <div class="sw-wrap rv">
+      <div class="swatches" id="swatches"></div>
+      <div class="sw-name" id="swName" role="status" aria-live="polite">
+        <em>Hover or tap a color to see its name.</em>
+        <b id="swNameText"></b>
+        <span id="swNameHex"></span>
+      </div>
+    </div>
     <p class="pal-note">Colors are shown for illustration on screen and will differ from a physical sample. We confirm every final color with you before the first coat goes on.</p>
   </div>
 </section>
@@ -1281,64 +1287,73 @@ if ("IntersectionObserver" in window && !RM){
   $$(".rv").forEach(function(el){ el.classList.add("in"); });
 }
 
-/* ================= 3D colour palette ================= */
-var COLORS = [
-  {n:"Cloud White",  h:"#F2EFE8", u:"Trim & ceilings"},
-  {n:"Warm Linen",   h:"#E6DCCB", u:"Interior walls"},
-  {n:"Morning Fog",  h:"#C9CCC8", u:"Interior walls"},
-  {n:"Harbor Slate", h:"#4A5A68", u:"Exterior body"},
-  {n:"Deep Navy",    h:"#1E2F4A", u:"Exterior body"},
-  {n:"Cobalt Signal",h:"#1F4ED8", u:"Front doors"},
-  {n:"Cedar Brown",  h:"#6B4B33", u:"Trim & fences"},
-  {n:"Evergreen",    h:"#2F4739", u:"Shutters & accents"},
-  {n:"Graphite",     h:"#2B2E33", u:"Metal & railings"},
-  {n:"Clay Amber",   h:"#C97B36", u:"Accent walls"}
-];
-var grid = doc.getElementById("palGrid");
-COLORS.forEach(function(c){
-  var b = doc.createElement("button");
-  b.type = "button"; b.className = "chip";
-  b.setAttribute("aria-label", c.n + ", " + c.h + ", suggested for " + c.u);
-  var dark = (parseInt(c.h.substr(1,2),16)*299 + parseInt(c.h.substr(3,2),16)*587 + parseInt(c.h.substr(5,2),16)*114)/1000 < 140;
-  b.innerHTML =
-    '<span class="chip-pop">' + c.h.toUpperCase() + '</span>' +
-    '<span class="chip-face" style="background:' + c.h + '">' +
-      '<span class="chip-meta"' + (dark ? '' : ' style="background:linear-gradient(to top,rgba(6,8,11,.86),rgba(6,8,11,.4) 60%,transparent)"') + '>' +
-        '<b>' + c.n + '</b><span>' + c.u + '</span>' +
-      '</span>' +
-    '</span>';
-  grid.appendChild(b);
-});
-if (!RM){
-  var chips = $$(".chip");
-  chips.forEach(function(chip){
-    var raf = 0;
-    function move(ev){
-      var t = ev.touches ? ev.touches[0] : ev;
-      var r = chip.getBoundingClientRect();
-      var px = (t.clientX - r.left)/r.width - .5;
-      var py = (t.clientY - r.top)/r.height - .5;
-      if (raf) return;
-      raf = requestAnimationFrame(function(){
-        raf = 0;
-        chip.style.transform =
-          "translate3d(0,-12px,42px) rotateX(" + (-py*17).toFixed(2) + "deg) rotateY(" + (px*19).toFixed(2) + "deg) scale(1.05)";
-      });
-    }
-    function rest(){ if(raf){cancelAnimationFrame(raf);raf=0;} chip.style.transform = ""; }
-    chip.addEventListener("pointermove", move);
-    chip.addEventListener("pointerleave", rest);
-    chip.addEventListener("pointercancel", rest);
-    chip.addEventListener("focus", function(){ chip.style.transform = "translate3d(0,-12px,42px) scale(1.05)"; });
-    chip.addEventListener("blur", rest);
-    chip.addEventListener("click", function(){
-      var pop = $(".chip-pop", chip); var was = pop.textContent;
-      if (navigator.clipboard) navigator.clipboard.writeText(was).then(function(){
-        pop.textContent = "Copied"; setTimeout(function(){ pop.textContent = was; }, 1100);
-      }).catch(function(){});
-    });
+/* ================= most requested colors ================= */
+(function(){
+  var SW = [
+    ["#8A979D","Harbor Mist"],   ["#F9F7EA","Cloud White"],    ["#454648","Graphite"],
+    ["#7B7360","Field Olive"],   ["#706061","Ironstone"],      ["#EBEDEA","Frost White"],
+    ["#ACA499","Linen Greige"],  ["#504C5A","Slate Violet"],
+    ["#6B6F70","Pewter"],        ["#837D6F","Stone Khaki"],    ["#55504C","Cast Iron"],
+    ["#557158","Evergreen"],     ["#B4AB9C","Sandstone"],      ["#D5D4CF","Morning Fog"],
+    ["#AA9B56","Olive Gold"],    ["#4A7983","Deep Teal"],
+    ["#898D90","Harbor Grey"],   ["#C6B9A6","Weathered Oak"],  ["#D9D3C5","Warm Linen"],
+    ["#4A595C","Storm Slate"],   ["#A6606B","Dusty Rose"],     ["#B3ABA8","Silver Birch"],
+    ["#A66054","Terracotta"],    ["#664651","Wine Barrel"],
+    ["#44627A","Steel Blue"],    ["#A6A296","Sage Stone"],     ["#D4C08E","Wheat"],
+    ["#F7D148","Marigold"],      ["#CED0CB","Sea Salt"],       ["#E7DCBC","Vanilla Cream"],
+    ["#AF524A","Brick Red"],     ["#63594D","Cocoa Taupe"]
+  ];
+  var grid = doc.getElementById("swatches");
+  if (!grid) return;
+  var nameBox = doc.getElementById("swName"),
+      nameTx  = doc.getElementById("swNameText"),
+      nameHex = doc.getElementById("swNameHex");
+
+  SW.forEach(function(c){
+    var b = doc.createElement("button");
+    b.type = "button"; b.className = "sw";
+    b.style.background = c[0];
+    b.style.setProperty("--glow", c[0]);
+    b.dataset.name = c[1]; b.dataset.hex = c[0];
+    b.setAttribute("aria-label", c[1] + ", " + c[0]);
+    grid.appendChild(b);
   });
-}
+
+  var current = null;
+  function lift(el){
+    if (current === el) return;
+    if (current) current.classList.remove("up");   // only one at a time
+    current = el;
+    if (!el){ nameBox.classList.remove("on"); return; }
+    el.classList.add("up");
+    nameTx.textContent  = el.dataset.name;
+    nameHex.textContent = el.dataset.hex;
+    nameBox.classList.add("on");
+  }
+  function drop(){ lift(null); }
+
+  grid.addEventListener("pointerover", function(e){
+    var sw = e.target.closest(".sw");
+    if (sw && e.pointerType !== "touch") lift(sw);
+  });
+  grid.addEventListener("pointerleave", function(e){
+    if (e.pointerType !== "touch") drop();
+  });
+  // Touch: pointerover also fires on tap, so a toggle here would lift then
+  // immediately drop. Always lift; a different colour moves it, a tap outside
+  // puts it back down.
+  grid.addEventListener("click", function(e){
+    var sw = e.target.closest(".sw");
+    if (sw) lift(sw);
+  });
+  grid.addEventListener("focusin", function(e){
+    var sw = e.target.closest(".sw"); if (sw) lift(sw);
+  });
+  // a tap anywhere else puts the colour back down
+  doc.addEventListener("pointerdown", function(e){
+    if (current && !e.target.closest("#swatches")) drop();
+  }, {passive:true});
+})();
 
 /* ================= before / after ================= */
 $$("[data-ba]").forEach(function(inp){
