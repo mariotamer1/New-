@@ -454,6 +454,79 @@ section{position:relative;}
 @media(max-width:760px){.callbar{display:flex;} body{padding-bottom:58px;}}
 
 /* ---------- reduced motion ---------- */
+
+/* ---------- free-estimate modal ---------- */
+.modal[hidden]{display:none;}
+.modal{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:20px;}
+.modal-scrim{position:absolute;inset:0;background:rgba(5,7,10,.78);backdrop-filter:blur(7px);
+  opacity:0;transition:opacity .3s var(--ease);}
+.modal.in .modal-scrim{opacity:1;}
+.modal-box{
+  position:relative;width:100%;max-width:560px;max-height:calc(100svh - 40px);overflow-y:auto;
+  background:#161A20;border:1px solid rgba(227,155,60,.42);border-radius:10px;
+  padding:clamp(24px,4vw,36px);
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.95);
+  opacity:0;transform:translate3d(0,16px,0) scale(.985);
+  transition:opacity .32s var(--ease),transform .42s var(--ease);
+  -webkit-overflow-scrolling:touch;
+}
+.modal.in .modal-box{opacity:1;transform:none;}
+.modal-x{
+  position:absolute;top:14px;right:16px;background:none;border:0;cursor:pointer;
+  font-size:26px;line-height:1;color:var(--mute);padding:6px 8px;border-radius:3px;
+  transition:color .25s,background .25s;
+}
+.modal-x:hover{color:var(--cream);background:rgba(242,238,230,.08);}
+.modal-box h2{font-size:clamp(24px,3.4vw,31px);letter-spacing:-.02em;padding-right:34px;}
+.modal-box>p:first-of-type,#emSub{color:#B9C0CA;font-size:15.5px;line-height:1.5;margin-top:8px;}
+.mfield{display:flex;flex-direction:column;gap:7px;margin-top:18px;}
+.mfield label{font-size:14px;color:#9AA4B2;}
+.mfield input,.mfield textarea{
+  background:#0E1116;border:1px solid rgba(242,238,230,.18);border-radius:6px;
+  padding:13px 14px;font-size:16px;color:var(--cream);width:100%;
+  transition:border-color .25s,background .25s;
+}
+.mfield textarea{min-height:118px;resize:vertical;line-height:1.55;}
+.mfield input:focus,.mfield textarea:focus{outline:none;border-color:var(--amber);background:#11151B;}
+.mfield input::placeholder,.mfield textarea::placeholder{color:#6B7482;}
+.mfield.bad input,.mfield.bad textarea{border-color:#C4544B;}
+.mconsent{display:flex;align-items:flex-start;gap:12px;margin-top:22px;cursor:pointer;}
+.mconsent input{position:absolute;opacity:0;width:1px;height:1px;}
+.mbox{
+  flex:none;width:26px;height:26px;border-radius:5px;background:var(--cream);
+  border:1px solid rgba(242,238,230,.5);margin-top:1px;position:relative;
+  transition:background .2s,border-color .2s;
+}
+.mbox::after{
+  content:"";position:absolute;left:9px;top:4px;width:6px;height:12px;
+  border:solid #15181D;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) scale(0);
+  transition:transform .22s var(--ease);
+}
+.mconsent input:checked + .mbox{background:var(--amber);border-color:var(--amber);}
+.mconsent input:checked + .mbox::after{transform:rotate(45deg) scale(1);}
+.mconsent input:focus-visible + .mbox{outline:2px solid var(--amber);outline-offset:3px;}
+.mconsent.bad .mbox{border-color:#C4544B;}
+.mtext{font-size:14px;line-height:1.5;color:#B9C0CA;}
+.mlearn{background:none;border:0;padding:0;cursor:pointer;color:var(--amber);font-size:14px;text-decoration:underline;}
+.mnote{margin-top:12px;font-size:13px;line-height:1.6;color:#8C95A2;border-left:2px solid rgba(227,155,60,.45);padding-left:12px;}
+.merr{margin-top:14px;font-size:13.5px;color:#E08C83;}
+.mbtn{
+  width:100%;margin-top:22px;padding:17px 20px;border:0;border-radius:7px;cursor:pointer;
+  background:var(--amber);color:#1E1509;font-family:var(--disp);font-weight:700;font-size:17px;
+  transition:background .25s,transform .25s var(--ease);
+}
+.mbtn:hover{background:var(--amber-hi);transform:translateY(-1px);}
+.mexit{
+  display:block;margin:16px auto 0;background:none;border:0;cursor:pointer;
+  color:#B9C0CA;font-size:15px;text-decoration:underline;text-underline-offset:4px;
+}
+.mexit:hover{color:var(--cream);}
+.mdone{text-align:center;padding:14px 0 6px;}
+.mdone .tick{width:56px;height:56px;margin:0 auto 18px;border-radius:50%;background:rgba(227,155,60,.15);
+  border:1px solid var(--amber);display:grid;place-items:center;color:var(--amber);font-size:26px;}
+.mdone h3{margin-bottom:10px;}
+.mdone p{color:#B9C0CA;font-size:15px;line-height:1.6;}
+
 @media (prefers-reduced-motion: reduce){
   html{scroll-behavior:auto;}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;}
@@ -916,6 +989,37 @@ section{position:relative;}
   </div>
 </footer>
 
+<div class="modal" id="estModal" hidden>
+  <div class="modal-scrim" data-close></div>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="emTitle">
+    <button class="modal-x" type="button" data-close aria-label="Close">&times;</button>
+    <div id="emBody">
+      <h2 id="emTitle">Get a Free Estimate</h2>
+      <p id="emSub">Tell us a bit about your project and we&rsquo;ll follow up shortly.</p>
+      <form id="emForm" novalidate>
+        <div class="mfield"><label for="em-name">Name</label>
+          <input id="em-name" name="name" type="text" autocomplete="name"></div>
+        <div class="mfield"><label for="em-phone">Phone Number</label>
+          <input id="em-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
+        <div class="mfield"><label for="em-email">Email</label>
+          <input id="em-email" name="email" type="email" inputmode="email" autocomplete="email"></div>
+        <div class="mfield"><label for="em-msg">Project details</label>
+          <textarea id="em-msg" name="message" placeholder="Please describe or tell us the square footage of where you&rsquo;re trying to paint."></textarea></div>
+        <label class="mconsent" id="emConsent">
+          <input type="checkbox" id="em-ok">
+          <span class="mbox" aria-hidden="true"></span>
+          <span class="mtext">I consent that E &amp; G Painting may contact me by the contact information I wrote above.
+            <button type="button" class="mlearn" id="emLearn" aria-expanded="false" aria-controls="emLearnBody">Learn more</button></span>
+        </label>
+        <p class="mnote" id="emLearnBody" hidden>Your name, phone, email and project details are used only to reply to you about this estimate. Nothing is stored on this website and nothing is sent to any third party &mdash; pressing Request Estimate opens your own messaging app with the details written out, and it is not sent until you press send.</p>
+        <p class="merr" id="emErr" role="alert" hidden></p>
+        <button type="submit" class="mbtn">Request Estimate</button>
+        <button type="button" class="mexit" data-close>Exit</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="keepscroll" id="hint" aria-hidden="true">
   <span class="ks-text">Keep scrolling</span>
   <i class="ks-line"></i>
@@ -1225,6 +1329,94 @@ if (!RM){
     onScroll();
   }, {passive:true});
 }
+
+
+/* ================= free-estimate modal ================= */
+(function(){
+  var modal = doc.getElementById("estModal");
+  if (!modal) return;
+  var box = $(".modal-box", modal), lastFocus = null, openNow = false;
+  var F = 'a[href],button:not([disabled]),input,textarea,select,[tabindex]:not([tabindex="-1"])';
+
+  function open(e){
+    if (e) e.preventDefault();
+    lastFocus = doc.activeElement;
+    modal.hidden = false;
+    doc.documentElement.style.overflow = "hidden";   // lock without moving the scrub
+    hideHint();
+    requestAnimationFrame(function(){ modal.classList.add("in"); });
+    openNow = true;
+    setTimeout(function(){ var f = $("#em-name"); if (f) f.focus(); }, 90);
+  }
+  function close(){
+    if (!openNow) return;
+    openNow = false;
+    modal.classList.remove("in");
+    doc.documentElement.style.overflow = "";
+    setTimeout(function(){ modal.hidden = true; }, 320);
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+    armHint();
+  }
+  // every "free estimate" call to action opens the dialog
+  $$('a[href="#estimate"]').forEach(function(a){ a.addEventListener("click", open); });
+
+  $$("[data-close]", modal).forEach(function(b){ b.addEventListener("click", close); });
+  doc.addEventListener("keydown", function(ev){
+    if (!openNow) return;
+    if (ev.key === "Escape"){ close(); return; }
+    if (ev.key !== "Tab") return;
+    var f = $$(F, box).filter(function(el){ return el.offsetParent !== null || el.type === "checkbox"; });
+    if (!f.length) return;
+    var first = f[0], last = f[f.length-1];
+    if (ev.shiftKey && doc.activeElement === first){ ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && doc.activeElement === last){ ev.preventDefault(); first.focus(); }
+  });
+
+  var learn = doc.getElementById("emLearn"), learnBody = doc.getElementById("emLearnBody");
+  learn.addEventListener("click", function(ev){
+    ev.preventDefault(); ev.stopPropagation();
+    var on = learnBody.hidden;
+    learnBody.hidden = !on;
+    learn.setAttribute("aria-expanded", on ? "true" : "false");
+  });
+
+  var err = doc.getElementById("emErr");
+  function need(id){
+    var el = doc.getElementById(id), ok = !!(el.value||"").trim();
+    el.closest(".mfield").classList.toggle("bad", !ok);
+    return ok;
+  }
+  doc.getElementById("emForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var okName = need("em-name"), okPhone = need("em-phone"), okMsg = need("em-msg");
+    var consent = doc.getElementById("em-ok").checked;
+    doc.getElementById("emConsent").classList.toggle("bad", !consent);
+    if (!(okName && okPhone && okMsg)){
+      err.hidden = false; err.textContent = "Please add your name, a phone number, and a few words about the project.";
+      return;
+    }
+    if (!consent){
+      err.hidden = false; err.textContent = "Please tick the consent box so we know we can contact you.";
+      return;
+    }
+    err.hidden = true;
+    var g = function(id){ return (doc.getElementById(id).value||"").trim(); };
+    var L = ["Free estimate request - E & G Painting",""];
+    L.push("Name: "+g("em-name"));
+    L.push("Phone: "+g("em-phone"));
+    if (g("em-email")) L.push("Email: "+g("em-email"));
+    L.push(""); L.push("Project details:"); L.push(g("em-msg"));
+    L.push(""); L.push("I consent to be contacted using the details above.");
+    var ios = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
+    window.location.href = "sms:+12065570277" + (ios ? "&" : "?") + "body=" + encodeURIComponent(L.join("\n"));
+    doc.getElementById("emBody").innerHTML =
+      '<div class="mdone"><div class="tick">&#10003;</div>' +
+      '<h3>Your request is ready to send.</h3>' +
+      '<p>We\'ve opened your messaging app with the details filled in for (206)&nbsp;557-0277. ' +
+      'Press send there and we\'ll get back to you.</p>' +
+      '<p style="margin-top:16px"><a class="btn btn-amber" href="tel:+12065570277">Or call us now</a></p></div>';
+  });
+})();
 
 window.addEventListener("scroll", onScroll, {passive:true});
 ["touchmove","wheel","keydown"].forEach(function(ev){
