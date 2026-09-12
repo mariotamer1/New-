@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="Stylized locator map for Federal Way, Washington">
+  <rect width="1200" height="675" fill="#141A22"/>
+  <g stroke="#1F2733" stroke-width="1">
+    <path d="M0 90h1200M0 200h1200M0 310h1200M0 420h1200M0 530h1200M0 640h1200"/>
+    <path d="M110 0v675M260 0v675M410 0v675M560 0v675M710 0v675M860 0v675M1010 0v675M1160 0v675"/>
+  </g>
+  <g stroke="#2A3644" stroke-width="7" fill="none" stroke-linecap="round">
+    <path d="M0 310h1200"/><path d="M560 0v675"/>
+  </g>
+  <path d="M-20 560 C 240 520, 300 360, 560 330 C 820 300, 900 170, 1220 140" stroke="#233042" stroke-width="12" fill="none"/>
+  
+  <circle cx="560" cy="310" r="74" fill="#1F4ED8" opacity=".14"/>
+  <circle cx="560" cy="310" r="44" fill="#1F4ED8" opacity=".22"/>
+  <path d="M560 268 c-15 0-27 12-27 27 0 20 27 48 27 48s27-28 27-48c0-15-12-27-27-27z" fill="#E39B3C"/>
+  <circle cx="560" cy="295" r="9.5" fill="#141A22"/>
+</svg>
