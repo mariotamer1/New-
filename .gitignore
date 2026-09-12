@@ -1,0 +1,10 @@
+# Scratch staging used while assembling the site; the deliverable is tracked
+# under e-and-g-painting/
+build/
+raw/
+
+# Generated binary assets ship in the delivered zip, not in the repo
+e-and-g-painting/assets/world/
+e-and-g-painting/assets/font/
+e-and-g-painting/assets/img/*.jpg
+e-and-g-painting/assets/img/*.png
