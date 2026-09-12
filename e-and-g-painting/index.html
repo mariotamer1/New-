@@ -531,6 +531,134 @@ section{position:relative;}
 .mdone h3{margin-bottom:10px;}
 .mdone p{color:#B9C0CA;font-size:15px;line-height:1.6;}
 
+
+/* ---------- admin + customer portal ---------- */
+.ov[hidden]{display:none;}
+.ov{position:fixed;inset:0;z-index:130;display:grid;place-items:center;padding:18px;}
+#chatOv{z-index:140;}   /* chat layers above the admin panel */
+.ov-scrim{position:absolute;inset:0;background:rgba(5,7,10,.82);backdrop-filter:blur(8px);opacity:0;transition:opacity .3s var(--ease);}
+.ov.in .ov-scrim{opacity:1;}
+.ov-box{
+  position:relative;width:100%;max-width:600px;max-height:calc(100svh - 36px);overflow-y:auto;
+  background:#161A20;border:1px solid rgba(227,155,60,.42);border-radius:10px;padding:clamp(22px,4vw,34px);
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.95);opacity:0;transform:translate3d(0,16px,0) scale(.985);
+  transition:opacity .32s var(--ease),transform .42s var(--ease);-webkit-overflow-scrolling:touch;
+}
+.ov.in .ov-box{opacity:1;transform:none;}
+.ov-box.wide{max-width:1180px;}
+.ov-x{position:absolute;top:12px;right:14px;background:none;border:0;cursor:pointer;font-size:26px;line-height:1;
+  color:var(--mute);padding:6px 9px;border-radius:3px;transition:color .25s,background .25s;z-index:4;}
+.ov-x:hover{color:var(--cream);background:rgba(242,238,230,.08);}
+.ov h2{font-size:clamp(22px,3.2vw,30px);letter-spacing:-.02em;padding-right:34px;}
+.ov .sub{color:#B9C0CA;font-size:15px;line-height:1.5;margin-top:8px;}
+.scr[hidden]{display:none;}
+
+/* hamburger */
+.burger{background:none;border:0;cursor:pointer;padding:9px 8px;margin-right:2px;display:flex;
+  flex-direction:column;gap:4.5px;flex:none;border-radius:4px;transition:background .25s;}
+.burger:hover{background:rgba(242,238,230,.08);}
+.burger i{display:block;width:20px;height:2px;background:var(--cream);border-radius:2px;transition:transform .3s var(--ease);}
+
+/* admin tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px;}
+@media(max-width:620px){.tiles{grid-template-columns:1fr;}}
+.tile{
+  text-align:left;background:#0E1116;border:1px solid rgba(242,238,230,.16);border-radius:8px;
+  padding:22px 20px;cursor:pointer;transition:border-color .3s,transform .3s var(--ease),background .3s;
+}
+.tile:hover{border-color:var(--amber);transform:translateY(-3px);background:#11151B;}
+.tile b{display:block;font-family:var(--disp);font-size:17px;margin-bottom:6px;}
+.tile span{display:block;font-size:13.5px;color:var(--mute);line-height:1.5;}
+.tile .pill{display:inline-block;margin-top:12px;font-family:var(--disp);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--amber);border:1px solid rgba(227,155,60,.45);border-radius:20px;padding:4px 10px;}
+
+/* quote accordion */
+.qlist{margin-top:20px;display:flex;flex-direction:column;gap:10px;}
+.qempty{margin-top:22px;padding:26px;border:1px dashed rgba(242,238,230,.2);border-radius:8px;
+  text-align:center;color:var(--mute);font-size:14.5px;line-height:1.6;}
+.q{border:1px solid rgba(242,238,230,.15);border-radius:8px;background:#0E1116;overflow:hidden;}
+.q-head{width:100%;display:flex;align-items:center;gap:12px;padding:15px 16px;background:none;border:0;
+  cursor:pointer;text-align:left;color:inherit;transition:background .25s;}
+.q-head:hover{background:#11151B;}
+.q-head .who{flex:1;min-width:0;}
+.q-head .who b{display:block;font-family:var(--disp);font-size:15.5px;}
+.q-head .who span{display:block;font-size:12.5px;color:var(--mute);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.q-head .chev{flex:none;color:var(--mute);transition:transform .3s var(--ease);font-size:13px;}
+.q.open .q-head .chev{transform:rotate(180deg);}
+.q-new{flex:none;width:8px;height:8px;border-radius:50%;background:var(--amber);}
+.q-body{display:none;padding:0 16px 16px;border-top:1px solid rgba(242,238,230,.1);}
+.q.open .q-body{display:block;}
+.q-row{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(242,238,230,.07);font-size:14px;}
+.q-row b{flex:none;width:104px;color:var(--mute);font-weight:500;}
+.q-row span{flex:1;min-width:0;word-break:break-word;}
+.q-row a{color:var(--amber);}
+.q-acts{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.q-acts button{flex:1 1 140px;padding:12px 16px;border-radius:6px;cursor:pointer;font-family:var(--disp);
+  font-weight:600;font-size:14px;border:1px solid transparent;transition:background .25s,border-color .25s,transform .25s;}
+.b-reply{background:var(--amber);color:#1E1509;}
+.b-reply:hover{background:var(--amber-hi);transform:translateY(-1px);}
+.b-del{background:transparent;border-color:rgba(196,84,75,.55);color:#E08C83;}
+.b-del:hover{background:rgba(196,84,75,.14);}
+.b-del.arm{background:#C4544B;border-color:#C4544B;color:#fff;}
+
+/* chat */
+.chat-head{display:flex;align-items:center;gap:12px;padding-right:36px;}
+.chat-head .av{width:40px;height:40px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--cobalt),var(--cobalt-lo));font-family:var(--disp);font-weight:700;color:#fff;}
+.chat-head b{display:block;font-family:var(--disp);font-size:16px;}
+.chat-head span{display:block;font-size:12.5px;color:var(--mute);}
+.thread{margin-top:18px;max-height:min(46vh,380px);overflow-y:auto;display:flex;flex-direction:column;gap:10px;
+  padding:14px;background:#0B0E12;border:1px solid rgba(242,238,230,.12);border-radius:8px;}
+.msg{max-width:82%;padding:10px 13px;border-radius:12px;font-size:14.5px;line-height:1.5;word-break:break-word;}
+.msg small{display:block;font-size:11px;opacity:.6;margin-top:5px;}
+.msg.them{align-self:flex-start;background:#1B2028;border-bottom-left-radius:4px;}
+.msg.me{align-self:flex-end;background:var(--cobalt);color:#fff;border-bottom-right-radius:4px;}
+.thread .none{align-self:center;color:var(--faint);font-size:13.5px;padding:14px 0;text-align:center;}
+.chat-send{display:flex;gap:10px;margin-top:14px;}
+.chat-send input{flex:1;background:#0E1116;border:1px solid rgba(242,238,230,.18);border-radius:6px;
+  padding:13px 14px;font-size:16px;color:var(--cream);min-width:0;}
+.chat-send input:focus{outline:none;border-color:var(--amber);}
+.chat-send button{flex:none;padding:13px 20px;border:0;border-radius:6px;background:var(--amber);
+  color:#1E1509;font-family:var(--disp);font-weight:700;font-size:14px;cursor:pointer;}
+.chat-send button:hover{background:var(--amber-hi);}
+.chat-foot{display:flex;gap:10px;margin-top:14px;}
+.chat-foot button{flex:1;padding:11px;border-radius:6px;border:1px solid rgba(242,238,230,.2);
+  background:none;color:#B9C0CA;cursor:pointer;font-size:14px;}
+.chat-foot button:hover{border-color:var(--cream);color:var(--cream);}
+
+/* split-screen editor */
+.ed{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px;}
+@media(max-width:900px){.ed{grid-template-columns:1fr;}}
+.ed-left h3{font-size:19px;margin-bottom:6px;}
+.ed-left p.hint{font-size:13.5px;color:var(--mute);margin-bottom:14px;}
+.ed-left textarea{
+  width:100%;min-height:clamp(220px,34vh,340px);resize:vertical;background:#0E1116;
+  border:1px solid rgba(242,238,230,.18);border-radius:8px;padding:15px;font-size:15.5px;
+  line-height:1.6;color:var(--cream);
+}
+.ed-left textarea:focus{outline:none;border-color:var(--amber);}
+.ed-left textarea::placeholder{color:#5C6674;}
+.ed-left .go{width:100%;margin-top:14px;padding:16px;border:0;border-radius:7px;background:var(--amber);
+  color:#1E1509;font-family:var(--disp);font-weight:700;font-size:16px;cursor:pointer;transition:background .25s,transform .25s;}
+.ed-left .go:hover{background:var(--amber-hi);transform:translateY(-1px);}
+.ed-right{display:flex;flex-direction:column;}
+.ed-right .cap{font-family:var(--disp);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--mute);margin-bottom:9px;}
+.ed-right .frame{flex:1;min-height:clamp(260px,42vh,420px);border:1px solid rgba(242,238,230,.18);
+  border-radius:8px;overflow:hidden;background:var(--ink);}
+.ed-right iframe{width:100%;height:100%;border:0;display:block;}
+.thanks{text-align:center;padding:16px 0 8px;}
+.thanks h2{font-size:clamp(26px,4.6vw,40px);padding:0;}
+.thanks p{margin-top:14px;color:#B9C0CA;font-size:15.5px;line-height:1.65;}
+.note-sm{margin-top:18px;font-size:12.5px;color:var(--faint);line-height:1.6;}
+
+/* the preview iframe hides the portal entry points so it cannot recurse */
+html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
+.ft-admin{background:none;border:0;padding:0;cursor:pointer;color:var(--faint);font-size:12.5px;
+  text-decoration:underline;text-underline-offset:3px;transition:color .25s;}
+.ft-admin:hover{color:var(--amber);}
+
 @media (prefers-reduced-motion: reduce){
   html{scroll-behavior:auto;}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;}
@@ -552,6 +680,9 @@ section{position:relative;}
 <a class="btn btn-ghost" href="#main" style="position:absolute;left:-9999px;top:0;z-index:200" onfocus="this.style.left='12px';this.style.top='12px'" onblur="this.style.left='-9999px'">Skip to content</a>
 
 <header class="hdr" id="hdr">
+  <button class="burger" id="burger" type="button" aria-label="Check the status of your estimate">
+    <i></i><i></i><i></i>
+  </button>
   <a class="brand" href="#top" aria-label="E &amp; G Painting, LLC — home">
     <img class="brand-mark" src="assets/img/logo-mark.webp" alt="" width="360" height="192" decoding="async">
     <span class="brand-tx">
@@ -966,7 +1097,8 @@ section{position:relative;}
   </div>
 
   <div class="shell ft-base">
-    <span>&copy; <span id="yr">2026</span> E &amp; G Painting, LLC. All rights reserved.</span>
+    <span>&copy; <span id="yr">2026</span> E &amp; G Painting, LLC. All rights reserved.
+      &middot; <button class="ft-admin" id="adminBtn" type="button">Admin</button></span>
     <span>32412 44th Ave S, Federal Way, WA 98001 &middot; <a href="tel:+12065570277" style="color:var(--mute)">(206) 557-0277</a></span>
   </div>
 </footer>
@@ -999,6 +1131,110 @@ section{position:relative;}
         <button type="button" class="mexit" data-close>Exit</button>
       </form>
     </div>
+  </div>
+</div>
+
+<!-- ===== customer: check my estimate ===== -->
+<div class="ov" id="statusOv" hidden>
+  <div class="ov-scrim" data-ovclose></div>
+  <div class="ov-box" role="dialog" aria-modal="true" aria-labelledby="stTitle">
+    <button class="ov-x" type="button" data-ovclose aria-label="Close">&times;</button>
+    <h2 id="stTitle">Check your estimate</h2>
+    <p class="sub">Enter the phone number you gave us and we&rsquo;ll pull up your request.</p>
+    <div class="mfield" style="margin-top:20px">
+      <label for="st-phone">Phone number</label>
+      <input id="st-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(206) 555-0123">
+    </div>
+    <p class="merr" id="stErr" role="alert" hidden></p>
+    <button class="mbtn" type="button" id="stGo">View my estimate</button>
+    <button class="mexit" type="button" data-ovclose>Exit</button>
+  </div>
+</div>
+
+<!-- ===== shared chat ===== -->
+<div class="ov" id="chatOv" hidden>
+  <div class="ov-scrim" data-ovclose></div>
+  <div class="ov-box" role="dialog" aria-modal="true" aria-labelledby="chTitle">
+    <button class="ov-x" type="button" data-ovclose aria-label="Close">&times;</button>
+    <div class="chat-head">
+      <span class="av" id="chAv" aria-hidden="true">&nbsp;</span>
+      <span><b id="chTitle">&nbsp;</b><span id="chSub">&nbsp;</span></span>
+    </div>
+    <div class="thread" id="chThread"></div>
+    <div class="chat-send">
+      <input id="chInput" type="text" placeholder="Write a message&hellip;" aria-label="Your message">
+      <button type="button" id="chSend">Send</button>
+    </div>
+    <div class="chat-foot"><button type="button" data-ovclose>Exit</button></div>
+    <p class="note-sm" id="chNote"></p>
+  </div>
+</div>
+
+<!-- ===== admin ===== -->
+<div class="ov" id="adminOv" hidden>
+  <div class="ov-scrim" data-ovclose></div>
+  <div class="ov-box" id="adminBox" role="dialog" aria-modal="true" aria-labelledby="adTitle">
+    <button class="ov-x" type="button" data-ovclose aria-label="Close">&times;</button>
+
+    <section class="scr" id="scrGate">
+      <h2 id="adTitle">Admin</h2>
+      <p class="sub">Enter the admin password to continue.</p>
+      <div class="mfield" style="margin-top:20px">
+        <label for="ad-pw">Password</label>
+        <input id="ad-pw" type="password" autocomplete="current-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;">
+      </div>
+      <p class="merr" id="adErr" role="alert" hidden></p>
+      <button class="mbtn" type="button" id="adGo">Sign in</button>
+      <button class="mexit" type="button" data-ovclose>Exit</button>
+    </section>
+
+    <section class="scr" id="scrHome" hidden>
+      <h2>Welcome back, Abraham</h2>
+      <p class="sub">What would you like to do?</p>
+      <div class="tiles">
+        <button class="tile" type="button" id="tileReq">
+          <b>View estimate requests</b>
+          <span>Read what customers sent in, reply to them, or delete them.</span>
+          <span class="pill" id="reqCount">0 requests</span>
+        </button>
+        <button class="tile" type="button" id="tileEdit">
+          <b>Make changes to the website</b>
+          <span>Describe what you want changed and send it to your developer.</span>
+          <span class="pill">Edit site</span>
+        </button>
+      </div>
+      <p class="note-sm" id="homeNote"></p>
+    </section>
+
+    <section class="scr" id="scrReq" hidden>
+      <h2>Estimate requests</h2>
+      <p class="sub">Tap a request to open it.</p>
+      <div class="qlist" id="qlist"></div>
+      <div class="chat-foot"><button type="button" id="reqBack">Back</button></div>
+    </section>
+
+    <section class="scr" id="scrEdit" hidden>
+      <h2>Edit / make changes to your website</h2>
+      <p class="sub">What would you like to change about the website?</p>
+      <div class="ed">
+        <div class="ed-left">
+          <h3>Your request</h3>
+          <p class="hint">Describe it in as much detail as you can.</p>
+          <textarea id="edText" placeholder="Please describe in detail how you'd like to change/edit your website."></textarea>
+          <button class="go" type="button" id="edGo">Submit to developer</button>
+        </div>
+        <div class="ed-right">
+          <span class="cap">Live view of your site</span>
+          <div class="frame"><iframe id="edFrame" title="Preview of the E &amp; G Painting website" loading="lazy"></iframe></div>
+        </div>
+      </div>
+      <div class="chat-foot" style="margin-top:16px"><button type="button" id="edBack">Back</button></div>
+    </section>
+
+    <section class="scr thanks" id="scrThanks" hidden>
+      <h2>Thank you for your submission</h2>
+      <p>Please allow 1&ndash;2 business days for the website developer to complete your request.</p>
+    </section>
   </div>
 </div>
 
@@ -1389,6 +1625,11 @@ if (!RM){
     if (g("em-email")) L.push("Email: "+g("em-email"));
     L.push(""); L.push("Project details:"); L.push(g("em-msg"));
     L.push(""); L.push("I consent to be contacted using the details above.");
+    if (window.EGStore) window.EGStore.addQuote({
+      name:g("em-name"), phone:g("em-phone"), email:g("em-email"),
+      where:"", type:"Estimate request",
+      message:g("em-msg"), consent:true
+    });
     var ios = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
     window.location.href = "sms:+12065570277" + (ios ? "&" : "?") + "body=" + encodeURIComponent(L.join("\n"));
     doc.getElementById("emBody").innerHTML =
@@ -1398,6 +1639,276 @@ if (!RM){
       'Press send there and we\'ll get back to you.</p>' +
       '<p style="margin-top:16px"><a class="btn btn-amber" href="tel:+12065570277">Or call us now</a></p></div>';
   });
+})();
+
+
+/* ================= quote + message store =================
+   Deliberately the ONLY place data is read or written. Every method is async,
+   so swapping these five bodies for Supabase calls is the whole backend job.
+   Until then this is browser-local: a quote saved on a customer's phone is NOT
+   visible in the admin panel on another device. ---------------------------- */
+window.EGStore = (function(){
+  var K = {q:"eg.quotes", m:"eg.messages", c:"eg.changes"};
+  function read(k){ try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch(e){ return []; } }
+  function write(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function id(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function digits(p){ return (p||"").replace(/\D/g,"").slice(-10); }
+  return {
+    backend: "local",
+    digits: digits,
+    listQuotes: async function(){
+      return read(K.q).sort(function(a,b){ return b.at - a.at; });
+    },
+    addQuote: async function(q){
+      var all = read(K.q);
+      q.id = id(); q.at = Date.now(); q.read = false; q.tel = digits(q.phone);
+      all.push(q); write(K.q, all); return q;
+    },
+    markRead: async function(qid){
+      var all = read(K.q), i;
+      for (i=0;i<all.length;i++) if (all[i].id===qid) all[i].read = true;
+      write(K.q, all);
+    },
+    deleteQuote: async function(qid){
+      write(K.q, read(K.q).filter(function(x){ return x.id !== qid; }));
+      write(K.m, read(K.m).filter(function(x){ return x.qid !== qid; }));
+    },
+    findByPhone: async function(phone){
+      var d = digits(phone);
+      if (d.length < 7) return null;
+      var hit = read(K.q).filter(function(x){ return x.tel === d; })
+                         .sort(function(a,b){ return b.at - a.at; });
+      return hit[0] || null;
+    },
+    messages: async function(qid){
+      return read(K.m).filter(function(x){ return x.qid === qid; })
+                      .sort(function(a,b){ return a.at - b.at; });
+    },
+    addMessage: async function(qid, who, body){
+      var all = read(K.m), m = {id:id(), qid:qid, who:who, body:body, at:Date.now()};
+      all.push(m); write(K.m, all); return m;
+    },
+    addChangeRequest: async function(body){
+      var all = read(K.c); all.push({id:id(), body:body, at:Date.now()});
+      write(K.c, all);
+    }
+  };
+})();
+
+/* ================= portal UI ================= */
+(function(){
+  var ADMIN_PW = "e&g-painting";
+  var PREVIEW = /[?&]preview=1/.test(location.search);
+  if (PREVIEW) doc.documentElement.classList.add("is-preview");
+
+  // Overlays STACK: the chat opens on top of the admin panel, and closing it
+  // must reveal the panel again rather than leave the page with nothing open.
+  var stack = [];
+  function show(ov){
+    if (stack.indexOf(ov) === -1) stack.push(ov);
+    ov.hidden = false;
+    doc.documentElement.style.overflow = "hidden";
+    hideHint();
+    requestAnimationFrame(function(){ ov.classList.add("in"); });
+  }
+  function hide(ov){
+    ov.classList.remove("in");
+    setTimeout(function(){ if (stack.indexOf(ov) === -1) ov.hidden = true; }, 320);
+    stack = stack.filter(function(x){ return x !== ov; });
+    if (!stack.length){ doc.documentElement.style.overflow = ""; armHint(); }
+  }
+  $$("[data-ovclose]").forEach(function(el){
+    el.addEventListener("click", function(){ var o = el.closest(".ov"); if (o) hide(o); });
+  });
+  doc.addEventListener("keydown", function(e){ if (e.key === "Escape" && stack.length) hide(stack[stack.length-1]); });
+
+  var statusOv = doc.getElementById("statusOv"),
+      chatOv   = doc.getElementById("chatOv"),
+      adminOv  = doc.getElementById("adminOv");
+
+  function esc(t){ var d = doc.createElement("div"); d.textContent = t == null ? "" : t; return d.innerHTML; }
+  function when(ts){
+    var d = new Date(ts);
+    return d.toLocaleDateString(undefined,{month:"short",day:"numeric"}) + " " +
+           d.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"});
+  }
+  function initials(nm){
+    return (nm||"?").trim().split(/\s+/).slice(0,2).map(function(w){ return w[0]; }).join("").toUpperCase();
+  }
+
+  /* ---------- chat, shared by admin and customer ---------- */
+  var chatQid = null, chatWho = "admin";
+  async function paintThread(){
+    var box = doc.getElementById("chThread");
+    var list = await EGStore.messages(chatQid);
+    if (!list.length){
+      box.innerHTML = '<div class="none">No messages yet. Say hello below.</div>';
+    } else {
+      box.innerHTML = list.map(function(m){
+        var mine = m.who === chatWho;
+        return '<div class="msg ' + (mine ? "me" : "them") + '">' + esc(m.body) +
+               '<small>' + (m.who === "admin" ? "E &amp; G Painting" : "Customer") + " &middot; " + when(m.at) + '</small></div>';
+      }).join("");
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+  async function openChat(q, who){
+    chatQid = q.id; chatWho = who;
+    doc.getElementById("chAv").textContent = initials(q.name);
+    doc.getElementById("chTitle").innerHTML = who === "admin" ? esc(q.name) : "E &amp; G Painting";
+    doc.getElementById("chSub").textContent = who === "admin" ? (q.phone || "") : "Your estimate conversation";
+    doc.getElementById("chNote").textContent =
+      "Messages are saved on this device only until the shared database is connected.";
+    await paintThread();
+    show(chatOv);
+    setTimeout(function(){ doc.getElementById("chInput").focus(); }, 120);
+  }
+  async function sendMsg(){
+    var i = doc.getElementById("chInput"), v = (i.value||"").trim();
+    if (!v || !chatQid) return;
+    i.value = "";
+    await EGStore.addMessage(chatQid, chatWho, v);
+    await paintThread();
+  }
+  doc.getElementById("chSend").addEventListener("click", sendMsg);
+  doc.getElementById("chInput").addEventListener("keydown", function(e){
+    if (e.key === "Enter"){ e.preventDefault(); sendMsg(); }
+  });
+
+  /* ---------- customer: check my estimate ---------- */
+  var burger = doc.getElementById("burger");
+  if (burger) burger.addEventListener("click", function(){
+    doc.getElementById("stErr").hidden = true;
+    doc.getElementById("st-phone").value = "";
+    show(statusOv);
+    setTimeout(function(){ doc.getElementById("st-phone").focus(); }, 120);
+  });
+  doc.getElementById("stGo").addEventListener("click", async function(){
+    var err = doc.getElementById("stErr");
+    var phone = doc.getElementById("st-phone").value;
+    if (EGStore.digits(phone).length < 7){
+      err.hidden = false; err.textContent = "Please enter the phone number you gave us."; return;
+    }
+    var q = await EGStore.findByPhone(phone);
+    if (!q){
+      err.hidden = false;
+      err.textContent = "We couldn't find an estimate for that number on this device. Requests are only visible on the device they were sent from until the shared database is connected.";
+      return;
+    }
+    err.hidden = true;
+    hide(statusOv);          // replace the lookup box; exiting chat returns to the page
+    openChat(q, "customer");
+  });
+
+  /* ---------- admin ---------- */
+  var screens = ["scrGate","scrHome","scrReq","scrEdit","scrThanks"];
+  function screen(idOn){
+    screens.forEach(function(sid){ doc.getElementById(sid).hidden = (sid !== idOn); });
+    doc.getElementById("adminBox").classList.toggle("wide", idOn === "scrEdit");
+  }
+  var adminBtn = doc.getElementById("adminBtn");
+  if (adminBtn) adminBtn.addEventListener("click", function(){
+    screen("scrGate");
+    doc.getElementById("ad-pw").value = "";
+    doc.getElementById("adErr").hidden = true;
+    show(adminOv);
+    setTimeout(function(){ doc.getElementById("ad-pw").focus(); }, 120);
+  });
+  async function signIn(){
+    var err = doc.getElementById("adErr");
+    if (doc.getElementById("ad-pw").value !== ADMIN_PW){
+      err.hidden = false; err.textContent = "That password isn't right."; return;
+    }
+    err.hidden = true;
+    var qs = await EGStore.listQuotes();
+    doc.getElementById("reqCount").textContent = qs.length + (qs.length === 1 ? " request" : " requests");
+    doc.getElementById("homeNote").textContent =
+      "Signed in on this device. This password is checked in the browser, so treat it as a soft lock rather than real security until the backend is connected.";
+    screen("scrHome");
+  }
+  doc.getElementById("adGo").addEventListener("click", signIn);
+  doc.getElementById("ad-pw").addEventListener("keydown", function(e){ if (e.key === "Enter") signIn(); });
+
+  async function paintQuotes(){
+    var wrap = doc.getElementById("qlist");
+    var qs = await EGStore.listQuotes();
+    if (!qs.length){
+      wrap.innerHTML = '<div class="qempty">No estimate requests yet.<br>' +
+        'They will appear here as customers send them in from this device.</div>';
+      return;
+    }
+    wrap.innerHTML = qs.map(function(q){
+      return '<div class="q" data-id="' + q.id + '">' +
+        '<button class="q-head" type="button">' +
+          (q.read ? '' : '<span class="q-new" title="Unread"></span>') +
+          '<span class="who"><b>' + esc(q.name) + '</b><span>' + esc(q.type || "Estimate request") +
+            ' &middot; ' + when(q.at) + '</span></span><span class="chev">&#9660;</span>' +
+        '</button>' +
+        '<div class="q-body">' +
+          '<div class="q-row"><b>Phone</b><span><a href="tel:' + esc(q.phone) + '">' + esc(q.phone) + '</a></span></div>' +
+          (q.email ? '<div class="q-row"><b>Email</b><span><a href="mailto:' + esc(q.email) + '">' + esc(q.email) + '</a></span></div>' : '') +
+          (q.where ? '<div class="q-row"><b>Address</b><span>' + esc(q.where) + '</span></div>' : '') +
+          '<div class="q-row"><b>Work</b><span>' + esc(q.type || "-") + '</span></div>' +
+          '<div class="q-row"><b>Details</b><span>' + esc(q.message) + '</span></div>' +
+          '<div class="q-row"><b>Consent</b><span>' + (q.consent ? "Given" : "Not recorded") + '</span></div>' +
+          '<div class="q-acts">' +
+            '<button class="b-reply" type="button" data-act="reply">Reply</button>' +
+            '<button class="b-del" type="button" data-act="del">Delete</button>' +
+          '</div>' +
+        '</div></div>';
+    }).join("");
+  }
+  doc.getElementById("qlist").addEventListener("click", async function(e){
+    var card = e.target.closest(".q"); if (!card) return;
+    var qid = card.dataset.id;
+    if (e.target.closest(".q-head")){
+      card.classList.toggle("open");
+      if (card.classList.contains("open")){
+        await EGStore.markRead(qid);
+        var dot = card.querySelector(".q-new"); if (dot) dot.remove();
+      }
+      return;
+    }
+    var btn = e.target.closest("[data-act]"); if (!btn) return;
+    var all = await EGStore.listQuotes();
+    var q = all.filter(function(x){ return x.id === qid; })[0];
+    if (!q) return;
+    if (btn.dataset.act === "reply"){ openChat(q, "admin"); return; }
+    if (btn.dataset.act === "del"){
+      if (!btn.classList.contains("arm")){
+        btn.classList.add("arm"); btn.textContent = "Tap again to delete";
+        setTimeout(function(){ btn.classList.remove("arm"); btn.textContent = "Delete"; }, 3500);
+        return;
+      }
+      await EGStore.deleteQuote(qid);
+      await paintQuotes();
+    }
+  });
+  doc.getElementById("tileReq").addEventListener("click", async function(){
+    await paintQuotes(); screen("scrReq");
+  });
+  doc.getElementById("reqBack").addEventListener("click", function(){ screen("scrHome"); });
+
+  doc.getElementById("tileEdit").addEventListener("click", function(){
+    var f = doc.getElementById("edFrame");
+    if (!f.getAttribute("src")) f.setAttribute("src", "index.html?preview=1");
+    doc.getElementById("edText").value = "";
+    screen("scrEdit");
+  });
+  doc.getElementById("edBack").addEventListener("click", function(){ screen("scrHome"); });
+  doc.getElementById("edGo").addEventListener("click", async function(){
+    var t = (doc.getElementById("edText").value || "").trim();
+    if (!t){ doc.getElementById("edText").focus(); return; }
+    await EGStore.addChangeRequest(t);
+    screen("scrThanks");
+  });
+  // the X on the thank-you screen returns to the welcome page rather than closing
+  doc.querySelector("#adminOv .ov-x").addEventListener("click", function(e){
+    if (!doc.getElementById("scrThanks").hidden){
+      e.stopImmediatePropagation();
+      screen("scrHome");
+    }
+  }, true);
 })();
 
 window.addEventListener("scroll", onScroll, {passive:true});
