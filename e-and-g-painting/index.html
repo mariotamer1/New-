@@ -92,6 +92,7 @@
   --ink:#0A0C0F; --ink-2:#11151B; --ink-3:#181D25;
   --cobalt:#1F4ED8; --cobalt-lo:#132C8C; --cobalt-hi:#5B85FF;
   --amber:#E39B3C; --amber-hi:#F5BC66;
+  --brown:#C0885A; --brown-hi:#D7A177;
   --cream:#F2EEE6; --mute:#9AA4B2; --faint:#5C6674;
   --line:rgba(242,238,230,.12); --line-2:rgba(242,238,230,.22);
   --disp:'EGDisplay','Archivo',system-ui,-apple-system,'Segoe UI',sans-serif;
@@ -219,14 +220,28 @@ section{position:relative;}
 .rail i{display:block;width:2px;height:18px;background:rgba(242,238,230,.2);border-radius:2px;transition:background .35s,height .35s var(--ease);}
 .rail i.on{background:var(--amber);height:30px;}
 @media(max-width:700px){.rail{display:none;}}
-.scrub-hint{
-  position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:5;
-  font-family:var(--disp);font-size:10px;letter-spacing:.24em;text-transform:uppercase;
-  color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:9px;
-  transition:opacity .5s;
+/* "Keep scrolling" — fixed so it can surface anywhere on the page */
+.keepscroll{
+  position:fixed;left:50%;bottom:26px;z-index:85;
+  transform:translate3d(-50%,8px,0);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .45s var(--ease),transform .55s var(--ease),visibility .45s;
 }
-.scrub-hint i{display:block;width:1px;height:34px;background:linear-gradient(to bottom,var(--amber),transparent);animation:drip 2.1s var(--ease) infinite;}
+.keepscroll.on{opacity:1;visibility:visible;transform:translate3d(-50%,0,0);}
+.ks-text{
+  font-family:var(--disp);font-size:12px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;
+  color:var(--brown);
+  text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:5px;
+  padding:8px 16px;border-radius:2px;
+  background:rgba(10,12,15,.55);backdrop-filter:blur(6px);
+  text-shadow:0 1px 12px rgba(10,12,15,.95);
+}
+.ks-line{display:block;width:1px;height:28px;background:linear-gradient(to bottom,var(--brown),transparent);animation:drip 2.1s var(--ease) infinite;}
 @keyframes drip{0%{transform:scaleY(0);transform-origin:top;}45%{transform:scaleY(1);transform-origin:top;}55%{transform:scaleY(1);transform-origin:bottom;}100%{transform:scaleY(0);transform-origin:bottom;}}
+/* clear the sticky call bar on phones */
+@media(max-width:760px){.keepscroll{bottom:74px;}}
 
 /* fallback list shown only when reduced-motion / no video */
 .scrub-static{display:none;}
@@ -447,7 +462,7 @@ section{position:relative;}
   .scrub-stage{position:relative;height:auto;display:block;}
   .scrub-media{display:none;}
   .chapters{display:none;}
-  .rail,.scrub-hint{display:none;}
+  .rail,.keepscroll{display:none;}
   .scrub-static{display:block;padding-block:clamp(90px,12vw,140px);}
   .scrub-static .ss-item{display:grid;grid-template-columns:auto 1fr;gap:clamp(18px,3vw,40px);padding-block:clamp(26px,3.4vw,44px);border-top:1px solid var(--line);}
   .scrub-static .ss-item:first-child{border-top:0;}
@@ -565,7 +580,6 @@ section{position:relative;}
       </article>
     </div>
 
-    <div class="scrub-hint" id="hint" aria-hidden="true"><span>Scroll</span><i></i></div>
   </div>
 
   <!-- reduced-motion / no-video fallback -->
@@ -902,6 +916,11 @@ section{position:relative;}
   </div>
 </footer>
 
+<div class="keepscroll" id="hint" aria-hidden="true">
+  <span class="ks-text">Keep scrolling</span>
+  <i class="ks-line"></i>
+</div>
+
 <div class="callbar" aria-label="Quick contact">
   <a class="c1" href="https://www.google.com/maps/dir/?api=1&amp;destination=32412%2044th%20Ave%20S%2C%20Federal%20Way%2C%20WA%2098001" target="_blank" rel="noopener">Directions</a>
   <a class="c2" href="tel:+12065570277">Call (206) 557-0277</a>
@@ -1143,19 +1162,34 @@ function setChapters(p){
   }
 }
 
+var idleTimer = 0;
+function hideHint(){ if (hint) hint.classList.remove("on"); }
+function showHint(){
+  if (!hint) return;
+  // At the very bottom there is nothing left to scroll, so the prompt would lie.
+  var atEnd = window.innerHeight + window.scrollY >= doc.documentElement.scrollHeight - 4;
+  if (!atEnd) hint.classList.add("on");
+}
+function armHint(){
+  hideHint();
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(showHint, 2000);   // 2s after scrolling stops
+}
+
 function onScroll(){
   onHdr();
   parallax();
+  armHint();
   if (RM) return;
   var r = sec.getBoundingClientRect();
   var span = sec.offsetHeight - window.innerHeight;
   var p = clamp((-r.top) / (span>0?span:1), 0, 1);
   setChapters(p);
-  if (hint) hint.style.opacity = p > 0.02 ? "0" : "1";
 
   if (ambient && p > 0.004){                       // hand over from autoplay to scrub
     ambient = false;
-    vids[0].loop = false;
+    // Glide from wherever the intro stopped instead of snapping back to frame 0.
+    smooth = clamp((vids[0].currentTime || 0) / TOTAL, 0, 1);
     try { vids[0].pause(); } catch(e){}
   }
   if (!ambient){ target = p; kick(); }
@@ -1164,7 +1198,7 @@ function onScroll(){
 if (!RM){
   attach(0);
   var v1 = vids[0];
-  v1.loop = true;
+  v1.loop = false;          // play the intro once, then hold the last frame
   v1.classList.add("on");
   v1.addEventListener("loadeddata", function(){
     ready = true;
@@ -1193,7 +1227,11 @@ if (!RM){
 }
 
 window.addEventListener("scroll", onScroll, {passive:true});
+["touchmove","wheel","keydown"].forEach(function(ev){
+  window.addEventListener(ev, armHint, {passive:true});
+});
 onScroll();
+armHint();
 })();
 </script>
 </body>
