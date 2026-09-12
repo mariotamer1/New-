@@ -1081,7 +1081,7 @@ var TOTAL = CLIPS.reduce(function(a,c){return a+c.dur;},0);
 var STARTS = []; (function(){ var t=0; CLIPS.forEach(function(c){ STARTS.push(t); t+=c.dur; }); })();
 
 var active = -1, ambient = true, primed = false, ready = false;
-var target = 0, smooth = 0, rafId = 0;
+var target = 0, smooth = 0, rafId = 0, spin = 0;
 
 function isMobile(){ return window.matchMedia("(max-width: 760px)").matches; }
 
@@ -1093,6 +1093,8 @@ function attach(i){
   v.setAttribute("poster", c.p);
   v.preload = "auto";
   v.src = isMobile() && c.m ? c.m : c.d;
+  v.addEventListener("loadeddata", kick);
+  v.addEventListener("seeked", kick);
   v.load();
 }
 function show(i){
@@ -1105,11 +1107,12 @@ function show(i){
 }
 
 function seek(v, t){
-  if (!v || !v.duration || isNaN(v.duration)) return;
+  if (!v || !v.duration || isNaN(v.duration)) return false;   // metadata not in yet: retry
   var want = clamp(t, 0, v.duration - 0.03);
-  if (v.seeking) return;
-  if (Math.abs(v.currentTime - want) < 1/60) return;
+  if (Math.abs(v.currentTime - want) < 0.02) return true;     // frame is on screen
+  if (v.seeking) return false;                                // seek in flight: retry
   try { v.currentTime = want; } catch(e){}
+  return false;                                               // confirm on a later frame
 }
 
 function frame(){
@@ -1120,10 +1123,15 @@ function frame(){
   var idx = 0;
   for (var i=CLIPS.length-1;i>=0;i--){ if (gt >= STARTS[i]) { idx = i; break; } }
   show(idx);
-  seek(vids[idx], gt - STARTS[idx]);
-  if (Math.abs(target - smooth) > 0.0008) rafId = requestAnimationFrame(frame);
+  var landed = seek(vids[idx], gt - STARTS[idx]);
+  var moving = Math.abs(target - smooth) > 0.0008;
+  // Keep running until the frame is actually painted. A seek issued while the
+  // element is still seeking is dropped, and once scrolling stops there is no
+  // further event to retry it - which would strand the film on frame 0.
+  if (moving || !landed){ if (++spin < 300) rafId = requestAnimationFrame(frame); }
+  else spin = 0;
 }
-function kick(){ if (!rafId) rafId = requestAnimationFrame(frame); }
+function kick(){ spin = 0; if (!rafId) rafId = requestAnimationFrame(frame); }
 
 function setChapters(p){
   for (var i=0;i<chapters.length;i++){
