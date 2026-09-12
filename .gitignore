@@ -8,3 +8,7 @@ e-and-g-painting/assets/world/
 e-and-g-painting/assets/font/
 e-and-g-painting/assets/img/*.jpg
 e-and-g-painting/assets/img/*.png
+# the brand logo is source-of-truth, not a generated asset - keep it tracked
+!e-and-g-painting/assets/img/logo-*.webp
+!e-and-g-painting/assets/img/icon-180.png
+!e-and-g-painting/assets/img/favicon.png
