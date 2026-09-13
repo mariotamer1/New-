@@ -1438,6 +1438,10 @@ var STARTS = []; (function(){ var t=0; CLIPS.forEach(function(c){ STARTS.push(t)
 
 var active = -1, ambient = true, primed = false, ready = false;
 var target = 0, smooth = 0, rafId = 0, spin = 0;
+// Global time the scrubber starts from. Set at handover to wherever the intro
+// actually stopped, so scrolling carries the film FORWARD instead of rewinding
+// over footage the visitor has already watched.
+var floorT = 0;
 
 function isMobile(){ return window.matchMedia("(max-width: 760px)").matches; }
 
@@ -1475,7 +1479,10 @@ function frame(){
   rafId = 0;
   smooth += (target - smooth) * 0.16;
   if (Math.abs(target - smooth) < 0.0008) smooth = target;
-  var gt = smooth * TOTAL;
+  // scroll 0..1 spans only what is LEFT of the film after the intro
+  var remain = TOTAL - floorT;
+  var gt = floorT + smooth * (remain > 0 ? remain : 0);
+  setChapters(gt / TOTAL);          // copy tracks the film, not the scrollbar
   var idx = 0;
   for (var i=CLIPS.length-1;i>=0;i--){ if (gt >= STARTS[i]) { idx = i; break; } }
   show(idx);
@@ -1521,12 +1528,13 @@ function onScroll(){
   var r = sec.getBoundingClientRect();
   var span = sec.offsetHeight - window.innerHeight;
   var p = clamp((-r.top) / (span>0?span:1), 0, 1);
-  setChapters(p);
 
   if (ambient && p > 0.004){                       // hand over from autoplay to scrub
     ambient = false;
-    // Glide from wherever the intro stopped instead of snapping back to frame 0.
-    smooth = clamp((vids[0].currentTime || 0) / TOTAL, 0, 1);
+    // Pin the scrubber to where the intro left off and treat that as scroll 0,
+    // so the first scroll continues the story rather than restarting it.
+    floorT = clamp(vids[0].currentTime || 0, 0, TOTAL);
+    smooth = 0;
     try { vids[0].pause(); } catch(e){}
   }
   if (!ambient){ target = p; kick(); }
@@ -1541,6 +1549,10 @@ if (!RM){
     ready = true;
     poster1.classList.remove("on");
   }, {once:true});
+  // while the intro plays itself, the chapter copy follows the video
+  v1.addEventListener("timeupdate", function(){
+    if (ambient) setChapters((v1.currentTime || 0) / TOTAL);
+  });
   // autoplay muted + looping until the visitor starts scrolling
   var pr = v1.play();
   if (pr && pr.catch) pr.catch(function(){ /* blocked: poster stays, scrub still works */ });
