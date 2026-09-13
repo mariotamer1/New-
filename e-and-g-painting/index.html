@@ -531,6 +531,10 @@ section{position:relative;}
 .mdone .tick{width:56px;height:56px;margin:0 auto 18px;border-radius:50%;background:rgba(227,155,60,.15);
   border:1px solid var(--amber);display:grid;place-items:center;color:var(--amber);font-size:26px;}
 .mdone h3{margin-bottom:10px;}
+/* outrank .modal-box h2 and .mdone p, which are more specific than a bare class */
+.modal-box .thx-big{font-size:clamp(38px,9vw,56px);letter-spacing:-.02em;padding:0;margin-bottom:16px;line-height:1.05;}
+.modal-box .thx-sm{color:#B9C0CA;font-size:clamp(15px,1.1vw + 12px,17px);line-height:1.6;max-width:34ch;margin-inline:auto;}
+.mdone .mexit{margin-top:26px;}
 .mdone p{color:#B9C0CA;font-size:15px;line-height:1.6;}
 
 
@@ -1121,8 +1125,6 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
           <input id="em-name" name="name" type="text" autocomplete="name"></div>
         <div class="mfield"><label for="em-phone">Phone Number</label>
           <input id="em-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"></div>
-        <div class="mfield"><label for="em-email">Email</label>
-          <input id="em-email" name="email" type="email" inputmode="email" autocomplete="email"></div>
         <div class="mfield"><label for="em-msg">Project details</label>
           <textarea id="em-msg" name="message" placeholder="Please describe or tell us the square footage of where you&rsquo;re trying to paint."></textarea></div>
         <label class="mconsent" id="emConsent">
@@ -1131,11 +1133,19 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
           <span class="mtext">I consent that E &amp; G Painting may contact me by the contact information I wrote above.
             <button type="button" class="mlearn" id="emLearn" aria-expanded="false" aria-controls="emLearnBody">Learn more</button></span>
         </label>
-        <p class="mnote" id="emLearnBody" hidden>Your name, phone, email and project details are used only to reply to you about this estimate. Nothing is stored on this website and nothing is sent to any third party &mdash; pressing Request Estimate opens your own messaging app with the details written out, and it is not sent until you press send.</p>
+        <p class="mnote" id="emLearnBody" hidden>Your name, phone number and project details are used only to reply to you about this estimate. They are not shared with anyone else.</p>
         <p class="merr" id="emErr" role="alert" hidden></p>
         <button type="submit" class="mbtn">Request Estimate</button>
         <button type="button" class="mexit" data-close>Exit</button>
       </form>
+    </div>
+    <div id="emThanks" hidden>
+      <div class="mdone">
+        <div class="tick">&#10003;</div>
+        <h2 class="thx-big">Thank you</h2>
+        <p class="thx-sm">Please allow us 24 to 48 hours to contact you.</p>
+        <button type="button" class="mexit" data-close>Exit</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1586,6 +1596,15 @@ if (!RM){
   function open(e){
     if (e) e.preventDefault();
     lastFocus = doc.activeElement;
+    var body = doc.getElementById("emBody"), thx = doc.getElementById("emThanks");
+    if (thx && !thx.hidden){                       // reset after a previous submit
+      thx.hidden = true; body.hidden = false;
+      ["em-name","em-phone","em-msg"].forEach(function(id){ doc.getElementById(id).value = ""; });
+      doc.getElementById("em-ok").checked = false;
+      $$(".mfield", modal).forEach(function(f){ f.classList.remove("bad"); });
+      doc.getElementById("emConsent").classList.remove("bad");
+      doc.getElementById("emErr").hidden = true;
+    }
     modal.hidden = false;
     doc.documentElement.style.overflow = "hidden";   // lock without moving the scrub
     hideHint();
@@ -1646,25 +1665,12 @@ if (!RM){
     }
     err.hidden = true;
     var g = function(id){ return (doc.getElementById(id).value||"").trim(); };
-    var L = ["Free estimate request - E & G Painting",""];
-    L.push("Name: "+g("em-name"));
-    L.push("Phone: "+g("em-phone"));
-    if (g("em-email")) L.push("Email: "+g("em-email"));
-    L.push(""); L.push("Project details:"); L.push(g("em-msg"));
-    L.push(""); L.push("I consent to be contacted using the details above.");
     if (window.EGStore) window.EGStore.addQuote({
-      name:g("em-name"), phone:g("em-phone"), email:g("em-email"),
-      where:"", type:"Estimate request",
-      message:g("em-msg"), consent:true
+      name:g("em-name"), phone:g("em-phone"), email:"",
+      where:"", type:"Estimate request", message:g("em-msg"), consent:true
     });
-    var ios = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
-    window.location.href = "sms:+12065570277" + (ios ? "&" : "?") + "body=" + encodeURIComponent(L.join("\n"));
-    doc.getElementById("emBody").innerHTML =
-      '<div class="mdone"><div class="tick">&#10003;</div>' +
-      '<h3>Your request is ready to send.</h3>' +
-      '<p>We\'ve opened your messaging app with the details filled in for (206)&nbsp;557-0277. ' +
-      'Press send there and we\'ll get back to you.</p>' +
-      '<p style="margin-top:16px"><a class="btn btn-amber" href="tel:+12065570277">Or call us now</a></p></div>';
+    doc.getElementById("emBody").hidden = true;
+    doc.getElementById("emThanks").hidden = false;
   });
 })();
 
