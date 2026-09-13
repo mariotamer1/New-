@@ -532,8 +532,8 @@ section{position:relative;}
   border:1px solid var(--amber);display:grid;place-items:center;color:var(--amber);font-size:26px;}
 .mdone h3{margin-bottom:10px;}
 /* outrank .modal-box h2 and .mdone p, which are more specific than a bare class */
-.modal-box .thx-big{font-size:clamp(38px,9vw,56px);letter-spacing:-.02em;padding:0;margin-bottom:16px;line-height:1.05;}
-.modal-box .thx-sm{color:#B9C0CA;font-size:clamp(15px,1.1vw + 12px,17px);line-height:1.6;max-width:34ch;margin-inline:auto;}
+#fThanks .thx-big,.modal-box .thx-big{font-size:clamp(38px,9vw,56px);letter-spacing:-.02em;padding:0;margin-bottom:16px;line-height:1.05;}
+#fThanks .thx-sm,.modal-box .thx-sm{color:#B9C0CA;font-size:clamp(15px,1.1vw + 12px,17px);line-height:1.6;max-width:34ch;margin-inline:auto;}
 .mdone .mexit{margin-top:26px;}
 .mdone p{color:#B9C0CA;font-size:15px;line-height:1.6;}
 
@@ -1000,13 +1000,21 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
           <textarea id="f-msg" name="message" placeholder="Two-story house, siding and trim. Some peeling on the south wall. Hoping to start in the next month." required></textarea>
         </div>
         <div class="f-actions">
-          <button type="button" class="btn btn-amber" id="sendSms">Send by Text &rarr;</button>
+          <button type="button" class="btn btn-amber" id="sendReq">Request Estimate &rarr;</button>
           <a class="btn btn-cobalt" href="tel:+12065570277">Call (206) 557-0277</a>
           <button type="button" class="btn btn-ghost" id="copyReq">Copy Request</button>
         </div>
-        <p class="f-note" id="fNote">&ldquo;Send by Text&rdquo; opens your own messaging app with the request written out, addressed to (206)&nbsp;557-0277 — nothing is sent until you press send. Nothing you type here is transmitted anywhere else.</p>
+        <p class="f-note" id="fNote">Prefer to speak to someone now? Call (206)&nbsp;557-0277. &ldquo;Copy Request&rdquo; puts the details on your clipboard so you can paste them wherever you like.</p>
         <div class="f-out" id="fOut" role="status" aria-live="polite"></div>
       </form>
+      <div id="fThanks" hidden>
+        <div class="mdone">
+          <div class="tick">&#10003;</div>
+          <h2 class="thx-big">Thank you</h2>
+          <p class="thx-sm">Please allow us 24 to 48 hours to contact you.</p>
+          <p style="margin-top:22px"><a class="btn btn-ghost" href="tel:+12065570277">Call (206) 557-0277</a></p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -1373,7 +1381,6 @@ $$("[data-ba]").forEach(function(inp){
 });
 
 /* ================= free estimate ================= */
-var PHONE_E164 = "+12065570277";
 function buildMsg(){
   var g = function(id){ var e = doc.getElementById(id); return (e.value||"").trim(); };
   var L = [];
@@ -1400,11 +1407,15 @@ function validate(){
   }
   return ok;
 }
-doc.getElementById("sendSms").addEventListener("click", function(){
+doc.getElementById("sendReq").addEventListener("click", function(){
   if(!validate()) return;
-  var body = encodeURIComponent(buildMsg());
-  var ios  = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
-  window.location.href = "sms:" + PHONE_E164 + (ios ? "&" : "?") + "body=" + body;
+  var g = function(id){ return (doc.getElementById(id).value||"").trim(); };
+  if (window.EGStore) window.EGStore.addQuote({
+    name:g("f-name"), phone:g("f-phone"), email:"", where:g("f-where"),
+    type:doc.getElementById("f-type").value, message:g("f-msg"), consent:true
+  });
+  doc.getElementById("estForm").hidden = true;
+  doc.getElementById("fThanks").hidden = false;
 });
 doc.getElementById("copyReq").addEventListener("click", function(){
   var txt = buildMsg(), out = doc.getElementById("fOut");
