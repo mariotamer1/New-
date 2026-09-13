@@ -319,6 +319,11 @@ p{margin:0}
 .ba-tab{background:var(--ink-1);border:0;padding:14px 22px;cursor:pointer;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--grey-2);transition:color .3s,background .3s}
 .ba-tab:hover{color:var(--gyp)}
 .ba-tab[aria-selected="true"]{background:var(--gyp);color:var(--ink)}
+@media(max-width:800px){
+  .ba-tabs{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .ba-tab{padding:15px 12px;letter-spacing:.13em;text-align:center}
+  .ba-tab:first-child{grid-column:1 / -1}
+}
 .ba-stage{position:relative;border:1px solid var(--line);background:var(--ink-2);overflow:hidden;aspect-ratio:16/9;touch-action:pan-y;cursor:ew-resize;user-select:none;-webkit-user-select:none}
 .ba-stage canvas{position:absolute;inset:0;width:100%;height:100%}
 .ba-after{clip-path:inset(0 0 0 var(--split,50%))}
@@ -711,39 +716,12 @@ p{margin:0}
       <div class="form rv d1">
         <form id="estForm" novalidate>
           <h3>Request a free estimate</h3>
-          <p class="hint">Drywall repair, restoration, replacement and finishing — Orting, WA.</p>
+          <p class="hint">Name, phone and what happened to the wall — that is all we need.</p>
           <div class="frow">
             <div class="f"><label for="fName">Name</label><input id="fName" name="name" type="text" autocomplete="name" required><span class="err">Please enter your name.</span></div>
             <div class="f"><label for="fPhone">Phone</label><input id="fPhone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required><span class="err">Please enter a phone number we can reach you at.</span></div>
           </div>
-          <div class="frow">
-            <div class="f"><label for="fEmail">Email</label><input id="fEmail" name="email" type="email" autocomplete="email" required><span class="err">Please enter a valid email address.</span></div>
-            <div class="f"><label for="fCity">City</label><input id="fCity" name="city" type="text" autocomplete="address-level2" placeholder="Orting"></div>
-          </div>
-          <div class="frow">
-            <div class="f"><label for="fType">Type of work</label>
-              <select id="fType" name="service">
-                <option>Not sure — please advise</option>
-                <option>Drywall repair</option>
-                <option>Drywall restoration</option>
-                <option>Drywall replacement</option>
-                <option>Hole or crack repair</option>
-                <option>Water-damaged drywall</option>
-                <option>Seam or joint repair</option>
-                <option>Drywall finishing / texture match</option>
-              </select>
-            </div>
-            <div class="f"><label for="fWhen">Timeline</label>
-              <select id="fWhen" name="timeline">
-                <option>As soon as possible</option>
-                <option>Within a couple of weeks</option>
-                <option>Within a month or two</option>
-                <option>Just getting pricing</option>
-              </select>
-            </div>
-          </div>
           <div class="f"><label for="fMsg">Describe your drywall project</label><textarea id="fMsg" name="message" required placeholder="Example: About a 12 inch hole in the living room wall next to the doorway, plus two long cracks above the window."></textarea><span class="err">A short description helps us scope the repair.</span></div>
-          <div class="f"><label for="fExtra">Optional details</label><input id="fExtra" name="extra" type="text" placeholder="Ceiling height, texture type, best time to reach you"></div>
           <button class="btn btn-lg" type="submit">Send My Request
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
@@ -981,7 +959,6 @@ const yr=$('#yr'); if(yr) yr.textContent=new Date().getFullYear();
   const checks=[
     ['#fName', v=>v.trim().length>1],
     ['#fPhone',v=>digits(v).length>=7],
-    ['#fEmail',v=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())],
     ['#fMsg',  v=>v.trim().length>9]
   ];
 
@@ -990,17 +967,11 @@ const yr=$('#yr'); if(yr) yr.textContent=new Date().getFullYear();
     return [
       'DRYWALL ESTIMATE REQUEST — Rescue Drywall',
       '',
-      'Name:        '+g('#fName'),
-      'Phone:       '+g('#fPhone'),
-      'Email:       '+g('#fEmail'),
-      'City:        '+(g('#fCity')||'—'),
-      'Type of work:'+' '+$('#fType').value,
-      'Timeline:    '+$('#fWhen').value,
+      'Name:  '+g('#fName'),
+      'Phone: '+g('#fPhone'),
       '',
       'PROJECT DESCRIPTION',
       g('#fMsg'),
-      '',
-      'Optional details: '+(g('#fExtra')||'—'),
       '',
       'Sent from rescuedrywall.com'
     ].join('\n');
