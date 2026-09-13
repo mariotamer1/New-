@@ -318,6 +318,7 @@ section{position:relative;}
              0 0 44px -6px var(--glow,rgba(255,255,255,.35));
 }
 .sw.up::after{opacity:1;}
+@media(max-width:620px){.sw.up{transform:scale(1.71);}}
 .sw-name{
   margin-top:38px;min-height:62px;display:flex;flex-direction:column;
   align-items:center;justify-content:center;text-align:center;gap:6px;
@@ -336,7 +337,6 @@ section{position:relative;}
 .sw-name.on span{opacity:1;}
 .sw-name em{font-style:normal;font-size:14px;color:var(--faint);}
 .sw-name.on em{display:none;}
-.pal-note{margin-top:26px;font-size:13px;color:var(--faint);}
 
 /* ---------- before / after ---------- */
 .ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(22px,3vw,40px);margin-top:52px;}
@@ -879,7 +879,6 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
         <span id="swNameHex"></span>
       </div>
     </div>
-    <p class="pal-note">Colors are shown for illustration on screen and will differ from a physical sample. We confirm every final color with you before the first coat goes on.</p>
   </div>
 </section>
 
@@ -921,7 +920,7 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
   <div class="shell">
     <div class="rv" style="max-width:700px">
       <p class="eyebrow">Reviews</p>
-      <h2 class="kicker-h">4.9 out of 5, from 12 reviews.</h2>
+      <h2 class="kicker-h">What Our Clients Said About Us</h2>
       <p class="lede dim">In our customers' own words, exactly as they wrote them on Google.</p>
     </div>
     <div class="rev-grid">
