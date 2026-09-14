@@ -20,7 +20,7 @@ tag in `index.html`. Search for `EDIT THIS BLOCK ONLY`.
 
 ```js
 const CONFIG = {
-  phone: "(425) 757-2554",   // tap-to-call, shown across the site
+  phone: "(253) 651-4343",   // tap-to-call, shown across the site
   email: "",                 // estimate requests get emailed here
   formEndpoint: "",          // optional: Formspree / Basin / Netlify Forms URL
   hours: [],                 // [["Mon – Fri","7:00 AM – 5:00 PM"], ["Saturday","By appointment"]]
