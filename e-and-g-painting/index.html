@@ -456,12 +456,6 @@ section{position:relative;}
 .f-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;}
 .f-actions .btn{flex:1 1 190px;}
 .f-note{margin-top:14px;font-size:12.5px;color:var(--faint);line-height:1.55;}
-.f-out{
-  margin-top:18px;border:1px dashed var(--line-2);border-radius:3px;padding:16px;
-  font-size:13.5px;color:#CFCBC2;white-space:pre-wrap;display:none;background:var(--ink);
-  max-height:230px;overflow:auto;
-}
-.f-out.on{display:block;}
 .est-aside li{list-style:none;display:flex;gap:13px;padding:15px 0;border-top:1px solid var(--line);font-size:14.5px;}
 .est-aside li:first-of-type{border-top:0;}
 .est-aside .tick{color:var(--amber);flex:none;font-family:var(--disp);font-size:12px;letter-spacing:.1em;padding-top:3px;}
@@ -1054,27 +1048,7 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
           </div>
           <div class="field">
             <label for="f-phone">Phone</label>
-            <input id="f-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="(206) 555-0123" required>
-          </div>
-        </div>
-        <div class="f-row">
-          <div class="field">
-            <label for="f-where">Property address or area</label>
-            <input id="f-where" name="where" type="text" placeholder="Yakima, WA">
-          </div>
-          <div class="field">
-            <label for="f-type">Type of work</label>
-            <select id="f-type" name="type">
-              <option>Interior painting</option>
-              <option>Exterior painting</option>
-              <option>Interior &amp; exterior</option>
-              <option>Wood, trim &amp; cabinets</option>
-              <option>Drywall / new construction</option>
-              <option>Metal &amp; railings</option>
-              <option>Concrete, brick &amp; stucco</option>
-              <option>Commercial project</option>
-              <option>Something else</option>
-            </select>
+            <input id="f-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="(509) 555-0123" required>
           </div>
         </div>
         <div class="field">
@@ -1082,12 +1056,10 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
           <textarea id="f-msg" name="message" placeholder="Two-story house, siding and trim. Some peeling on the south wall. Hoping to start in the next month." required></textarea>
         </div>
         <div class="f-actions">
-          <button type="button" class="btn btn-amber" id="sendReq">Request Estimate &rarr;</button>
+          <button type="button" class="btn btn-amber" id="sendReq">Request Estimate</button>
           <a class="btn btn-cobalt" href="tel:+15098340407">Call (509) 834-0407</a>
-          <button type="button" class="btn btn-ghost" id="copyReq">Copy Request</button>
         </div>
-        <p class="f-note" id="fNote">Prefer to speak to someone now? Call (509)&nbsp;834-0407. &ldquo;Copy Request&rdquo; puts the details on your clipboard so you can paste them wherever you like.</p>
-        <div class="f-out" id="fOut" role="status" aria-live="polite"></div>
+        <p class="f-note" id="fNote">Prefer to speak to someone now? Call (509)&nbsp;834-0407.</p>
       </form>
       <div id="fThanks" hidden>
         <div class="mdone">
@@ -1248,7 +1220,7 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
     <p class="sub">Enter the phone number you gave us and we&rsquo;ll pull up your request.</p>
     <div class="mfield" style="margin-top:20px">
       <label for="st-phone">Phone number</label>
-      <input id="st-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(206) 555-0123">
+      <input id="st-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(509) 555-0123">
     </div>
     <p class="merr" id="stErr" role="alert" hidden></p>
     <button class="mbtn" type="button" id="stGo">View my estimate</button>
@@ -1470,18 +1442,6 @@ $$("[data-ba]").forEach(function(inp){
 });
 
 /* ================= free estimate ================= */
-function buildMsg(){
-  var g = function(id){ var e = doc.getElementById(id); return (e.value||"").trim(); };
-  var L = [];
-  L.push("Free estimate request - E.G. Painting");
-  L.push("");
-  if (g("f-name"))  L.push("Name: "  + g("f-name"));
-  if (g("f-phone")) L.push("Phone: " + g("f-phone"));
-  if (g("f-where")) L.push("Address/area: " + g("f-where"));
-  L.push("Type of work: " + doc.getElementById("f-type").value);
-  if (g("f-msg")){ L.push(""); L.push("Details:"); L.push(g("f-msg")); }
-  return L.join("\n");
-}
 function validate(){
   var need = ["f-name","f-phone","f-msg"], ok = true;
   need.forEach(function(id){
@@ -1500,19 +1460,11 @@ doc.getElementById("sendReq").addEventListener("click", function(){
   if(!validate()) return;
   var g = function(id){ return (doc.getElementById(id).value||"").trim(); };
   if (window.EGStore) window.EGStore.addQuote({
-    name:g("f-name"), phone:g("f-phone"), email:"", where:g("f-where"),
-    type:doc.getElementById("f-type").value, message:g("f-msg"), consent:true
+    name:g("f-name"), phone:g("f-phone"), email:"", where:"",
+    type:"", message:g("f-msg"), consent:true
   });
   doc.getElementById("estForm").hidden = true;
   doc.getElementById("fThanks").hidden = false;
-});
-doc.getElementById("copyReq").addEventListener("click", function(){
-  var txt = buildMsg(), out = doc.getElementById("fOut");
-  out.classList.add("on"); out.textContent = txt;
-  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){
-    var b = doc.getElementById("copyReq"); b.textContent = "Copied ✓";
-    setTimeout(function(){ b.textContent = "Copy Request"; }, 1600);
-  }).catch(function(){});
 });
 
 /* ================= parallax (transform only) ================= */
@@ -1984,7 +1936,7 @@ window.EGStore = (function(){
           '<div class="q-row"><b>Phone</b><span><a href="tel:' + esc(q.phone) + '">' + esc(q.phone) + '</a></span></div>' +
           (q.email ? '<div class="q-row"><b>Email</b><span><a href="mailto:' + esc(q.email) + '">' + esc(q.email) + '</a></span></div>' : '') +
           (q.where ? '<div class="q-row"><b>Address</b><span>' + esc(q.where) + '</span></div>' : '') +
-          '<div class="q-row"><b>Work</b><span>' + esc(q.type || "-") + '</span></div>' +
+          (q.type ? '<div class="q-row"><b>Work</b><span>' + esc(q.type) + '</span></div>' : '') +
           '<div class="q-row"><b>Details</b><span>' + esc(q.message) + '</span></div>' +
           '<div class="q-row"><b>Consent</b><span>' + (q.consent ? "Given" : "Not recorded") + '</span></div>' +
           '<div class="q-acts">' +
