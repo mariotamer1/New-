@@ -333,13 +333,13 @@ section{position:relative;}
   transition:opacity .34s var(--ease);
 }
 .sw.up{
-  transform:scale(1.95);z-index:20;
+  transform:scale(1.67);z-index:20;
   filter:brightness(1.16) saturate(1.12);
   box-shadow:0 0 0 2px rgba(255,255,255,.55),0 26px 54px -14px rgba(0,0,0,.95),
              0 0 44px -6px var(--glow,rgba(255,255,255,.35));
 }
 .sw.up::after{opacity:1;}
-@media(max-width:620px){.sw.up{transform:scale(1.71);}}
+@media(max-width:620px){.sw.up{transform:scale(1.50);}}
 .sw-name{
   margin-top:38px;min-height:62px;display:flex;flex-direction:column;
   align-items:center;justify-content:center;text-align:center;gap:6px;
@@ -404,7 +404,6 @@ section{position:relative;}
 .rev .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--cobalt),var(--cobalt-lo));display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:14px;color:#fff;flex:none;}
 .rev .who b{display:block;font-family:var(--disp);font-size:14px;}
 .rev .who span{display:block;font-size:12px;color:var(--faint);}
-.rev-src{margin-top:28px;font-size:13px;color:var(--faint);}
 /* "See Photos" disclosure on a review card */
 .rev-more{
   align-self:flex-start;margin-top:14px;border:0;background:none;padding:0;cursor:pointer;
@@ -1025,7 +1024,6 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
         <figcaption><span class="av" aria-hidden="true">JP</span><span class="who"><b>Jeff Penick</b><span>Google review</span></span></figcaption>
       </figure>
     </div>
-    <p class="rev-src">Reviews are quoted from our Google Business Profile. The reviews from Rich Sowder, Rob Pottenger and Jeff Penick are shown in part &mdash; the full text is on Google.</p>
   </div>
 </section>
 
