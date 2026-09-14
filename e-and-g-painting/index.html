@@ -1529,7 +1529,10 @@ function setChapters(p){
 var idleTimer = 0;
 function hideHint(){ if (hint) hint.classList.remove("on"); }
 function showHint(){
-  if (!hint) return;
+  if (!hint || !sec) return;
+  // The prompt belongs to the hero film only. Once the journey section has
+  // scrolled off the top, the visitor is reading the page and needs no nudge.
+  if (sec.getBoundingClientRect().bottom <= window.innerHeight - 2) return;
   // At the very bottom there is nothing left to scroll, so the prompt would lie.
   var atEnd = window.innerHeight + window.scrollY >= doc.documentElement.scrollHeight - 4;
   if (!atEnd) hint.classList.add("on");
