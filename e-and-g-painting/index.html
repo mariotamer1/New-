@@ -599,6 +599,20 @@ section{position:relative;}
 }
 .ov.in .ov-box{opacity:1;transform:none;}
 .ov-box.wide{max-width:1180px;}
+/* signed-in admin: a full page rather than a dialog box */
+#adminOv.full{padding:0;place-items:stretch;}
+#adminOv.full .ov-scrim{background:var(--ink);backdrop-filter:none;}
+#adminOv.full .ov-box{
+  max-width:none;width:100%;height:100svh;max-height:none;
+  border:0;border-radius:0;box-shadow:none;background:var(--ink);
+  padding:clamp(26px,5vw,60px) clamp(20px,5vw,56px);
+  display:flex;flex-direction:column;
+}
+#adminOv.full .scr{width:100%;max-width:1100px;margin-inline:auto;}
+#adminOv.full .scr#scrEdit{max-width:1400px;}
+#adminOv.full .ov-x{top:clamp(16px,2.4vw,26px);right:clamp(16px,2.4vw,26px);font-size:30px;}
+#adminOv.full h2{font-size:clamp(26px,4vw,40px);}
+@media(max-width:620px){#adminOv.full .ov-box{padding:26px 18px 40px;}}
 .ov-x{position:absolute;top:12px;right:14px;background:none;border:0;cursor:pointer;font-size:26px;line-height:1;
   color:var(--mute);padding:6px 9px;border-radius:3px;transition:color .25s,background .25s;z-index:4;}
 .ov-x:hover{color:var(--cream);background:rgba(242,238,230,.08);}
@@ -1893,6 +1907,7 @@ window.EGStore = (function(){
   function screen(idOn){
     screens.forEach(function(sid){ doc.getElementById(sid).hidden = (sid !== idOn); });
     doc.getElementById("adminBox").classList.toggle("wide", idOn === "scrEdit");
+    doc.getElementById("adminOv").classList.toggle("full", idOn !== "scrGate");
   }
   var adminBtn = doc.getElementById("adminBtn");
   if (adminBtn) adminBtn.addEventListener("click", function(){
@@ -1936,9 +1951,7 @@ window.EGStore = (function(){
           '<div class="q-row"><b>Phone</b><span><a href="tel:' + esc(q.phone) + '">' + esc(q.phone) + '</a></span></div>' +
           (q.email ? '<div class="q-row"><b>Email</b><span><a href="mailto:' + esc(q.email) + '">' + esc(q.email) + '</a></span></div>' : '') +
           (q.where ? '<div class="q-row"><b>Address</b><span>' + esc(q.where) + '</span></div>' : '') +
-          (q.type ? '<div class="q-row"><b>Work</b><span>' + esc(q.type) + '</span></div>' : '') +
           '<div class="q-row"><b>Details</b><span>' + esc(q.message) + '</span></div>' +
-          '<div class="q-row"><b>Consent</b><span>' + (q.consent ? "Given" : "Not recorded") + '</span></div>' +
           '<div class="q-acts">' +
             '<button class="b-reply" type="button" data-act="reply">Reply</button>' +
             '<button class="b-del" type="button" data-act="del">Delete</button>' +
