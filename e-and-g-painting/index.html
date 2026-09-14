@@ -402,6 +402,39 @@ section{position:relative;}
 .rev .who b{display:block;font-family:var(--disp);font-size:14px;}
 .rev .who span{display:block;font-size:12px;color:var(--faint);}
 .rev-src{margin-top:28px;font-size:13px;color:var(--faint);}
+/* "See Photos" disclosure on a review card */
+.rev-more{
+  align-self:flex-start;margin-top:14px;border:0;background:none;padding:0;cursor:pointer;
+  font-family:var(--disp);font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--amber);
+  text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;
+}
+.rev-more:hover{color:#F6C66A;}
+.rev-more .car{display:inline-block;margin-left:6px;transition:transform .35s var(--ease);}
+.rev-more[aria-expanded="true"] .car{transform:rotate(180deg);}
+.rev-drop{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s var(--ease);}
+.rev-drop.open{grid-template-rows:1fr;}
+.rev-drop > .rev-drop-in{overflow:hidden;min-height:0;}
+.rev-shots{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:14px;}
+.rev-shots button{
+  border:0;padding:0;cursor:zoom-in;border-radius:4px;overflow:hidden;background:#14181E;
+  aspect-ratio:4/3;transition:transform .3s var(--ease),box-shadow .3s var(--ease);
+}
+.rev-shots button:hover{transform:translateY(-2px);box-shadow:0 12px 26px -12px rgba(0,0,0,.9);}
+.rev-shots button:last-child:nth-child(odd){grid-column:1 / -1;aspect-ratio:16/9;}
+.rev-shots img{width:100%;height:100%;object-fit:cover;display:block;}
+/* full-size viewer */
+.shotbox{position:fixed;inset:0;z-index:200;background:rgba(6,8,11,.94);
+  display:none;align-items:center;justify-content:center;padding:18px;}
+.shotbox.on{display:flex;}
+.shotbox img{max-width:100%;max-height:86vh;border-radius:6px;box-shadow:0 30px 80px -20px #000;}
+.shotbox .sb-x{position:absolute;top:14px;right:16px;width:42px;height:42px;border-radius:50%;
+  border:1px solid var(--line);background:rgba(20,24,30,.9);color:var(--ink);font-size:20px;cursor:pointer;}
+.shotbox .sb-n{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);}
+.shotbox .sb-a{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:60px;
+  border:1px solid var(--line);background:rgba(20,24,30,.82);color:var(--ink);font-size:20px;cursor:pointer;border-radius:4px;}
+.shotbox .sb-prev{left:12px;} .shotbox .sb-next{right:12px;}
+@media(prefers-reduced-motion:reduce){.rev-drop,.rev-more .car,.rev-shots button{transition:none;}}
 
 /* ---------- estimate form ---------- */
 .est{background:var(--ink-2);border-block:1px solid var(--line);}
@@ -942,52 +975,52 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
       <p class="lede dim">In our customers&rsquo; own words, straight from our Google reviews.</p>
     </div>
     <div class="rev-grid">
-      <figure class="rev rv">
+      <figure data-rev="shaun-wangler" class="rev rv">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Very professional and productive always on time when they said they would arrive. They also fixed trim pieces that needed fixed I would definitely recommend to others and will use their services again in the future.&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">SW</span><span class="who"><b>Shaun Wangler</b><span>Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv rv-d2">
+      <figure data-rev="scott-washburn" class="rev rv rv-d2">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Emilio and his team did outstanding work and I highly recommend them! I can guarantee they will be my first call if I need outstanding, high quality painters!&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">SW</span><span class="who"><b>Scott Washburn</b><span>Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv rv-d3">
+      <figure data-rev="rich-sowder" class="rev rv rv-d3">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Emilio did a fantastic job painting our home! From start to finish, he was professional, punctual, and communicative. He called ahead to confirm appointments and arrival times, which made scheduling smooth and stress-free. The quality of&hellip;&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">RS</span><span class="who"><b>Rich Sowder</b><span>Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv">
+      <figure data-rev="rob-pottenger" class="rev rv">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Emilio and his crew have been amazing! I have used him on two houses. The one I sold and the one that I bought. Everything from interior, exterior, including my metal shop, he did an amazing job. He is also gifted with sheet rock repair as&hellip;&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">RP</span><span class="who"><b>Rob Pottenger</b><span>Local Guide &middot; Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv rv-d2">
+      <figure data-rev="kathleen-mccarthy" class="rev rv rv-d2">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Emilio is thorough, careful and extremely good to work with. I will hire him every time.&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">KM</span><span class="who"><b>Kathleen McCarthy</b><span>Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv rv-d3">
+      <figure data-rev="ailyn-cruz" class="rev rv rv-d3">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Painted my house beautifully amazing workmanship. Responsible employees and great on time.&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">AC</span><span class="who"><b>ailyn cruz</b><span>Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv">
+      <figure data-rev="ir-dynamics" class="rev rv">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Great quality, friendly service, great price!&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">ID</span><span class="who"><b>IR Dynamics</b><span>Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv rv-d2">
+      <figure data-rev="harold-smith" class="rev rv rv-d2">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Honest, quality work and keeps job site clean and reliable&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">HS</span><span class="who"><b>Harold Smith</b><span>Local Guide &middot; Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv rv-d3">
+      <figure data-rev="suzanne-garrison" class="rev rv rv-d3">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Emilio and his crew go above and beyond!! They are so very careful, no overspray anywhere! They are conscientious and meticulous. Would recommend to anyone and everyone. A++++++. Thank you!&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">SG</span><span class="who"><b>Suzanne Garrison</b><span>Google review</span></span></figcaption>
       </figure>
-      <figure class="rev rv">
+      <figure data-rev="jeff-penick" class="rev rv">
         <div class="st" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
         <blockquote>&ldquo;Excellent high-quality work on my house and workshop. Great attention to detail and, importantly, use of quality paint. Their prep work set the stage for a beautiful finish on my older house.&hellip;&rdquo;</blockquote>
         <figcaption><span class="av" aria-hidden="true">JP</span><span class="who"><b>Jeff Penick</b><span>Google review</span></span></figcaption>
@@ -1311,6 +1344,14 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
       <p>Please allow 1&ndash;2 business days for the website developer to complete your request.</p>
     </section>
   </div>
+</div>
+
+<div class="shotbox" id="shotBox" role="dialog" aria-modal="true" aria-label="Review photo">
+  <button class="sb-x" type="button" data-sb="close" aria-label="Close photo">&times;</button>
+  <button class="sb-a sb-prev" type="button" data-sb="prev" aria-label="Previous photo">&#8249;</button>
+  <img id="sbImg" alt="">
+  <button class="sb-a sb-next" type="button" data-sb="next" aria-label="Next photo">&#8250;</button>
+  <span class="sb-n" id="sbNum"></span>
 </div>
 
 <div class="keepscroll" id="hint" aria-hidden="true">
@@ -2007,6 +2048,77 @@ window.EGStore = (function(){
       screen("scrHome");
     }
   }, true);
+})();
+
+/* ===== review photos: a "See Photos" drop-down per review =====
+   Add a reviewer's slug here with their image paths and the link appears
+   on that card by itself. No entry, no link -- so nothing can 404.        */
+var REVIEW_PHOTOS = {
+  // "shaun-wangler": ["assets/img/reviews/shaun-01.webp", "assets/img/reviews/shaun-02.webp"]
+};
+(function(){
+  var box = doc.getElementById("shotBox"), bImg = doc.getElementById("sbImg"), bNum = doc.getElementById("sbNum");
+  var set = [], at = 0, lastFocus = null;
+
+  function paint(){
+    bImg.src = set[at];
+    bImg.alt = "Review photo " + (at + 1) + " of " + set.length;
+    bNum.textContent = (at + 1) + " / " + set.length;
+  }
+  function open(list, idx, from){
+    set = list; at = idx; lastFocus = from; paint();
+    box.classList.add("on"); doc.documentElement.style.overflow = "hidden";
+  }
+  function close(){
+    box.classList.remove("on"); doc.documentElement.style.overflow = "";
+    bImg.src = ""; if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  function step(d){ if (!set.length) return; at = (at + d + set.length) % set.length; paint(); }
+
+  box.addEventListener("click", function(e){
+    var a = e.target.getAttribute && e.target.getAttribute("data-sb");
+    if (a === "close" || e.target === box) return close();
+    if (a === "prev") return step(-1);
+    if (a === "next") return step(1);
+  });
+  doc.addEventListener("keydown", function(e){
+    if (!box.classList.contains("on")) return;
+    if (e.key === "Escape") close();
+    else if (e.key === "ArrowLeft") step(-1);
+    else if (e.key === "ArrowRight") step(1);
+  });
+
+  $$(".rev[data-rev]").forEach(function(card, n){
+    var list = REVIEW_PHOTOS[card.getAttribute("data-rev")];
+    if (!list || !list.length) return;
+    var who = $(".who b", card) ? $(".who b", card).textContent : "this customer";
+    var id = "revph" + n;
+
+    var btn = doc.createElement("button");
+    btn.type = "button"; btn.className = "rev-more";
+    btn.setAttribute("aria-expanded", "false"); btn.setAttribute("aria-controls", id);
+    btn.innerHTML = 'See Photos<span class="car" aria-hidden="true">&#9662;</span>';
+
+    var drop = doc.createElement("div");
+    drop.className = "rev-drop"; drop.id = id;
+    var shots = list.map(function(src, i){
+      return '<button type="button" data-i="' + i + '">' +
+             '<img src="' + src + '" loading="lazy" decoding="async" alt="Photo ' + (i + 1) +
+             ' from ' + who + "'s review\" /></button>";
+    }).join("");
+    drop.innerHTML = '<div class="rev-drop-in"><div class="rev-shots">' + shots + "</div></div>";
+
+    btn.addEventListener("click", function(){
+      var now = drop.classList.toggle("open");
+      btn.setAttribute("aria-expanded", now ? "true" : "false");
+      btn.childNodes[0].nodeValue = now ? "Hide Photos" : "See Photos";
+    });
+    $$("button", drop).forEach(function(t){
+      t.addEventListener("click", function(){ open(list, +t.getAttribute("data-i"), t); });
+    });
+
+    card.appendChild(btn); card.appendChild(drop);
+  });
 })();
 
 window.addEventListener("scroll", onScroll, {passive:true});
