@@ -25,7 +25,7 @@
 <link rel="apple-touch-icon" href="assets/img/icon-180.png">
 <link rel="preload" as="font" type="font/woff2" href="assets/font/display.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="assets/font/body.woff2" crossorigin>
-<link rel="preload" as="image" href="assets/img/after-exterior.jpg" fetchpriority="high">
+<link rel="preload" as="image" href="assets/world/leg-01-poster.jpg" fetchpriority="high">
 
 <script type="application/ld+json">
 {
@@ -192,38 +192,87 @@ section{position:relative;}
 @media(max-width:940px){.nav{display:none;}}
 @media(max-width:560px){.hdr .btn-ghost{display:none;}.brand-tx span{display:none;}}
 
-/* ---------- static hero ---------- */
-.hero{position:relative;isolation:isolate;min-height:min(88svh,780px);display:flex;align-items:center;
-  border-bottom:1px solid var(--line);overflow:hidden;}
-.hero-bg{position:absolute;inset:0;z-index:-2;}
-.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:center 42%;display:block;}
-.hero-shade{position:absolute;inset:0;z-index:-1;
-  background:linear-gradient(to bottom,rgba(9,11,14,.84) 0%,rgba(9,11,14,.34) 34%,rgba(9,11,14,.30) 62%,rgba(9,11,14,.80) 100%),
-             linear-gradient(100deg,rgba(9,11,14,.93) 0%,rgba(9,11,14,.88) 34%,rgba(9,11,14,.62) 62%,rgba(9,11,14,.46) 100%);}
-.hero-in{padding-top:clamp(132px,14vw,168px);padding-bottom:clamp(74px,11vw,132px);max-width:760px;}
-.hero-eyebrow{font-family:var(--disp);font-size:12.5px;font-weight:600;letter-spacing:.2em;
-  text-transform:uppercase;color:var(--amber);margin-bottom:20px;}
-.hero-h{font-family:var(--disp);font-weight:700;letter-spacing:-.03em;line-height:.98;
-  font-size:clamp(46px,8.4vw,92px);}
-.hero-tag{font-family:var(--disp);font-weight:600;letter-spacing:-.015em;line-height:1.12;
-  font-size:clamp(20px,2.7vw,30px);color:var(--cream);margin-top:18px;}
-.hero-sub{font-size:clamp(15.5px,1.1vw + 12px,18px);line-height:1.65;color:#C8CED6;
-  margin-top:18px;max-width:54ch;}
-.hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px;}
-.hero-cta .btn{font-size:15px;padding:16px 26px;}
-.hero-meta{display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:30px;
-  font-size:13.5px;color:#AEB6C0;}
-.hero-meta span{display:inline-flex;align-items:center;gap:8px;}
-.hero-meta i{width:5px;height:5px;border-radius:50%;background:var(--amber);flex:none;font-style:normal;}
-@media(max-width:620px){
-  .hero{min-height:auto;}
-  .hero-in{padding-top:128px;padding-bottom:clamp(56px,16vw,86px);}
-  .hero-cta .btn{width:100%;justify-content:center;}
-  /* the copy runs full width on a phone, so the photo needs an even scrim */
-  .hero-shade{background:linear-gradient(to bottom,rgba(9,11,14,.90) 0%,rgba(9,11,14,.82) 40%,rgba(9,11,14,.88) 100%);}
+/* ---------- scroll-scrub hero ---------- */
+.scrub{position:relative;background:var(--ink);}
+.scrub-stage{
+  position:sticky;top:0;height:100svh;overflow:hidden;
+  background:var(--ink);display:grid;place-items:center;
 }
+.scrub-media{position:absolute;inset:0;}
+.scrub-media video,.scrub-media img.poster{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:0;transition:opacity .28s linear;will-change:opacity;
+}
+.scrub-media video.on,.scrub-media img.poster.on{opacity:1;}
+.scrub-vig{
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(115% 78% at 50% 42%,transparent 30%,rgba(10,12,15,.55) 78%,rgba(10,12,15,.88) 100%),
+    linear-gradient(to bottom,rgba(10,12,15,.75) 0%,transparent 26%,transparent 58%,rgba(10,12,15,.92) 100%);
+}
+.scrub-grain{position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");}
 
-/* ---------- decorative glow ---------- */
+/* chapter copy layer */
+.chapters{position:relative;z-index:3;width:100%;max-width:var(--shell);margin-inline:auto;padding-inline:var(--pad);height:100%;}
+.chapter{
+  position:absolute;left:var(--pad);right:var(--pad);top:50%;
+  max-width:620px;opacity:0;visibility:hidden;
+  transform:translate3d(0,26px,0);
+  transition:opacity .5s var(--ease),transform .7s var(--ease),visibility .5s;
+  will-change:opacity,transform;
+}
+.chapter.live{opacity:1;visibility:visible;transform:translate3d(0,-50%,0);}
+.chapter .num{
+  font-family:var(--disp);font-size:clamp(46px,7vw,84px);font-weight:700;
+  line-height:.8;color:transparent;-webkit-text-stroke:1px rgba(242,238,230,.32);
+  letter-spacing:-.04em;margin-bottom:14px;
+}
+.chapter h2{font-size:clamp(30px,5.4vw,62px);margin-bottom:14px;text-shadow:0 2px 30px rgba(10,12,15,.7);}
+.chapter p{font-size:clamp(15px,1.25vw,19px);color:#DEDAD1;max-width:44ch;text-shadow:0 1px 18px rgba(10,12,15,.85);}
+.chapter .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px;}
+.chapter .tags span{
+  font-family:var(--disp);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  padding:7px 12px;border:1px solid var(--line-2);border-radius:2px;color:#CFCBC2;
+  background:rgba(10,12,15,.4);backdrop-filter:blur(4px);
+}
+.chapter .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px;}
+.chapter--final{max-width:760px;}
+.chapter--final h2{font-size:clamp(34px,6.4vw,76px);}
+
+/* progress rail */
+.rail{position:absolute;right:max(16px,calc(var(--pad) - 26px));top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;gap:9px;}
+.rail i{display:block;width:2px;height:18px;background:rgba(242,238,230,.2);border-radius:2px;transition:background .35s,height .35s var(--ease);}
+.rail i.on{background:var(--amber);height:30px;}
+@media(max-width:700px){.rail{display:none;}}
+/* "Keep scrolling" — fixed so it can surface anywhere on the page */
+.keepscroll{
+  position:fixed;left:50%;bottom:26px;z-index:85;
+  transform:translate3d(-50%,8px,0);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .45s var(--ease),transform .55s var(--ease),visibility .45s;
+}
+.keepscroll.on{opacity:1;visibility:visible;transform:translate3d(-50%,0,0);}
+.ks-text{
+  font-family:var(--disp);font-size:12px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;
+  color:var(--brown);
+  text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:5px;
+  padding:8px 16px;border-radius:2px;
+  background:rgba(10,12,15,.55);backdrop-filter:blur(6px);
+  text-shadow:0 1px 12px rgba(10,12,15,.95);
+}
+.ks-line{display:block;width:1px;height:28px;background:linear-gradient(to bottom,var(--brown),transparent);animation:drip 2.1s var(--ease) infinite;}
+@keyframes drip{0%{transform:scaleY(0);transform-origin:top;}45%{transform:scaleY(1);transform-origin:top;}55%{transform:scaleY(1);transform-origin:bottom;}100%{transform:scaleY(0);transform-origin:bottom;}}
+/* clear the sticky call bar on phones */
+@media(max-width:760px){.keepscroll{bottom:74px;}}
+
+/* fallback list shown only when reduced-motion / no video */
+.scrub-static{display:none;}
+
+/* ---------- parallax ---------- */
+.px{will-change:transform;}
 .px-wrap{position:relative;overflow:hidden;}
 .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.4;pointer-events:none;z-index:0;}
 .orb-a{width:46vw;height:46vw;max-width:620px;max-height:620px;background:radial-gradient(circle,rgba(31,78,216,.72),transparent 68%);top:-16%;left:-12%;}
@@ -682,6 +731,15 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;}
   .rv{opacity:1!important;transform:none!important;}
   .px{transform:none!important;}
+  .scrub-stage{position:relative;height:auto;display:block;}
+  .scrub-media{display:none;}
+  .chapters{display:none;}
+  .rail,.keepscroll{display:none;}
+  .scrub-static{display:block;padding-block:clamp(90px,12vw,140px);}
+  .scrub-static .ss-item{display:grid;grid-template-columns:auto 1fr;gap:clamp(18px,3vw,40px);padding-block:clamp(26px,3.4vw,44px);border-top:1px solid var(--line);}
+  .scrub-static .ss-item:first-child{border-top:0;}
+  .scrub-static .ss-n{font-family:var(--disp);font-size:13px;color:var(--amber);letter-spacing:.12em;padding-top:8px;}
+  .scrub-static img{border:1px solid var(--line);border-radius:3px;margin-top:18px;}
 }
 </style>
 </head>
@@ -715,26 +773,84 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
 <main id="main">
 <div id="top"></div>
 
-<!-- ============ HERO ============ -->
-<section class="hero" id="hero">
-  <div class="hero-bg" aria-hidden="true">
-    <img src="assets/img/after-exterior.jpg" alt="" fetchpriority="high" decoding="async" width="1600" height="1000">
+<!-- ============ SCROLL-SCRUB HERO ============ -->
+<section class="scrub" id="journey" aria-label="The paint journey">
+  <div class="scrub-stage">
+    <div class="scrub-media" id="scrubMedia" aria-hidden="true">
+      <img class="poster on" id="poster1" src="assets/world/leg-01-poster.jpg" alt="">
+      <video id="v1" preload="auto" muted playsinline webkit-playsinline disablepictureinpicture></video>
+      <video id="v2" preload="none" muted playsinline webkit-playsinline disablepictureinpicture></video>
+      <video id="v3" preload="none" muted playsinline webkit-playsinline disablepictureinpicture></video>
+    </div>
+    <div class="scrub-vig" aria-hidden="true"></div>
+    <div class="scrub-grain" aria-hidden="true"></div>
+
+    <div class="rail" id="rail" aria-hidden="true"></div>
+
+    <div class="chapters" id="chapters">
+      <article class="chapter live" data-from="0" data-to=".125">
+        <div class="num">01</div>
+        <h2>It starts in the can.</h2>
+        <p>Every finish begins with one decision — the right coating for the surface it has to live on.</p>
+        <div class="tags"><span>Prep</span><span>Primer</span><span>Product</span></div>
+      </article>
+      <article class="chapter" data-from=".125" data-to=".25">
+        <div class="num">02</div>
+        <h2>Wood.</h2>
+        <p>Doors, trim and cabinets. Grain filled, edges cut clean, hardware handled with care.</p>
+        <div class="tags"><span>Doors</span><span>Trim</span><span>Cabinets</span></div>
+      </article>
+      <article class="chapter" data-from=".25" data-to=".375">
+        <div class="num">03</div>
+        <h2>Drywall.</h2>
+        <p>Interior walls and ceilings rolled to one even, uniform finish — wall to wall.</p>
+        <div class="tags"><span>Walls</span><span>Ceilings</span><span>New Build</span></div>
+      </article>
+      <article class="chapter" data-from=".375" data-to=".5">
+        <div class="num">04</div>
+        <h2>Metal.</h2>
+        <p>Railings, doors and fixtures, sprayed for a smooth, factory-even coat.</p>
+        <div class="tags"><span>Railings</span><span>Doors</span><span>Fixtures</span></div>
+      </article>
+      <article class="chapter" data-from=".5" data-to=".625">
+        <div class="num">05</div>
+        <h2>Concrete.</h2>
+        <p>Floors, patios and foundations. The surface is prepped so the coating holds.</p>
+        <div class="tags"><span>Floors</span><span>Patios</span><span>Garages</span></div>
+      </article>
+      <article class="chapter" data-from=".625" data-to=".75">
+        <div class="num">06</div>
+        <h2>Brick.</h2>
+        <p>Masonry worked by hand, so the paint reaches every mortar line.</p>
+        <div class="tags"><span>Masonry</span><span>Mortar</span><span>Accents</span></div>
+      </article>
+      <article class="chapter" data-from=".75" data-to=".875">
+        <div class="num">07</div>
+        <h2>Stucco.</h2>
+        <p>Exterior surfaces coated to stand up to Pacific Northwest weather.</p>
+        <div class="tags"><span>Exterior</span><span>Siding</span><span>Soffits</span></div>
+      </article>
+      <article class="chapter chapter--final" data-from=".875" data-to="1.001">
+        <div class="num">08</div>
+        <h2>Your vision.<br>Our craftsmanship.</h2>
+        <p>Interior &middot; Exterior &middot; Residential &middot; Commercial — finished the way you pictured it, from the first drop cloth to the final walkthrough.</p>
+        <div class="cta">
+          <a class="btn btn-amber" href="#estimate">Get Your Free Estimate &rarr;</a>
+          <a class="btn btn-ghost" href="tel:+15098340407">Call (509) 834-0407</a>
+        </div>
+      </article>
+    </div>
+
   </div>
-  <div class="hero-shade" aria-hidden="true"></div>
-  <div class="shell hero-in">
-    <p class="hero-eyebrow">Interior &amp; Exterior Painting &middot; Yakima, WA</p>
-    <h1 class="hero-h">E.G. Painting</h1>
-    <p class="hero-tag">Your vision. Our craftsmanship.</p>
-    <p class="hero-sub">Residential and commercial painting across the Yakima area &mdash; walls and ceilings, doors, trim and cabinets, drywall, metal, concrete, brick and stucco. Careful prep, clean lines, and a finish you can stand behind.</p>
-    <div class="hero-cta">
-      <a class="btn btn-amber" href="#estimate">Get Your Free Estimate</a>
-      <a class="btn btn-ghost" href="tel:+15098340407">Call (509) 834-0407</a>
-    </div>
-    <div class="hero-meta">
-      <span><i></i>Free, no-pressure estimates</span>
-      <span><i></i>Residential &amp; commercial</span>
-      <span><i></i>Interior &amp; exterior</span>
-    </div>
+
+  <!-- reduced-motion / no-video fallback -->
+  <div class="scrub-static shell">
+    <p class="eyebrow">The E.G. Journey</p>
+    <h2 class="kicker-h">One ribbon of paint, seven surfaces.</h2>
+    <div class="ss-item"><div class="ss-n">01</div><div><h3>It starts in the can.</h3><p class="dim">Every finish begins with the right coating for the surface it has to live on.</p><img src="assets/world/leg-01-poster.jpg" alt="Macro view of cobalt blue paint pouring from a professional paint can."></div></div>
+    <div class="ss-item"><div class="ss-n">02</div><div><h3>Wood, drywall and metal.</h3><p class="dim">Doors, trim and cabinets; walls and ceilings; railings, doors and fixtures.</p><img src="assets/world/leg-02-poster.jpg" alt="A roller laying an even coat across smooth drywall."></div></div>
+    <div class="ss-item"><div class="ss-n">03</div><div><h3>Concrete, brick and stucco.</h3><p class="dim">Floors and patios, masonry and mortar lines, exterior surfaces built for the weather.</p><img src="assets/world/leg-03-poster.jpg" alt="Paint worked by hand into textured brick and stucco surfaces."></div></div>
+    <div class="ss-item"><div class="ss-n">08</div><div><h3>Your vision. Our craftsmanship.</h3><p class="dim">Interior &middot; Exterior &middot; Residential &middot; Commercial.</p><p style="margin-top:18px"><a class="btn btn-amber" href="#estimate">Get Your Free Estimate &rarr;</a></p></div></div>
   </div>
 </section>
 
@@ -1034,6 +1150,7 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
     <div>
       <h4>Explore</h4>
       <ul>
+        <li><a href="#journey">The journey</a></li>
         <li><a href="#work">Before &amp; after</a></li>
         <li><a href="#palette">Colors</a></li>
         <li><a href="#reviews">Reviews</a></li>
@@ -1220,11 +1337,22 @@ html.is-preview .burger,html.is-preview .ft-admin{display:none!important;}
   <span class="sb-n" id="sbNum"></span>
 </div>
 
+<div class="keepscroll" id="hint" aria-hidden="true">
+  <span class="ks-text">Keep scrolling</span>
+  <i class="ks-line"></i>
+</div>
 
 <div class="callbar" aria-label="Quick contact">
   <a class="c1" href="https://www.google.com/maps/dir/?api=1&amp;destination=103%20W%20Mead%20Ave%2C%20Yakima%2C%20WA%2098902" target="_blank" rel="noopener">Directions</a>
   <a class="c2" href="tel:+15098340407">Call (509) 834-0407</a>
 </div>
+
+<style>
+  /* scroll length that drives the film — one screen of scroll per chapter */
+  .scrub{height:760vh;}
+  @media(max-width:760px){.scrub{height:620vh;}}
+  @media (prefers-reduced-motion: reduce){.scrub{height:auto!important;}}
+</style>
 
 <script>
 (function(){
@@ -1353,6 +1481,180 @@ doc.getElementById("sendReq").addEventListener("click", function(){
   doc.getElementById("fThanks").hidden = false;
 });
 
+/* ================= parallax (transform only) ================= */
+var pxEls = $$(".px");
+function parallax(){
+  if (RM) return;
+  for (var i=0;i<pxEls.length;i++){
+    var el = pxEls[i], r = el.parentElement.getBoundingClientRect();
+    var f = parseFloat(el.dataset.px)||0;
+    var mid = r.top + r.height/2 - window.innerHeight/2;
+    el.style.transform = "translate3d(0," + (mid*f).toFixed(2) + "px,0)";
+  }
+}
+
+/* ================= scroll-scrub film ================= */
+var CLIPS = [
+  {d:"assets/world/leg-01.mp4", m:"assets/world/leg-01-mobile.mp4", p:"assets/world/leg-01-poster.jpg", dur:5.04},
+  {d:"assets/world/leg-02.mp4", m:"assets/world/leg-02-mobile.mp4", p:"assets/world/leg-02-poster.jpg", dur:10},
+  {d:"assets/world/leg-03.mp4", m:"assets/world/leg-03-mobile.mp4", p:"assets/world/leg-03-poster.jpg", dur:10}
+];
+var sec = doc.getElementById("journey");
+var vids = [doc.getElementById("v1"), doc.getElementById("v2"), doc.getElementById("v3")];
+var poster1 = doc.getElementById("poster1");
+var chapters = $$(".chapter");
+var rail = doc.getElementById("rail");
+var hint = doc.getElementById("hint");
+
+chapters.forEach(function(){ var i=doc.createElement("i"); rail.appendChild(i); });
+var railBars = $$("i", rail); if(railBars[0]) railBars[0].classList.add("on");
+
+var TOTAL = CLIPS.reduce(function(a,c){return a+c.dur;},0);
+var STARTS = []; (function(){ var t=0; CLIPS.forEach(function(c){ STARTS.push(t); t+=c.dur; }); })();
+
+var active = -1, ambient = true, primed = false, ready = false;
+var target = 0, smooth = 0, rafId = 0, spin = 0;
+// Global time the scrubber starts from. Set at handover to wherever the intro
+// actually stopped, so scrolling carries the film FORWARD instead of rewinding
+// over footage the visitor has already watched.
+var floorT = 0;
+
+function isMobile(){ return window.matchMedia("(max-width: 760px)").matches; }
+
+function attach(i){
+  var v = vids[i], c = CLIPS[i];
+  if (v.dataset.wired) return;
+  v.dataset.wired = "1";
+  v.muted = true; v.defaultMuted = true; v.playsInline = true;
+  v.setAttribute("poster", c.p);
+  v.preload = "auto";
+  v.src = isMobile() && c.m ? c.m : c.d;
+  v.addEventListener("loadeddata", kick);
+  v.addEventListener("seeked", kick);
+  v.load();
+}
+function show(i){
+  if (active === i) return;
+  active = i;
+  attach(i);
+  if (i+1 < CLIPS.length) attach(i+1);            // warm the next leg
+  for (var k=0;k<vids.length;k++) vids[k].classList.toggle("on", k === i);
+  if (i > 0 || !ambient) poster1.classList.remove("on");
+}
+
+function seek(v, t){
+  if (!v || !v.duration || isNaN(v.duration)) return false;   // metadata not in yet: retry
+  var want = clamp(t, 0, v.duration - 0.03);
+  if (Math.abs(v.currentTime - want) < 0.02) return true;     // frame is on screen
+  if (v.seeking) return false;                                // seek in flight: retry
+  try { v.currentTime = want; } catch(e){}
+  return false;                                               // confirm on a later frame
+}
+
+function frame(){
+  rafId = 0;
+  smooth += (target - smooth) * 0.16;
+  if (Math.abs(target - smooth) < 0.0008) smooth = target;
+  // scroll 0..1 spans only what is LEFT of the film after the intro
+  var remain = TOTAL - floorT;
+  var gt = floorT + smooth * (remain > 0 ? remain : 0);
+  setChapters(gt / TOTAL);          // copy tracks the film, not the scrollbar
+  var idx = 0;
+  for (var i=CLIPS.length-1;i>=0;i--){ if (gt >= STARTS[i]) { idx = i; break; } }
+  show(idx);
+  var landed = seek(vids[idx], gt - STARTS[idx]);
+  var moving = Math.abs(target - smooth) > 0.0008;
+  // Keep running until the frame is actually painted. A seek issued while the
+  // element is still seeking is dropped, and once scrolling stops there is no
+  // further event to retry it - which would strand the film on frame 0.
+  if (moving || !landed){ if (++spin < 300) rafId = requestAnimationFrame(frame); }
+  else spin = 0;
+}
+function kick(){ spin = 0; if (!rafId) rafId = requestAnimationFrame(frame); }
+
+function setChapters(p){
+  for (var i=0;i<chapters.length;i++){
+    var ch = chapters[i];
+    var a = parseFloat(ch.dataset.from), b = parseFloat(ch.dataset.to);
+    var live = p >= a && p < b;
+    ch.classList.toggle("live", live);
+    if (railBars[i]) railBars[i].classList.toggle("on", live);
+  }
+}
+
+var idleTimer = 0;
+function hideHint(){ if (hint) hint.classList.remove("on"); }
+function showHint(){
+  if (!hint || !sec) return;
+  // The prompt belongs to the hero film only. Once the journey section has
+  // scrolled off the top, the visitor is reading the page and needs no nudge.
+  if (sec.getBoundingClientRect().bottom <= window.innerHeight - 2) return;
+  // At the very bottom there is nothing left to scroll, so the prompt would lie.
+  var atEnd = window.innerHeight + window.scrollY >= doc.documentElement.scrollHeight - 4;
+  if (!atEnd) hint.classList.add("on");
+}
+function armHint(){
+  hideHint();
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(showHint, 2000);   // 2s after scrolling stops
+}
+
+function onScroll(){
+  onHdr();
+  parallax();
+  armHint();
+  if (RM) return;
+  var r = sec.getBoundingClientRect();
+  var span = sec.offsetHeight - window.innerHeight;
+  var p = clamp((-r.top) / (span>0?span:1), 0, 1);
+
+  if (ambient && p > 0.004){                       // hand over from autoplay to scrub
+    ambient = false;
+    // Pin the scrubber to where the intro left off and treat that as scroll 0,
+    // so the first scroll continues the story rather than restarting it.
+    floorT = clamp(vids[0].currentTime || 0, 0, TOTAL);
+    smooth = 0;
+    try { vids[0].pause(); } catch(e){}
+  }
+  if (!ambient){ target = p; kick(); }
+}
+
+if (!RM){
+  attach(0);
+  var v1 = vids[0];
+  v1.loop = false;          // play the intro once, then hold the last frame
+  v1.classList.add("on");
+  v1.addEventListener("loadeddata", function(){
+    ready = true;
+    poster1.classList.remove("on");
+  }, {once:true});
+  // while the intro plays itself, the chapter copy follows the video
+  v1.addEventListener("timeupdate", function(){
+    if (ambient) setChapters((v1.currentTime || 0) / TOTAL);
+  });
+  // autoplay muted + looping until the visitor starts scrolling
+  var pr = v1.play();
+  if (pr && pr.catch) pr.catch(function(){ /* blocked: poster stays, scrub still works */ });
+
+  // iOS needs one gesture before currentTime seeks behave
+  ["touchstart","pointerdown"].forEach(function(ev){
+    window.addEventListener(ev, function prime(){
+      if (primed) return; primed = true;
+      vids.forEach(function(v){ if(v.dataset.wired){ var q=v.play(); if(q&&q.catch)q.catch(function(){}); if(!ambient||v!==vids[0]){ try{v.pause();}catch(e){} } } });
+    }, {once:true, passive:true});
+  });
+
+  window.addEventListener("resize", function(){
+    vids.forEach(function(v,i){
+      if (!v.dataset.wired) return;
+      var want = isMobile() && CLIPS[i].m ? CLIPS[i].m : CLIPS[i].d;
+      if (v.getAttribute("src") !== want){ var t=v.currentTime; v.src=want; v.load(); v.currentTime=t; }
+    });
+    onScroll();
+  }, {passive:true});
+}
+
+
 /* ================= free-estimate modal ================= */
 (function(){
   var modal = doc.getElementById("estModal");
@@ -1373,7 +1675,8 @@ doc.getElementById("sendReq").addEventListener("click", function(){
       doc.getElementById("emErr").hidden = true;
     }
     modal.hidden = false;
-    doc.documentElement.style.overflow = "hidden";
+    doc.documentElement.style.overflow = "hidden";   // lock without moving the scrub
+    hideHint();
     requestAnimationFrame(function(){ modal.classList.add("in"); });
     openNow = true;
     setTimeout(function(){ var f = $("#em-name"); if (f) f.focus(); }, 90);
@@ -1385,6 +1688,7 @@ doc.getElementById("sendReq").addEventListener("click", function(){
     doc.documentElement.style.overflow = "";
     setTimeout(function(){ modal.hidden = true; }, 320);
     if (lastFocus && lastFocus.focus) lastFocus.focus();
+    armHint();
   }
   // every "free estimate" call to action opens the dialog
   $$('a[href="#estimate"]').forEach(function(a){ a.addEventListener("click", open); });
@@ -1506,13 +1810,14 @@ window.EGStore = (function(){
     if (stack.indexOf(ov) === -1) stack.push(ov);
     ov.hidden = false;
     doc.documentElement.style.overflow = "hidden";
+    hideHint();
     requestAnimationFrame(function(){ ov.classList.add("in"); });
   }
   function hide(ov){
     ov.classList.remove("in");
     setTimeout(function(){ if (stack.indexOf(ov) === -1) ov.hidden = true; }, 320);
     stack = stack.filter(function(x){ return x !== ov; });
-    if (!stack.length){ doc.documentElement.style.overflow = ""; }
+    if (!stack.length){ doc.documentElement.style.overflow = ""; armHint(); }
   }
   $$("[data-ovclose]").forEach(function(el){
     el.addEventListener("click", function(){ var o = el.closest(".ov"); if (o) hide(o); });
@@ -1778,8 +2083,12 @@ var REVIEW_PHOTOS = {
   });
 })();
 
-window.addEventListener("scroll", onHdr, {passive:true});
-onHdr();
+window.addEventListener("scroll", onScroll, {passive:true});
+["touchmove","wheel","keydown"].forEach(function(ev){
+  window.addEventListener(ev, armHint, {passive:true});
+});
+onScroll();
+armHint();
 })();
 </script>
 </body>
