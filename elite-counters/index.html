@@ -527,7 +527,7 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
       Services include <b>granite countertops</b>, <b>quartz countertops</b>, quartzite and marble slab fabrication, kitchen and bathroom
       <b>countertop replacement</b>, waterfall islands, vanity tops, fireplace surrounds, <b>backsplash tile installation</b>, shower and
       floor tile, mosaic and accent tile, grout and sealing, <b>kitchen cabinet installation</b>, cabinet refacing, hardware and crown
-      molding, and <b>interior and exterior painting</b> including cabinet finishing, trim, doors and drywall repair. Owner-operated by
+      molding, and <b>interior and exterior painting</b> including cabinet finishing, trim, doors and drywall repair. Based in Auburn, Washington and serving the wider area. Owner-operated by
       Juan with more than ten years of hands-on experience across all four trades. Free estimates on residential and light commercial work.
     </p>
   </div>
@@ -572,12 +572,12 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
 var BUSINESS = {
   name: "Elite Counters",
   owner: "Juan",
-  phone: "",          // e.g. "+15551234567" -> tap-to-call + Messages hand-off
-  phoneLabel: "",     // e.g. "(555) 123-4567"
+  phone: "+15093679629",       // tap-to-call + Messages hand-off
+  phoneLabel: "(509) 367-9629",
   email: "",
-  address: "",        // full street address -> opens Google Maps directions
-  hoursNote: "By appointment — call or text to schedule an estimate.",
-  serviceArea: ""
+  address: "Auburn, WA",       // opens Google Maps directions
+  hoursNote: "Monday \u2013 Saturday, 9am \u2013 6pm. Closed Sunday.",
+  serviceArea: "Anywhere the job takes us"
 };
 
 /* Verbatim customer reviews, unedited. The section renders only when real
@@ -595,7 +595,10 @@ var REVIEWS = [];
     var el = document.getElementById("infoBlock"), rows = [];
     if (BUSINESS.phone) rows.push('<div><small>Call or text</small><a href="tel:'+esc(BUSINESS.phone)+'">'+esc(BUSINESS.phoneLabel||BUSINESS.phone)+'</a></div>');
     if (BUSINESS.email) rows.push('<div><small>Email</small><a href="mailto:'+esc(BUSINESS.email)+'">'+esc(BUSINESS.email)+'</a></div>');
-    if (BUSINESS.address) rows.push('<div><small>Directions</small><a target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(BUSINESS.address)+'">'+esc(BUSINESS.address)+'</a></div>');
+    if (BUSINESS.address) {
+      var hasStreet = /\d/.test(BUSINESS.address);
+      rows.push('<div><small>'+(hasStreet ? 'Directions' : 'Based in')+'</small><a target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(BUSINESS.address)+'">'+esc(BUSINESS.address)+'</a></div>');
+    }
     if (BUSINESS.serviceArea) rows.push('<div><small>Service area</small><span class="v">'+esc(BUSINESS.serviceArea)+'</span></div>');
     if (BUSINESS.hoursNote) rows.push('<div><small>Hours</small><span class="v">'+esc(BUSINESS.hoursNote)+'</span></div>');
     el.innerHTML = rows.join("");
@@ -647,13 +650,19 @@ var REVIEWS = [];
   }
   function copyText(txt){
     var done = false;
-    try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt); done = true; } } catch(e){}
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      done = document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch(e){ done = false; }
     if (!done) {
       try {
-        var ta = document.createElement("textarea");
-        ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
-        document.body.appendChild(ta); ta.select(); done = document.execCommand("copy");
-        document.body.removeChild(ta);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(function(){}, function(){});
+          done = true;
+        }
       } catch(e2){ done = false; }
     }
     return done;
@@ -822,7 +831,13 @@ var REVIEWS = [];
     "name":"Elite Counters",
     "description":"Stone work, tile installation, countertop fabrication and installation, cabinet installation and painting. Owner-operated by Juan with over ten years of experience.",
     "founder":{"@type":"Person","name":"Juan"},
-    "makesOffer":["Countertop fabrication and installation","Stone work","Tile installation","Cabinet installation","Interior and exterior painting"]
+    "areaServed":"Auburn, WA",
+    "makesOffer":["Countertop fabrication and installation","Stone work","Tile installation","Cabinet installation","Interior and exterior painting"],
+    "openingHoursSpecification":[{
+      "@type":"OpeningHoursSpecification",
+      "dayOfWeek":["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],
+      "opens":"09:00","closes":"18:00"
+    }]
   };
   try {
     if (window.BUSINESS) {
