@@ -14,7 +14,7 @@
 <meta name="twitter:image" content="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/0385f4f7-32f6-45ee-b6e7-516d7db2cdd0.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,700&family=Archivo:wght@300;400;500;600&display=swap">
 
 <style>
 :root{
@@ -90,40 +90,64 @@ p{margin:0}
 .topbar nav a:hover{color:var(--stone)}
 @media (max-width:900px){.topbar nav{display:none}}
 
-/* ---------- the scroll film ---------- */
+/* ---------- the hero film ---------- */
 #film{position:relative;height:100svh}
-.stage{position:relative;height:100svh;overflow:hidden;background:#05060700}
-
-/* depth 1 — the footage */
-.layer-film{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  background:#08090B;will-change:transform;
+.stage{
+  position:relative;height:100svh;overflow:hidden;background:#08090B;
+  display:flex;align-items:center;justify-content:center;
+  /* the rendered width of the footage: every overlay is sized from it, so the
+     layout tracks the picture instead of the window */
+  --fw:min(100vw, 56.25svh);
 }
-.layer-film video{width:100%;height:100%;object-fit:contain;display:block;background:#08090B}
-.layer-film .poster{
-  position:absolute;inset:0;background-size:contain;background-repeat:no-repeat;background-position:center;
-}
-.layer-film .poster.gone{opacity:0;transition:opacity .6s ease}
+.frame{position:relative;width:var(--fw);aspect-ratio:9/16;overflow:hidden;background:#08090B}
+.frame video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.frame .poster{position:absolute;inset:0;background-size:cover;background-position:center}
+.frame .poster.gone{opacity:0;transition:opacity .6s ease}
 
-/* depth 2 — atmosphere */
-.layer-atmos{position:absolute;inset:-6%;pointer-events:none;will-change:transform}
-.layer-atmos .vig{position:absolute;inset:0;background:
-  linear-gradient(to top,rgba(5,6,7,.94) 0%,rgba(5,6,7,.55) 20%,rgba(5,6,7,0) 46%),
-  radial-gradient(125% 92% at 50% 44%,transparent 52%,rgba(5,6,7,.62) 100%)}
-.layer-atmos .grain{position:absolute;inset:0;opacity:.055;mix-blend-mode:overlay}
+.atmos{position:absolute;inset:0;pointer-events:none}
+.atmos .vig{position:absolute;inset:0;background:
+  linear-gradient(to top,rgba(5,6,7,.9) 0%,rgba(5,6,7,.34) 27%,rgba(5,6,7,0) 54%),
+  radial-gradient(125% 88% at 50% 38%,transparent 58%,rgba(5,6,7,.48) 100%)}
+.atmos .grain{position:absolute;inset:0;width:100%;height:100%;opacity:.05;mix-blend-mode:overlay}
 
-/* depth 3 — type */
-.layer-type{position:absolute;inset:0;will-change:transform}
-.cap{
-  position:absolute;left:0;right:0;padding-inline:28px;text-align:center;
-  opacity:0;transition:opacity .55s ease;pointer-events:none;
+/* marble plaque — covers the footage's own title */
+.plaque{
+  position:absolute;left:4.5%;right:4.5%;top:9.5%;
+  min-height:calc(var(--fw) * .205);
+  display:grid;place-items:center;
+  padding:calc(var(--fw)*.026) calc(var(--fw)*.04);
+  box-shadow:0 calc(var(--fw)*.022) calc(var(--fw)*.07) rgba(0,0,0,.5);
+  overflow:hidden;   /* the vein paths are drawn past the edges on purpose */
+  opacity:0;transform:translateY(-6px);
+  transition:opacity .45s ease,transform .45s ease;
+  pointer-events:none;
 }
-.cap.on{opacity:1}
-.cap .k{font-family:var(--f-display);font-size:clamp(24px,4.6vw,54px);line-height:1.06}
-.cap .s{margin-top:14px;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--stone-quiet)}
-.cap-hero{top:auto;bottom:11%;pointer-events:auto}
-.cap-hero .row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px}
-.cap-hero .k span{color:var(--brass)}
+.plaque.on{opacity:1;transform:none}
+.plaque .marble{position:absolute;inset:0;width:100%;height:100%;display:block}
+.plaque .name{
+  position:relative;font-family:var(--f-display);font-weight:700;
+  font-size:calc(var(--fw) * .078);line-height:1;letter-spacing:.05em;
+  color:#0B0C0E;text-transform:uppercase;white-space:nowrap;
+}
+
+/* headline sits above the buttons */
+.hero-copy{position:absolute;left:0;right:0;bottom:29%;padding-inline:7%;text-align:center}
+.hero-copy .k{font-family:var(--f-display);font-size:calc(var(--fw)*.088);line-height:1.08}
+.hero-copy .k span{color:var(--brass)}
+.hero-copy .s{
+  margin-top:calc(var(--fw)*.03);font-size:calc(var(--fw)*.0225);
+  letter-spacing:.11em;text-transform:uppercase;color:var(--stone-dim);
+  white-space:nowrap;
+}
+
+/* the orange button lands on the footage's own request-a-quote box */
+.hero-cta{
+  position:absolute;left:0;right:0;top:74.2%;
+  display:flex;flex-direction:column;align-items:center;
+  gap:calc(var(--fw)*.03);padding-inline:8%;
+}
+.hero-cta .btn{width:100%;max-width:calc(var(--fw)*.74);justify-content:center}
+.hero-cta .btn.ghost{background:rgba(8,9,11,.5);backdrop-filter:blur(2px)}
 
 /* ---------- sections ---------- */
 section.band{position:relative;padding-block:clamp(72px,11vw,132px);background:var(--ink)}
@@ -252,15 +276,8 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
    object-fit:cover, so the film is letterboxed here instead: the whole
    shot is visible and the type sits in the ground beneath it. */
 @media (max-width:860px){
-  .layer-atmos{inset:0}
-  .layer-atmos .vig{background:radial-gradient(150% 62% at 50% 50%,transparent 30%,rgba(5,6,7,.72) 100%)}
 
   .cap{padding-inline:20px}
-  .cap-hero{top:auto;bottom:8%;transform:none}
-  .cap .k{font-size:clamp(23px,7.2vw,34px)}
-  .cap .s{margin-top:11px;font-size:9.5px;letter-spacing:.24em}
-  .cap-hero .row{margin-top:20px;gap:10px}
-  .cap-hero .row .btn{flex:1 1 auto;justify-content:center;min-width:150px}
 
   /* the brand mark keeps its full name; the strapline and a long button
      label are what overflow a 390px bar */
@@ -280,17 +297,14 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
   .brand-name{font-size:15px}
 }
 /* landscape phones: the film already fills the frame, so keep it filling */
-@media (max-width:860px) and (orientation:landscape){
-  .cap .k{font-size:clamp(18px,4.2vw,26px)}
-  .cap-hero{bottom:6%}
-}
+
 
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   .cap,.hint i,.shot img{transition:none;animation:none}
   #film{height:auto}
   .stage{position:relative;height:100svh}
-  .layer-film,.layer-atmos,.layer-type{transform:none !important}
+  .frame video{opacity:1}
 }
 </style>
 </head>
@@ -322,10 +336,12 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
 <!-- ============== HERO FILM ============== -->
 <div id="film">
   <div class="stage">
-    <div class="layer-film" id="layerFilm">
+    <!-- .frame matches the footage exactly, so every overlay below is
+         positioned against the picture rather than the window -->
+    <div class="frame" id="frame">
       <video id="filmVideo" autoplay muted loop playsinline preload="auto" poster="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/0385f4f7-32f6-45ee-b6e7-516d7db2cdd0.jpg"
              aria-label="Elite Counters: stone fabrication and finished work">
-        <source src="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/9055e7ee-b022-43af-99d5-c0eab15423b6.mp4" type="video/mp4; codecs=avc1.640028">
+        <source src="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/df8e357d-8504-4272-a794-2e62b0e0fccc.mp4" type="video/mp4; codecs=avc1.640028">
       </video>
       <script>
       /* Picks the lighter cut on narrow screens before the large one starts. */
@@ -333,28 +349,52 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
         try{
           if (window.matchMedia && window.matchMedia("(max-width: 860px)").matches) {
             var v = document.getElementById("filmVideo");
-            v.src = "https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/d607c235-77f8-405b-bc5c-72a0ebff6856.mp4";
+            v.src = "https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/91f9eb00-bd65-4c52-94f7-115d3802891b.mp4";
             v.load();
           }
         }catch(e){}
       })();
       </script>
       <div class="poster" id="posterLayer" style="background-image:url('https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/0385f4f7-32f6-45ee-b6e7-516d7db2cdd0.jpg')"></div>
-    </div>
 
-    <div class="layer-atmos" id="layerAtmos">
-      <div class="vig"></div>
-      <svg class="grain" aria-hidden="true"><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3"/></filter><rect width="100%" height="100%" filter="url(#gr)"/></svg>
-    </div>
+      <div class="atmos" aria-hidden="true">
+        <div class="vig"></div>
+        <svg class="grain"><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3"/></filter><rect width="100%" height="100%" filter="url(#gr)"/></svg>
+      </div>
 
-    <div class="layer-type">
-      <div class="cap cap-hero on">
+      <!-- marble plaque: lands half a second before the footage's own
+           title does, and covers it -->
+      <div class="plaque" id="plaque">
+        <svg class="marble" viewBox="0 0 400 110" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <filter id="veins" x="-25%" y="-25%" width="150%" height="150%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.013 0.055" numOctaves="4" seed="9" result="n"/>
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="24" xChannelSelector="R" yChannelSelector="G"/>
+              <feGaussianBlur stdDeviation="0.35"/>
+            </filter>
+          </defs>
+          <rect width="400" height="110" fill="#F7F5F1"/>
+          <g filter="url(#veins)" fill="none" stroke-linecap="round">
+            <path d="M-20 30 C 80 18, 150 50, 250 34 S 380 26, 430 40" stroke="#AEB3B9" stroke-width="2.4" opacity=".85"/>
+            <path d="M-20 58 C 70 74, 160 46, 240 66 S 360 78, 430 62" stroke="#8F959C" stroke-width="1.3" opacity=".65"/>
+            <path d="M-20 86 C 90 78, 170 98, 260 84 S 370 90, 430 82" stroke="#C4C8CC" stroke-width="3.2" opacity=".6"/>
+            <path d="M-20 14 C 60 24, 140 8, 230 18 S 350 12, 430 22" stroke="#D5D8DA" stroke-width="1" opacity=".8"/>
+            <path d="M-20 100 C 100 92, 180 108, 270 96 S 380 102, 430 94" stroke="#B7BCC1" stroke-width="1.6" opacity=".45"/>
+          </g>
+        </svg>
+        <span class="name">Elite Counters</span>
+      </div>
+
+      <div class="hero-copy">
         <div class="k">From nature's material<br>to <span>your home.</span></div>
         <div class="s">Countertops &nbsp;·&nbsp; Tile &nbsp;·&nbsp; Fabrication &nbsp;·&nbsp; Installation</div>
-        <div class="row">
-          <button class="btn" data-estimate type="button">Request a Quote</button>
-          <a class="btn ghost" href="#work">View Our Work</a>
-        </div>
+      </div>
+
+      <!-- the orange button sits directly over the footage's own
+           request-a-quote box, covering it; the second sits under -->
+      <div class="hero-cta">
+        <button class="btn" data-estimate type="button">Request a Quote</button>
+        <a class="btn ghost" href="#work">View Our Work</a>
       </div>
     </div>
   </div>
@@ -731,8 +771,25 @@ var REVIEWS = [];
      ======================================================================= */
   var video  = document.getElementById("filmVideo");
   var poster = document.getElementById("posterLayer");
+  var plaque = document.getElementById("plaque");
+
+  /* The footage carries its own title, "BUILT FOR YOUR SPACE.", which lands at
+     3.70s. The marble plaque fades in from 3.20s so it is fully opaque — and
+     covering that text — by the time it appears. The loop resets the playhead,
+     which hides the plaque again. */
+  var PLAQUE_AT = 3.20;
+  function syncPlaque(){
+    if (plaque && video) plaque.classList.toggle("on", video.currentTime >= PLAQUE_AT);
+  }
+  function holdPlaque(){ if (plaque) plaque.classList.add("on"); }
 
   if (video) {
+    ["play","seeked","loadeddata"].forEach(function(ev){ video.addEventListener(ev, syncPlaque); });
+    (function tick(){
+      if (!video.paused && !video.ended) syncPlaque();
+      requestAnimationFrame(tick);
+    })();
+
     var revealPoster = function(){ poster.classList.remove("gone"); };
     video.addEventListener("loadeddata", function(){ poster.classList.add("gone"); });
     video.addEventListener("error", revealPoster);
@@ -741,10 +798,11 @@ var REVIEWS = [];
       // reduced motion: hold the poster frame, never play
       try { video.pause(); video.removeAttribute("autoplay"); } catch(e){}
       revealPoster();
+      holdPlaque();          // no playback, so the plaque simply stands
     } else {
       var start = function(){
         var pr = video.play();
-        if (pr && pr.catch) pr.catch(function(){ revealPoster(); });  // autoplay refused: the poster stands in
+        if (pr && pr.catch) pr.catch(function(){ revealPoster(); holdPlaque(); });  // autoplay refused: poster + plaque stand in
       };
       if (video.readyState >= 2) start();
       else video.addEventListener("canplay", start, {once:true});
