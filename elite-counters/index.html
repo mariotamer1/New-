@@ -476,7 +476,8 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
       <div class="fallback" style="background-image:url('https://d8j0ntlcm91z4.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/hf_20260919_013458_cb2d2213-da30-4e67-9a9f-2ed12010f24e.png')"></div>
       <video id="reelVideo" muted loop playsinline autoplay preload="metadata"
              poster="https://d8j0ntlcm91z4.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/hf_20260919_013458_cb2d2213-da30-4e67-9a9f-2ed12010f24e.png" aria-label="Cinematic close-up of a diamond blade cutting a marble slab">
-        <source src="https://d8j0ntlcm91z4.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/hf_20260919_013552_f4e8403b-6137-4264-8b3f-778800ae09f8.mp4" type="video/mp4">
+        <source src="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/1a01ee84-c120-4558-a599-a41a010fd7aa.mp4" type="video/mp4; codecs=avc1.640028">
+        <source src="https://d8j0ntlcm91z4.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/hf_20260919_013552_f4e8403b-6137-4264-8b3f-778800ae09f8.mp4" type="video/mp4; codecs=hvc1">
       </video>
       <figcaption>Diamond blade · Calacatta slab · 1080p</figcaption>
     </figure>
@@ -1339,7 +1340,12 @@ var REVIEWS = [];
   var v = document.getElementById("reelVideo");
   if (v) {
     var fig = v.parentNode;
-    var flagBlank = function(){ fig.classList.add("blank"); };
+    var flagBlank = function(){
+      if (fig.classList.contains("blank")) return;
+      fig.classList.add("blank");
+      var cap = fig.querySelector("figcaption");
+      if (cap) cap.textContent = "Reel can't play on this host \u2014 open the site from its own files or server";
+    };
     v.addEventListener("error", flagBlank, true);
     setTimeout(function(){ if (v.readyState === 0) flagBlank(); }, 3500);
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
