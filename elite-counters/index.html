@@ -339,7 +339,7 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
     <!-- .frame matches the footage exactly, so every overlay below is
          positioned against the picture rather than the window -->
     <div class="frame" id="frame">
-      <video id="filmVideo" autoplay muted loop playsinline preload="auto" poster="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/0385f4f7-32f6-45ee-b6e7-516d7db2cdd0.jpg"
+      <video id="filmVideo" autoplay muted playsinline preload="auto" poster="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/0385f4f7-32f6-45ee-b6e7-516d7db2cdd0.jpg"
              aria-label="Elite Counters: stone fabrication and finished work">
         <source src="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/df8e357d-8504-4272-a794-2e62b0e0fccc.mp4" type="video/mp4; codecs=avc1.640028">
       </video>
@@ -766,8 +766,8 @@ var REVIEWS = [];
   });
 
   /* =======================================================================
-     THE HERO FILM — plain playback: autoplay muted, looping, with a poster
-     frame behind it. No scroll control.
+     THE HERO FILM — plays through once on load and holds on its last
+     frame. Muted, no scroll control; a refresh plays it again.
      ======================================================================= */
   var video  = document.getElementById("filmVideo");
   var poster = document.getElementById("posterLayer");
@@ -776,7 +776,7 @@ var REVIEWS = [];
   /* The footage carries its own title, "BUILT FOR YOUR SPACE.", which lands at
      3.70s. The marble plaque fades in from 3.20s so it is fully opaque — and
      covering that text — by the time it appears. The loop resets the playhead,
-     which hides the plaque again. */
+     which would hide the plaque again, but the film plays only once. */
   var PLAQUE_AT = 3.20;
   function syncPlaque(){
     if (plaque && video) plaque.classList.toggle("on", video.currentTime >= PLAQUE_AT);
@@ -784,7 +784,7 @@ var REVIEWS = [];
   function holdPlaque(){ if (plaque) plaque.classList.add("on"); }
 
   if (video) {
-    ["play","seeked","loadeddata"].forEach(function(ev){ video.addEventListener(ev, syncPlaque); });
+    ["play","seeked","loadeddata","ended"].forEach(function(ev){ video.addEventListener(ev, syncPlaque); });
     (function tick(){
       if (!video.paused && !video.ended) syncPlaque();
       requestAnimationFrame(tick);
@@ -811,6 +811,7 @@ var REVIEWS = [];
       try {
         new IntersectionObserver(function(entries){
           entries.forEach(function(en){
+            if (video.ended) return;              // played its once; leave it on the last frame
             if (en.isIntersecting) { var pr = video.play(); if (pr && pr.catch) pr.catch(function(){}); }
             else { video.pause(); }
           });
