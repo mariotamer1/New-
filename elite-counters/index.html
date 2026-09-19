@@ -91,8 +91,8 @@ p{margin:0}
 @media (max-width:900px){.topbar nav{display:none}}
 
 /* ---------- the scroll film ---------- */
-#film{position:relative;height:520vh}
-.stage{position:sticky;top:0;height:100svh;overflow:hidden;background:#05060700}
+#film{position:relative;height:100svh}
+.stage{position:relative;height:100svh;overflow:hidden;background:#05060700}
 
 /* depth 1 — the footage */
 .layer-film{
@@ -121,35 +121,9 @@ p{margin:0}
 .cap.on{opacity:1}
 .cap .k{font-family:var(--f-display);font-size:clamp(24px,4.6vw,54px);line-height:1.06}
 .cap .s{margin-top:14px;font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--stone-quiet)}
-.cap-mid{top:auto;bottom:13%}
-.cap-c{top:auto;bottom:13%}
-.cap-end{top:auto;bottom:9%;pointer-events:auto}
-.cap-end .row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px}
-.cap-end .k span{color:var(--brass)}
-
-.hint{
-  position:absolute;left:50%;transform:translateX(-50%);
-  bottom:calc(30px + env(safe-area-inset-bottom,0px));
-  display:flex;flex-direction:column;align-items:center;gap:10px;
-  font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:var(--stone-quiet);
-  opacity:0;transition:opacity .8s ease;pointer-events:none;
-}
-.hint.on{opacity:1}
-.hint i{display:block;width:1px;height:46px;background:linear-gradient(var(--brass),transparent);animation:drip 2.4s ease-in-out infinite;transform-origin:top}
-@keyframes drip{0%,100%{transform:scaleY(.35);opacity:.4}50%{transform:scaleY(1);opacity:1}}
-
-.chapters{position:absolute;left:26px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:11px;pointer-events:none}
-.chapters b{
-  font-family:var(--f-body);font-weight:500;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;
-  color:rgba(233,228,219,.26);display:flex;align-items:center;gap:9px;transition:color .35s ease;
-}
-.chapters b::before{content:"";width:16px;height:1px;background:currentColor;transition:width .35s ease}
-.chapters b.on{color:var(--brass)}
-.chapters b.on::before{width:30px}
-@media (max-width:900px){.chapters{display:none}}
-
-.rail{position:absolute;right:0;top:0;bottom:0;width:2px;background:rgba(233,228,219,.07)}
-.rail i{position:absolute;top:0;left:0;width:100%;height:0;background:linear-gradient(var(--brass-hi),var(--brass));display:block}
+.cap-hero{top:auto;bottom:11%;pointer-events:auto}
+.cap-hero .row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+.cap-hero .k span{color:var(--brass)}
 
 /* ---------- sections ---------- */
 section.band{position:relative;padding-block:clamp(72px,11vw,132px);background:var(--ink)}
@@ -273,23 +247,20 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
 .preview{margin-top:18px;padding:14px;border:1px dashed var(--line-strong);font-size:13px;color:var(--stone-dim);white-space:pre-wrap;display:none}
 .preview.on{display:block}
 
-
 /* ---------- phones ----------
    Portrait crops a 16:9 frame to about a third of its width under
    object-fit:cover, so the film is letterboxed here instead: the whole
    shot is visible and the type sits in the ground beneath it. */
 @media (max-width:860px){
-  #film{height:420vh}
   .layer-atmos{inset:0}
   .layer-atmos .vig{background:radial-gradient(150% 62% at 50% 50%,transparent 30%,rgba(5,6,7,.72) 100%)}
 
   .cap{padding-inline:20px}
-  .cap-c,.cap-mid,.cap-end{top:auto;bottom:11%;transform:none}
-  .cap-end{bottom:7%}
+  .cap-hero{top:auto;bottom:8%;transform:none}
   .cap .k{font-size:clamp(23px,7.2vw,34px)}
   .cap .s{margin-top:11px;font-size:9.5px;letter-spacing:.24em}
-  .cap-end .row{margin-top:20px;gap:10px}
-  .cap-end .row .btn{flex:1 1 auto;justify-content:center;min-width:150px}
+  .cap-hero .row{margin-top:20px;gap:10px}
+  .cap-hero .row .btn{flex:1 1 auto;justify-content:center;min-width:150px}
 
   /* the brand mark keeps its full name; the strapline and a long button
      label are what overflow a 390px bar */
@@ -311,8 +282,7 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
 /* landscape phones: the film already fills the frame, so keep it filling */
 @media (max-width:860px) and (orientation:landscape){
   .cap .k{font-size:clamp(18px,4.2vw,26px)}
-  .cap-c,.cap-mid{bottom:8%}
-  .cap-end{bottom:5%}
+  .cap-hero{bottom:6%}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -349,17 +319,16 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
 
 <span id="top"></span>
 
-<!-- ============== SCROLL-SCRUBBED FILM ============== -->
+<!-- ============== HERO FILM ============== -->
 <div id="film">
   <div class="stage">
     <div class="layer-film" id="layerFilm">
-      <video id="filmVideo" muted playsinline preload="auto" poster="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/0385f4f7-32f6-45ee-b6e7-516d7db2cdd0.jpg"
-             aria-label="Scroll-controlled film: a marble slab in a fabrication shop becoming a finished kitchen">
+      <video id="filmVideo" autoplay muted loop playsinline preload="auto" poster="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/0385f4f7-32f6-45ee-b6e7-516d7db2cdd0.jpg"
+             aria-label="Elite Counters: stone fabrication and finished work">
         <source src="https://d2ol7oe51mr4n9.cloudfront.net/user_3IZ9jeMiq9BYpPpIfTL56vrCXcC/9055e7ee-b022-43af-99d5-c0eab15423b6.mp4" type="video/mp4; codecs=avc1.640028">
       </video>
       <script>
-      /* Runs before the page script so the phone never starts the 1080p pull:
-         a third of the bytes loads sooner and scrubs more smoothly. */
+      /* Picks the lighter cut on narrow screens before the large one starts. */
       (function(){
         try{
           if (window.matchMedia && window.matchMedia("(max-width: 860px)").matches) {
@@ -378,23 +347,8 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
       <svg class="grain" aria-hidden="true"><filter id="gr"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3"/></filter><rect width="100%" height="100%" filter="url(#gr)"/></svg>
     </div>
 
-    <div class="layer-type" id="layerType">
-      <div class="chapters" aria-hidden="true">
-        <b data-ch="0">The Slab</b>
-        <b data-ch="1">The Surface</b>
-        <b data-ch="2">The Fabrication</b>
-        <b data-ch="3">The Install</b>
-        <b data-ch="4">The Room</b>
-      </div>
-
-      <div class="cap cap-c" id="cap1">
-        <div class="k">Stone under<br>the microscope.</div>
-        <div class="s">Scroll to continue</div>
-      </div>
-      <div class="cap cap-mid" id="cap2"><div class="k" style="font-size:clamp(20px,3.2vw,34px)">Closer than you have<br>ever seen stone.</div></div>
-      <div class="cap cap-mid" id="cap3"><div class="k" style="font-size:clamp(20px,3.2vw,34px)">Cut, shaped, polished.</div><div class="s">By hand, in the shop</div></div>
-      <div class="cap cap-mid" id="cap4"><div class="k" style="font-size:clamp(20px,3.2vw,34px)">Set level. Seamed tight.</div></div>
-      <div class="cap cap-end" id="cap5">
+    <div class="layer-type">
+      <div class="cap cap-hero on">
         <div class="k">From nature's material<br>to <span>your home.</span></div>
         <div class="s">Countertops &nbsp;·&nbsp; Tile &nbsp;·&nbsp; Fabrication &nbsp;·&nbsp; Installation</div>
         <div class="row">
@@ -402,9 +356,6 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
           <a class="btn ghost" href="#work">View Our Work</a>
         </div>
       </div>
-
-      <div class="hint" id="hint"><span>Scroll</span><i></i></div>
-      <div class="rail" aria-hidden="true"><i id="railFill"></i></div>
     </div>
   </div>
 </div>
@@ -775,115 +726,39 @@ var REVIEWS = [];
   });
 
   /* =======================================================================
-     THE FILM — the scroll IS the transport.
-     ~2s plays automatically on load, then it freezes on that frame and the
-     visitor's scroll position drives the footage forward and backward.
+     THE HERO FILM — plain playback: autoplay muted, looping, with a poster
+     frame behind it. No scroll control.
      ======================================================================= */
   var video  = document.getElementById("filmVideo");
   var poster = document.getElementById("posterLayer");
-  var film   = document.getElementById("film");
-  var hint   = document.getElementById("hint");
-  var railFill = document.getElementById("railFill");
-  var lFilm = document.getElementById("layerFilm");
-  var lAtmos = document.getElementById("layerAtmos");
-  var lType = document.getElementById("layerType");
-  var caps = [null,
-    document.getElementById("cap1"), document.getElementById("cap2"),
-    document.getElementById("cap3"), document.getElementById("cap4"),
-    document.getElementById("cap5")];
-  var chapterEls = document.querySelectorAll(".chapters b");
 
-  var narrowMQ = window.matchMedia ? window.matchMedia("(max-width: 860px)") : null;
-  var narrow = narrowMQ ? narrowMQ.matches : false;
-  addEventListener("resize", function(){ if (narrowMQ) narrow = narrowMQ.matches; }, {passive:true});
+  if (video) {
+    var revealPoster = function(){ poster.classList.remove("gone"); };
+    video.addEventListener("loadeddata", function(){ poster.classList.add("gone"); });
+    video.addEventListener("error", revealPoster);
 
-  var INTRO_SECONDS = 2.0;
-  var introDone = false;
-  var duration = 0;
-  var cur = 0, target = 0;
-  var lastSeek = -1;
+    if (reduce) {
+      // reduced motion: hold the poster frame, never play
+      try { video.pause(); video.removeAttribute("autoplay"); } catch(e){}
+      revealPoster();
+    } else {
+      var start = function(){
+        var pr = video.play();
+        if (pr && pr.catch) pr.catch(function(){ revealPoster(); });  // autoplay refused: the poster stands in
+      };
+      if (video.readyState >= 2) start();
+      else video.addEventListener("canplay", start, {once:true});
 
-  function clamp01(v){ return v < 0 ? 0 : v > 1 ? 1 : v; }
-  function lerp(a,b,t){ return a + (b-a)*t; }
-
-  function scrollProgress(){
-    var total = film.offsetHeight - window.innerHeight;
-    if (total <= 0) return 0;
-    return clamp01(-film.getBoundingClientRect().top / total);
-  }
-
-  function setCaptions(p){
-    var on = [false,false,false,false,false,false];
-    if (p < 0.06) on[1] = true;
-    else if (p < 0.30) on[2] = true;
-    else if (p < 0.55) on[3] = true;
-    else if (p < 0.80) on[4] = true;
-    else on[5] = true;
-    for (var i=1;i<6;i++) caps[i].classList.toggle("on", on[i]);
-    var ch = p < 0.10 ? 0 : p < 0.32 ? 1 : p < 0.56 ? 2 : p < 0.82 ? 3 : 4;
-    for (var j=0;j<chapterEls.length;j++)
-      chapterEls[j].classList.toggle("on", +chapterEls[j].dataset.ch === ch);
-  }
-
-  /* reduced motion: hold the poster frame, never scrub, keep the page usable */
-  if (reduce) {
-    film.style.height = "100svh";
-    caps[1].classList.add("on");
-    caps[5].classList.add("on");
-    caps[1].style.top = "30%"; caps[5].style.top = "62%";
-    try { video.pause(); } catch(e){}
-  } else {
-    document.body.classList.add("is-locked");
-    try { window.scrollTo(0,0); } catch(e){}
-
-    var unlock = function(){
-      if (introDone) return;
-      introDone = true;
-      document.body.classList.remove("is-locked");
-      hint.classList.add("on");
-      caps[1].classList.add("on");
-      try { video.pause(); } catch(e){}
-      cur = target = Math.min(INTRO_SECONDS, duration || INTRO_SECONDS);
-    };
-
-    video.addEventListener("loadedmetadata", function(){
-      duration = video.duration || 0;
-      poster.classList.add("gone");
-      var pr = video.play();
-      if (pr && pr.catch) pr.catch(function(){ unlock(); });   // autoplay refused: hand straight over to scroll
-    });
-    video.addEventListener("timeupdate", function(){
-      if (!introDone && video.currentTime >= INTRO_SECONDS) unlock();
-    });
-    video.addEventListener("error", function(){ unlock(); });
-    // never leave the page locked if the file stalls
-    setTimeout(unlock, 4200);
-
-    var raf = function(){
-      requestAnimationFrame(raf);
-      var p = scrollProgress();
-      railFill.style.height = (p*100).toFixed(2) + "%";
-      setCaptions(p);
-      if (window.scrollY > 40) hint.classList.remove("on");
-      else if (introDone) hint.classList.add("on");
-
-      // three transform-based depths, moving at different rates
-      var vh = window.innerHeight;
-      lFilm.style.transform  = "none";
-      lAtmos.style.transform = "translate3d(0," + (-p * vh * (narrow ? 0.05 : 0.10)).toFixed(2) + "px,0)";
-      lType.style.transform  = "translate3d(0," + (-p * vh * (narrow ? 0.10 : 0.20)).toFixed(2) + "px,0)";
-
-      if (!introDone || !duration) return;
-
-      // scroll position -> playhead, damped so fast flicks glide instead of jumping
-      var span = Math.max(0.01, duration - INTRO_SECONDS);
-      target = INTRO_SECONDS + span * p;
-      cur = lerp(cur, target, 0.12);
-      if (Math.abs(cur - lastSeek) > 0.012) {
-        try { video.currentTime = Math.min(duration - 0.02, Math.max(0, cur)); lastSeek = cur; } catch(e){}
-      }
-    };
-    requestAnimationFrame(raf);
+      // stop decoding while the hero is off screen
+      try {
+        new IntersectionObserver(function(entries){
+          entries.forEach(function(en){
+            if (en.isIntersecting) { var pr = video.play(); if (pr && pr.catch) pr.catch(function(){}); }
+            else { video.pause(); }
+          });
+        }, {threshold:0.1}).observe(video);
+      } catch(e){}
+    }
   }
 })();
 </script>
