@@ -174,14 +174,6 @@ section.alt .svc article{background:var(--ink-2)}
 .svc ul{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px}
 .svc li{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone-quiet);border:1px solid var(--line);padding:6px 11px}
 
-/* process — a real sequence, so it is numbered */
-.proc{display:grid;gap:26px;counter-reset:step}
-@media (min-width:820px){.proc{grid-template-columns:repeat(4,1fr);gap:22px}}
-.proc div{padding-top:22px;border-top:1px solid var(--line-strong);counter-increment:step}
-.proc div::before{content:"0" counter(step);display:block;margin-bottom:12px;font-family:var(--f-display);font-size:13px;color:var(--brass)}
-.proc h3{font-size:19px;margin-bottom:8px}
-.proc p{color:var(--stone-dim);font-size:14.5px}
-
 /* before / after */
 .ba-grid{display:grid;gap:26px}
 @media (min-width:880px){.ba-grid{grid-template-columns:1fr 1fr}}
@@ -448,27 +440,8 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
   </div>
 </section>
 
-<!-- ============== PROCESS ============== -->
-<section class="band alt">
-  <div class="wrap">
-    <div class="head">
-      <div>
-        <p class="eyebrow">How it goes</p>
-        <h2>Four steps, one person<br>answering for all of them.</h2>
-      </div>
-      <p class="lede">Most kitchens get handed between trades that never meet. Here the counter, the backsplash, the doors and the trim are measured against each other.</p>
-    </div>
-    <div class="proc">
-      <div><h3>Template</h3><p>We measure the real space — walls are never square. Seams planned where they disappear.</p></div>
-      <div><h3>Fabricate</h3><p>Slab laid out for vein match, cut, edge profiled, polished, cutouts bored to the fixture.</p></div>
-      <div><h3>Set</h3><p>Cabinets shimmed level, counter set and seamed, backsplash laid to a dry-run layout.</p></div>
-      <div><h3>Finish</h3><p>Caulk, grout, hardware, touch-up paint. Site left clean, and we walk the job with you.</p></div>
-    </div>
-  </div>
-</section>
-
 <!-- ============== BEFORE / AFTER ============== -->
-<section class="band" id="work">
+<section class="band alt" id="work">
   <div class="wrap">
     <div class="head">
       <div>
@@ -507,7 +480,7 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
 </section>
 
 <!-- ============== MATERIALS ============== -->
-<section class="band alt" id="materials">
+<section class="band" id="materials">
   <div class="wrap">
     <div class="head">
       <div>
@@ -526,7 +499,7 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
 </section>
 
 <!-- ============== ABOUT ============== -->
-<section class="band" id="about">
+<section class="band alt" id="about">
   <div class="wrap">
     <div class="about">
       <div>
@@ -550,7 +523,7 @@ footer{background:#07080A;padding-block:44px;border-top:1px solid var(--line)}
 </section>
 
 <!-- ============== CONTACT ============== -->
-<section class="band alt" id="contact">
+<section class="band" id="contact">
   <div class="wrap">
     <div class="head">
       <div>
