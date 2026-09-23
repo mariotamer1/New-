@@ -1,0 +1,3 @@
+{ "name": "ml-group-store", "private": true, "type": "module",
+  "scripts": { "build": "node scripts/build.mjs" },
+  "devDependencies": { "esbuild": "0.28.2" } }
