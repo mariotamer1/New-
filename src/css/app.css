@@ -747,5 +747,3 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .adm-msg-actions { display: flex; gap: 8px; margin-top: 12px; }
 .adm-order-dlg { width: min(640px, calc(100% - 24px)); }
 .adm-order-dlg .modal-body { max-height: calc(100vh - 140px); overflow: auto; }
-.tax { color: var(--mute); font: 600 13px var(--font-body); white-space: nowrap; }
-.pdp-price .tax { font-size: 15px; }

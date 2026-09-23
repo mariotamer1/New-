@@ -264,7 +264,7 @@ export function product({ params }) {
             <div class="cond-row"><span class="cond">Condition: ${esc(p.condition)}</span>${p.bestDeal ? '<span class="cond">Best deal</span>' : ''}${p.inventory <= 5 ? `<span class="stock-low">Only ${p.inventory} left</span>` : '<span class="muted" style="font-size:14px">In stock</span>'}</div>
           </div>
           <div class="pdp-price">
-            <div class="row"><span class="now tabnum">${money(p.price)}</span><span class="tax">+ tax</span>${off ? `<span class="off">-${off}%</span>` : ''}</div>
+            <div class="row"><span class="now tabnum">${money(p.price)}</span>${off ? `<span class="off">-${off}%</span>` : ''}</div>
             ${off ? `<div class="row"><span class="was">Retail <s class="tabnum">${money(p.originalPrice)}</s></span><span class="save">You save ${money(p.originalPrice - p.price)}</span></div>` : ''}
           </div>
           <ul class="facts">

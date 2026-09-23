@@ -233,7 +233,7 @@
       <span>\xA9 ${t} ML Group. All rights reserved.</span>
       <nav aria-label="Footer"><a href="${f("/refund-policy")}">Refund Policy</a><a href="${f("/shipping-policy")}">Shipping</a><a href="${f("/contact")}">Contact</a><a class="admin-link" href="${f("/admin")}">${h("lock","icon-sm")} Admin</a></nav>
     </div></div>
-  </footer>`}function nt(e,{save:t=!1}={}){let a=q(e);return`<div class="price"><span class="now tabnum">${$(e.price)}</span>${a?`<s class="was tabnum">${$(e.originalPrice)}</s>`:""}${t&&a?`<span class="save">Save ${$(e.originalPrice-e.price)}</span>`:""}<span class="tax">+ tax</span></div>`}function F(e,{eager:t=!1,sizes:a}={}){let n=q(e),s=f("/products/"+e.slug),i=e.images.length?e.images:[null],o=i.map((r,c)=>`<a href="${s}" ${c?'tabindex="-1" aria-hidden="true"':`aria-label="${l(e.title)}"`}>${A(r,{alt:c?"":e.title,eager:t&&c===0,sizes:a})}</a>`).join("");return`<article class="card" data-pid="${e.id}">
+  </footer>`}function nt(e,{save:t=!1}={}){let a=q(e);return`<div class="price"><span class="now tabnum">${$(e.price)}</span>${a?`<s class="was tabnum">${$(e.originalPrice)}</s>`:""}${t&&a?`<span class="save">Save ${$(e.originalPrice-e.price)}</span>`:""}</div>`}function F(e,{eager:t=!1,sizes:a}={}){let n=q(e),s=f("/products/"+e.slug),i=e.images.length?e.images:[null],o=i.map((r,c)=>`<a href="${s}" ${c?'tabindex="-1" aria-hidden="true"':`aria-label="${l(e.title)}"`}>${A(r,{alt:c?"":e.title,eager:t&&c===0,sizes:a})}</a>`).join("");return`<article class="card" data-pid="${e.id}">
     <div class="card-media" data-carousel>
       <div class="track">${o}</div>
       ${n?`<span class="badge">-${n}%</span>`:""}
@@ -278,7 +278,7 @@
           <button class="ci-remove" type="button" data-remove>${h("trash","icon-sm")} Remove</button>
         </div>
       </div>
-    </li>`).join("")}</ul>`,t.innerHTML=`<div class="cart-sum"><div class="row total"><span>Subtotal</span><span class="tabnum">${$(B.subtotal())} <small class="tax">+ tax</small></span></div></div>
+    </li>`).join("")}</ul>`,t.innerHTML=`<div class="cart-sum"><div class="row total"><span>Subtotal</span><span class="tabnum">${$(B.subtotal())}</span></div></div>
     <p class="cart-note">${h("truck","icon-sm")} Shipping or free local pickup \u2014 choose at checkout.</p>
     <a class="btn btn-primary btn-lg btn-block" href="${f("/checkout")}" data-close-cart>Checkout</a>
     <button class="btn btn-block" type="button" data-close-cart>Continue shopping</button>`}}function lt(){let e=w("#cart-sheet");e.addEventListener("click",t=>{let a=t.target.closest("[data-line]"),n=t.target.closest("[data-qty]");if(n&&a){let s=B.items().find(i=>i.product.id===a.dataset.line);s&&B.set(s.product.id,s.qty+Number(n.dataset.qty))}t.target.closest("[data-remove]")&&a&&B.remove(a.dataset.line)}),e.addEventListener("change",t=>{if(t.target.matches("[data-qty-input]")){let a=t.target.closest("[data-line]");B.set(a.dataset.line,Math.max(1,parseInt(t.target.value,10)||1))}}),window.addEventListener("cart:change",()=>{Le(),E("[data-cart-count]").forEach(t=>{t.classList.remove("bump"),t.offsetWidth,t.classList.add("bump")})}),Le()}function ce(e,t=1){let a=g.productById(e);if(!a||a.inventory<=0){ee("Sorry, that item just sold out.","err");return}B.add(e,t),oe("cart-sheet")}function ct(e){let t=g.productById(e);if(!t)return;let a=w("#offer-dialog");a||(a=document.createElement("dialog"),a.id="offer-dialog",a.className="modal",a.setAttribute("aria-labelledby","offer-title"),document.body.appendChild(a)),a.innerHTML=`
@@ -404,7 +404,7 @@
             <div class="cond-row"><span class="cond">Condition: ${l(t.condition)}</span>${t.bestDeal?'<span class="cond">Best deal</span>':""}${t.inventory<=5?`<span class="stock-low">Only ${t.inventory} left</span>`:'<span class="muted" style="font-size:14px">In stock</span>'}</div>
           </div>
           <div class="pdp-price">
-            <div class="row"><span class="now tabnum">${$(t.price)}</span><span class="tax">+ tax</span>${n?`<span class="off">-${n}%</span>`:""}</div>
+            <div class="row"><span class="now tabnum">${$(t.price)}</span>${n?`<span class="off">-${n}%</span>`:""}</div>
             ${n?`<div class="row"><span class="was">Retail <s class="tabnum">${$(t.originalPrice)}</s></span><span class="save">You save ${$(t.originalPrice-t.price)}</span></div>`:""}
           </div>
           <ul class="facts">
