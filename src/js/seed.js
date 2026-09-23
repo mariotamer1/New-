@@ -146,6 +146,7 @@ export const PRODUCTS = ROWS.map((r, i) => {
     slug, title, brand, categoryId: C(cat), condition,
     price, originalPrice, shipping, inventory, bestDeal,
     published: true,
+    noShipping: slug === 'live-bonsai-tree',
     upc: upc(i + 11),
     description,
     images: imgs,

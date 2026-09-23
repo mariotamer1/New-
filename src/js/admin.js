@@ -140,7 +140,7 @@ function mount(main, { store, navigate, query }) {
         <th>Product</th><th>Price</th><th>Inventory</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
         ${list.map((p) => `<tr data-row="${p.id}" class="${p.inventory <= 0 || !p.published ? 'dim' : ''}">
           <td><input type="checkbox" aria-label="Select ${esc(p.title)}" data-sel="${p.id}" ${selected.has(p.id) ? 'checked' : ''}></td>
-          <td><div class="adm-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="" width="48" height="48" loading="lazy">` : '<span class="adm-noimg"></span>'}<div><button class="adm-title" type="button" data-edit="${p.id}">${esc(p.title)}</button><small>${esc(catName(p.categoryId))} · ${esc(p.condition)}${p.upc ? ' · ' + esc(p.upc) : ''}</small></div></div></td>
+          <td><div class="adm-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="" width="48" height="48" loading="lazy">` : '<span class="adm-noimg"></span>'}<div><button class="adm-title" type="button" data-edit="${p.id}">${esc(p.title)}</button><small>${esc(catName(p.categoryId))} · ${esc(p.condition)}${p.noShipping ? ' · Pick up only' : ''}${p.upc ? ' · ' + esc(p.upc) : ''}</small></div></div></td>
           <td class="tabnum"><b>${money(p.price)}</b>${pctOff(p) ? `<small><s>${money(p.originalPrice)}</s> · -${pctOff(p)}%</small>` : ''}</td>
           <td><div class="adm-stock"><button type="button" aria-label="Decrease inventory" data-inv="-1" data-id="${p.id}">${icon('minus', 'icon-sm')}</button><b class="tabnum">${p.inventory}</b><button type="button" aria-label="Increase inventory" data-inv="1" data-id="${p.id}">${icon('plus', 'icon-sm')}</button></div>${p.inventory <= 0 ? '<small>Sold out · hidden</small>' : ''}</td>
           <td><label class="switch"><input type="checkbox" data-pub="${p.id}" ${p.published ? 'checked' : ''}><span>${p.published ? 'Published' : 'Hidden'}</span></label>
@@ -192,6 +192,7 @@ function mount(main, { store, navigate, query }) {
             </div>
             <p class="hint" data-price-hint>Enter a discount % to calculate the sale price automatically.</p>
             <div class="field"><label for="ed-ship">Shipping price</label><div class="money-input"><span>$</span><input id="ed-ship" name="shipping" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(d.shipping ?? 0)}"></div><span class="hint">Local pickup is always free.</span></div>
+            <label class="check-row"><input type="checkbox" name="noShipping" ${d.noShipping ? 'checked' : ''}> <span><b>Not available for shipping</b><br><span class="hint">The store will only show “Available for pick up”.</span></span></label>
           </div></section>
           <section class="adm-card"><div class="adm-card-head"><h2>Inventory</h2></div><div class="adm-card-body form">
             <div class="field"><label for="ed-inv">Quantity in stock</label><div class="qty" style="height:46px"><button type="button" aria-label="Decrease" data-ed-inv="-1">${icon('minus', 'icon-sm')}</button><input id="ed-inv" name="inventory" type="number" inputmode="numeric" min="0" step="1" value="${esc(d.inventory)}" style="width:80px"><button type="button" aria-label="Increase" data-ed-inv="1">${icon('plus', 'icon-sm')}</button></div></div>
@@ -233,7 +234,7 @@ function mount(main, { store, navigate, query }) {
     const syncDraft = () => {
       ['title', 'description', 'brand', 'upc', 'slug', 'condition', 'categoryId'].forEach((k) => { draft[k] = f(k).value; });
       draft.price = f('price').value; draft.originalPrice = f('originalPrice').value; draft.shipping = f('shipping').value; draft.inventory = f('inventory').value;
-      draft.published = f('published').checked; draft.bestDeal = f('bestDeal').checked;
+      draft.published = f('published').checked; draft.bestDeal = f('bestDeal').checked; draft.noShipping = f('noShipping').checked;
     };
     form.addEventListener('input', (e) => {
       const n = e.target.name;
@@ -301,7 +302,7 @@ function mount(main, { store, navigate, query }) {
         id: editId === 'new' ? undefined : editId, title: draft.title.trim(), slug: draft.slug.trim(), brand: draft.brand.trim(), upc,
         condition: draft.condition, categoryId: draft.categoryId || null, description: draft.description.trim(),
         price: round2(price), originalPrice: orig > price ? round2(orig) : null, shipping: round2(ship), inventory: inv,
-        published: draft.published, bestDeal: draft.bestDeal, images: draft.images,
+        published: draft.published, bestDeal: draft.bestDeal, noShipping: !!draft.noShipping, images: draft.images,
       };
       const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Saving…';
       try {

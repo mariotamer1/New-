@@ -147,7 +147,7 @@ export function footerHTML() {
 // ---------------------------------------------------------------- product card
 export function priceHTML(p, { save = false } = {}) {
   const off = pctOff(p);
-  return `<div class="price"><span class="now tabnum">${money(p.price)}</span>${off ? `<s class="was tabnum">${money(p.originalPrice)}</s>` : ''}${save && off ? `<span class="save">Save ${money(p.originalPrice - p.price)}</span>` : ''}</div>`;
+  return `<div class="price"><span class="now tabnum">${money(p.price)}</span>${off ? `<s class="was tabnum">${money(p.originalPrice)}</s>` : ''}${save && off ? `<span class="save">Save ${money(p.originalPrice - p.price)}</span>` : ''}<span class="tax">+ tax</span></div>`;
 }
 
 export function cardHTML(p, { eager = false, sizes } = {}) {
@@ -166,7 +166,7 @@ export function cardHTML(p, { eager = false, sizes } = {}) {
       <p class="card-cond">${esc(p.condition)}</p>
       <h3 class="card-title"><a href="${url}">${esc(p.title)}</a></h3>
       ${priceHTML(p)}
-      <p class="card-ship">${p.shipping > 0 ? `+ ${money(p.shipping)} shipping` : 'Free shipping'} · Pickup available</p>
+      <ul class="card-ship"><li>${icon('store', 'icon-sm')} Available for pick up</li>${p.noShipping ? '' : `<li>${icon('truck', 'icon-sm')} Available for shipping${p.shipping > 0 ? ` · ${money(p.shipping)}` : ' · Free'}</li>`}</ul>
       ${p.inventory <= 3 ? `<p class="stock-low">Only ${p.inventory} left</p>` : ''}
       <div class="card-actions">
         <button class="btn" type="button" data-offer="${p.id}">Make Offer</button>
@@ -363,7 +363,7 @@ export function renderCart() {
         </div>
       </div>
     </li>`).join('')}</ul>`;
-  foot.innerHTML = `<div class="cart-sum"><div class="row total"><span>Subtotal</span><span class="tabnum">${money(cart.subtotal())}</span></div></div>
+  foot.innerHTML = `<div class="cart-sum"><div class="row total"><span>Subtotal</span><span class="tabnum">${money(cart.subtotal())} <small class="tax">+ tax</small></span></div></div>
     <p class="cart-note">${icon('truck', 'icon-sm')} Shipping or free local pickup — choose at checkout.</p>
     <a class="btn btn-primary btn-lg btn-block" href="${href('/checkout')}" data-close-cart>Checkout</a>
     <button class="btn btn-block" type="button" data-close-cart>Continue shopping</button>`;

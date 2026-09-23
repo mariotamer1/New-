@@ -239,12 +239,12 @@ export function product({ params }) {
     image: p.images.map((i) => img(i.lg)), description: p.description.replace(/\n+/g, ' ').replace(/•/g, ''),
     brand: p.brand ? { '@type': 'Brand', name: p.brand } : undefined, category: c ? c.name : undefined,
     offers: { '@type': 'Offer', url: ENV.root + 'products/' + p.slug, priceCurrency: 'USD', price: p.price.toFixed(2), availability: 'https://schema.org/InStock', itemCondition: 'https://schema.org/' + (condMap[p.condition] || 'UsedCondition'), seller: { '@type': 'Organization', name: 'ML Group' },
-      shippingDetails: { '@type': 'OfferShippingDetails', shippingRate: { '@type': 'MonetaryAmount', value: Number(p.shipping).toFixed(2), currency: 'USD' }, shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'US' } } },
+      shippingDetails: p.noShipping ? undefined : { '@type': 'OfferShippingDetails', shippingRate: { '@type': 'MonetaryAmount', value: Number(p.shipping).toFixed(2), currency: 'USD' }, shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'US' } } },
   };
   const para = esc(p.description).split(/\n\n+/).map((b) => (b.trim().startsWith('•') ? `<ul>${b.split('\n').map((l) => `<li>${l.replace(/^•\s*/, '')}</li>`).join('')}</ul>` : `<p>${b.replace(/\n/g, '<br>')}</p>`)).join('');
   return {
     title: p.title, image: p.images[0] && p.images[0].lg, jsonld, path: '/products/' + p.slug,
-    description: `${p.title} — ${p.condition}, ${money(p.price)}${off ? ` (${off}% off)` : ''}. Shipping ${money(p.shipping)} or free local pickup at ML Group.`,
+    description: `${p.title} — ${p.condition}, ${money(p.price)}${off ? ` (${off}% off)` : ''}. ${p.noShipping ? 'Available for local pickup only' : `Shipping ${money(p.shipping)} or free local pickup`} at ML Group.`,
     html: `
     <div class="wrap">
       <nav class="crumbs" aria-label="Breadcrumb" style="margin-top:18px"><a href="${href('/')}">Home</a><span aria-hidden="true">/</span><a href="${href('/products')}">Products</a><span aria-hidden="true">/</span>${c ? `<a href="${href('/categories/' + c.slug)}">${esc(c.name)}</a><span aria-hidden="true">/</span>` : ''}<span aria-current="page">${esc(p.title)}</span></nav>
@@ -264,12 +264,12 @@ export function product({ params }) {
             <div class="cond-row"><span class="cond">Condition: ${esc(p.condition)}</span>${p.bestDeal ? '<span class="cond">Best deal</span>' : ''}${p.inventory <= 5 ? `<span class="stock-low">Only ${p.inventory} left</span>` : '<span class="muted" style="font-size:14px">In stock</span>'}</div>
           </div>
           <div class="pdp-price">
-            <div class="row"><span class="now tabnum">${money(p.price)}</span>${off ? `<span class="off">-${off}%</span>` : ''}</div>
+            <div class="row"><span class="now tabnum">${money(p.price)}</span><span class="tax">+ tax</span>${off ? `<span class="off">-${off}%</span>` : ''}</div>
             ${off ? `<div class="row"><span class="was">Retail <s class="tabnum">${money(p.originalPrice)}</s></span><span class="save">You save ${money(p.originalPrice - p.price)}</span></div>` : ''}
           </div>
           <ul class="facts">
-            <li>${icon('truck')}<div><b>Shipping: ${p.shipping > 0 ? money(p.shipping) : 'Free'}</b><span>Ships in 1–2 business days.</span></div></li>
-            <li>${icon('store')}<div><b>Local Pickup Available</b><span>Free · ${esc(s.city)}, ${esc(s.state)} · ${esc(s.pickupHours)}</span></div></li>
+            <li>${icon('store')}<div><b>Available for pick up</b><span>Free · ${esc(s.city)}, ${esc(s.state)} · ${esc(s.pickupHours)}</span></div></li>
+            ${p.noShipping ? '' : `<li>${icon('truck')}<div><b>Available for shipping</b><span>Shipping: ${p.shipping > 0 ? money(p.shipping) : 'Free'} · ships in 1–2 business days</span></div></li>`}
           </ul>
           <div class="buy-row">
             <div class="qty" role="group" aria-label="Quantity"><button type="button" aria-label="Decrease quantity" data-q="-1">${icon('minus', 'icon-sm')}</button><input id="pdp-qty" type="number" inputmode="numeric" min="1" max="${p.inventory}" value="1" aria-label="Quantity"><button type="button" aria-label="Increase quantity" data-q="1">${icon('plus', 'icon-sm')}</button></div>
@@ -460,6 +460,8 @@ export function checkout() {
       const draw = () => {
         const items = cart.items();
         if (!items.length) { box.innerHTML = `<div class="empty" style="margin-block:32px 64px"><h2>Your cart is empty</h2><p class="muted">Add something from today’s deals to check out.</p><a class="btn btn-primary" href="${href('/products?deals=1')}">Browse Deals</a></div>`; return; }
+        const pickupOnly = items.filter((i) => i.product.noShipping);
+        if (pickupOnly.length) draft.fulfillment = 'pickup';
         const pickup = draft.fulfillment === 'pickup';
         const shipTotal = round2(items.reduce((t, i) => t + i.product.shipping, 0));
         const sub = cart.subtotal();
@@ -473,7 +475,7 @@ export function checkout() {
             </div></section>
             <section class="co-section"><h2><span class="n">2</span> Delivery</h2><div class="co-body">
               <div class="radio-cards" role="radiogroup" aria-label="Delivery method">
-                <label class="radio-card"><input type="radio" name="fulfillment" value="shipping" ${!pickup ? 'checked' : ''}><div><b>Ship to me</b><span>Ships in 1–2 business days</span></div><span class="rc-price tabnum">${money(shipTotal)}</span></label>
+                ${pickupOnly.length ? `<p class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up only</b><span>${pickupOnly.map((i) => esc(i.product.title)).join(', ')} ${pickupOnly.length > 1 ? 'are' : 'is'} not available for shipping, so this order is for local pickup.</span></p>` : `<label class="radio-card"><input type="radio" name="fulfillment" value="shipping" ${!pickup ? 'checked' : ''}><div><b>Ship to me</b><span>Ships in 1–2 business days</span></div><span class="rc-price tabnum">${money(shipTotal)}</span></label>`}
                 <label class="radio-card"><input type="radio" name="fulfillment" value="pickup" ${pickup ? 'checked' : ''}><div><b>Local pickup</b><span>${esc(s.city)}, ${esc(s.state)} · ready in about 1 business day</span></div><span class="rc-price">Free</span></label>
               </div>
               ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pickup location</b><span>${esc(s.address1)}, ${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)}</span><span class="muted">${esc(s.pickupNote)}</span></div>` : `
@@ -497,7 +499,7 @@ export function checkout() {
           </div>
           <aside class="summary" aria-label="Order summary">
             <h2>Order summary</h2>
-            <ul class="sum-items">${items.map(({ product: p, qty }) => `<li class="sum-item"><span class="th">${imgTag(p.images[0], { alt: '', sizes: '56px' })}<span class="q">${qty}</span></span><span class="t">${esc(p.title)}<small>${esc(p.condition)} · ${qty} × ${money(p.price)}${!pickup ? ` · ship ${money(p.shipping)}` : ''}</small></span><span class="p tabnum">${money(p.price * qty)}</span></li>`).join('')}</ul>
+            <ul class="sum-items">${items.map(({ product: p, qty }) => `<li class="sum-item"><span class="th">${imgTag(p.images[0], { alt: '', sizes: '56px' })}<span class="q">${qty}</span></span><span class="t">${esc(p.title)}<small>${esc(p.condition)} · ${qty} × ${money(p.price)}${!pickup ? ` · ship ${money(p.shipping)}` : ''}${p.noShipping ? ' · pick up only' : ''}</small></span><span class="p tabnum">${money(p.price * qty)}</span></li>`).join('')}</ul>
             <div class="sum-totals">
               <div class="row"><span>Subtotal</span><span class="tabnum">${money(sub)}</span></div>
               <div class="row"><span>${pickup ? 'Local pickup' : 'Shipping'}</span><span class="tabnum">${pickup ? 'Free' : money(shipTotal)}</span></div>

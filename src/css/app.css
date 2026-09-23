@@ -297,7 +297,9 @@ mark { background: none; color: inherit; font-weight: 800; text-decoration: unde
 .price .now { font: 800 19px/1 var(--font-display); letter-spacing: -.01em; }
 .price .was { color: var(--mute); font-size: 13.5px; }
 .price .save { font-size: 12px; font-weight: 700; }
-.card-ship { font-size: 12.5px; color: var(--mute); }
+.card-ship { list-style: none; display: grid; gap: 3px; font-size: 12.5px; color: var(--mute); }
+.card-ship li { display: flex; align-items: center; gap: 6px; }
+.card-ship .icon { width: 14px; height: 14px; }
 .card-actions { position: relative; z-index: 2; display: grid; gap: 6px; margin-top: 8px; }
 .card-actions .btn { min-height: 40px; padding: 0 10px; font-size: 13px; }
 @container (min-width: 250px) { .card-actions { grid-template-columns: 1fr 1fr; } }
@@ -745,3 +747,5 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .adm-msg-actions { display: flex; gap: 8px; margin-top: 12px; }
 .adm-order-dlg { width: min(640px, calc(100% - 24px)); }
 .adm-order-dlg .modal-body { max-height: calc(100vh - 140px); overflow: auto; }
+.tax { color: var(--mute); font: 600 13px var(--font-body); white-space: nowrap; }
+.pdp-price .tax { font-size: 15px; }

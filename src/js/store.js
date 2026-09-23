@@ -80,6 +80,8 @@ function createLocalBackend() {
         lines.push({ p, qty });
       }
       const pickup = input.fulfillment === 'pickup';
+      const noShip = lines.find(({ p }) => p.noShipping);
+      if (!pickup && noShip) throw new Error(`“${noShip.p.title}” is available for pick up only. Choose local pickup.`);
       const items = lines.map(({ p, qty }) => ({ productId: p.id, slug: p.slug, title: p.title, image: p.images[0] || null, price: p.price, qty, shipping: pickup ? 0 : p.shipping }));
       const subtotal = round2(items.reduce((s, i) => s + i.price * i.qty, 0));
       const shippingTotal = round2(items.reduce((s, i) => s + i.shipping, 0));
