@@ -2,4 +2,4 @@ User-agent: *
 Disallow: /admin/
 Disallow: /checkout/
 Disallow: /account/
-Sitemap: https://www.mlgroup.store/sitemap.xml
+Sitemap: https://mariotamer.com/sitemap.xml

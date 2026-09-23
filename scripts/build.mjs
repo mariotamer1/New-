@@ -12,7 +12,7 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const SRC = path.join(ROOT, 'src');
 const SITE = path.join(ROOT, 'site');
 const DIST = path.join(ROOT, 'dist');
-const SITE_URL = (process.env.SITE_URL || 'https://www.mlgroup.store/').replace(/\/?$/, '/');
+const SITE_URL = (process.env.SITE_URL || 'https://mariotamer.com/').replace(/\/?$/, '/');
 const CONFIG = JSON.parse(fs.readFileSync(path.join(ROOT, 'store.config.json'), 'utf8'));
 
 fs.rmSync(SITE, { recursive: true, force: true });
