@@ -247,7 +247,7 @@ export function product({ params }) {
     description: `${p.title} — ${p.condition}, ${money(p.price)}${off ? ` (${off}% off)` : ''}. ${p.noShipping ? 'Available for local pickup only' : `Shipping ${money(p.shipping)} or free local pickup`} at ML Group.`,
     html: `
     <div class="wrap">
-      <nav class="crumbs" aria-label="Breadcrumb" style="margin-top:18px"><a href="${href('/')}">Home</a><span aria-hidden="true">/</span><a href="${href('/products')}">Products</a><span aria-hidden="true">/</span>${c ? `<a href="${href('/categories/' + c.slug)}">${esc(c.name)}</a><span aria-hidden="true">/</span>` : ''}<span aria-current="page">${esc(p.title)}</span></nav>
+      <nav class="crumbs" aria-label="Breadcrumb" style="margin-top:18px"><a href="${href('/')}">Home</a><span aria-hidden="true">/</span><a href="${href('/products')}">Products</a><span aria-hidden="true">/</span>${c ? `<a href="${href('/categories/' + c.slug)}">${esc(c.name)}</a><span aria-hidden="true">/</span>` : ''}<span aria-current="page" class="crumb-title">${esc(p.title)}</span></nav>
       <div class="pdp">
         <div class="gallery">
           <div class="g-main" data-carousel>

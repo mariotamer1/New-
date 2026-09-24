@@ -819,3 +819,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
   .adm-order-dlg .modal-body > *, .adm-order-dlg .kv > div { min-width: 0; overflow-wrap: anywhere; }
   .adm-order-dlg .sum-item { padding: 10px 12px; }
 }
+
+/* product page: compact thumbnail strip */
+.g-thumbs { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 64px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.g-thumbs::-webkit-scrollbar { display: none; }
+@media (max-width: 899px) {
+  .g-thumbs { grid-auto-columns: 52px; gap: 6px; }
+  .pdp { gap: 16px; padding-top: 10px; }
+  .pdp .crumbs span[aria-current] { display: none; }
+  .crumbs span[aria-current] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+}
+@media (max-width: 899px) { .crumb-title, .crumbs span[aria-hidden]:nth-last-child(2) { display: none; } }
