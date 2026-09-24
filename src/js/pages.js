@@ -488,6 +488,7 @@ export function checkout() {
               <div class="radio-cards" role="radiogroup" aria-label="Payment method">
                 <label class="radio-card"><input type="radio" name="payment" value="link" ${draft.payment !== 'pickup' ? 'checked' : ''}><div><b>Pay by secure card link</b><span>After we confirm your items, we text and email a secure payment link. Nothing is charged until you pay.</span></div>${icon('link')}</label>
                 ${pickup ? `<label class="radio-card"><input type="radio" name="payment" value="pickup" ${draft.payment === 'pickup' ? 'checked' : ''}><div><b>Pay at pickup</b><span>Cash or card when you collect your order.</span></div>${icon('cash')}</label>` : ''}
+                ${pickup && draft.payment === 'pickup' ? `<div class="pickup-when" data-pk-when>${draft.pickupWhen ? `${icon('calendar', 'icon-sm')}<span>Pickup: <b>${esc(draft.pickupWhen)}</b></span><button class="btn-link" type="button" data-pk-open>Change</button>` : `<button class="btn" type="button" data-pk-open>${icon('calendar', 'icon-sm')} Choose date &amp; time</button>`}</div>` : ''}
               </div>
               <div class="field"><label for="co-notes">Order notes <span class="opt">(optional)</span></label><textarea id="co-notes" name="notes" style="min-height:80px">${esc(draft.notes || '')}</textarea></div>
             </div></section>
@@ -511,9 +512,20 @@ export function checkout() {
         </form>`;
       };
       draw();
+      const pickTime = () => {
+        const items = cart.items(); if (!items.length) return;
+        const f = $('[data-co-form]', box); const d = f ? Object.fromEntries(new FormData(f)) : draft;
+        const p = items.length === 1 ? items[0].product : { ...items[0].product, title: `${items.length} items in your order` };
+        openPickup(p, { name: d.name, phone: d.phone, onPick: ({ name, phone, when }) => {
+          const form = $('[data-co-form]', box);
+          if (form) Object.assign(draft, Object.fromEntries(new FormData(form)));
+          Object.assign(draft, { name, phone, pickupWhen: when }); delete draft.password; ls.set('ml-co', draft); draw();
+        } });
+      };
+      box.addEventListener('click', (e) => { if (e.target.closest('[data-pk-open]')) pickTime(); });
       box.addEventListener('input', (e) => { const f = e.target.closest('form'); if (!f) return; const d = Object.fromEntries(new FormData(f)); Object.assign(draft, d, { create: !!d.create }); delete draft.password; ls.set('ml-co', draft); });
       box.addEventListener('change', (e) => {
-        if (e.target.name === 'fulfillment' || e.target.name === 'payment') { const f = e.target.closest('form'); Object.assign(draft, Object.fromEntries(new FormData(f))); delete draft.password; ls.set('ml-co', draft); draw(); }
+        if (e.target.name === 'fulfillment' || e.target.name === 'payment') { const f = e.target.closest('form'); Object.assign(draft, Object.fromEntries(new FormData(f))); delete draft.password; ls.set('ml-co', draft); draw(); if (e.target.name === 'payment' && e.target.value === 'pickup') pickTime(); }
         if (e.target.matches('[data-create]')) { $('[data-pw]', box).hidden = !e.target.checked; draft.create = e.target.checked; }
       });
       box.addEventListener('submit', async (e) => {
@@ -527,6 +539,8 @@ export function checkout() {
         checks.forEach(([id, bad]) => { const el = $('#' + id, f); if (el) el.setAttribute('aria-invalid', bad ? 'true' : 'false'); });
         const first = checks.find(([, bad]) => bad);
         if (first) { err.textContent = 'Please complete the highlighted fields.'; err.hidden = false; $('#' + first[0], f).focus(); return; }
+        const payPickup = pickup && d.payment === 'pickup';
+        if (payPickup && !draft.pickupWhen) { err.textContent = 'Please choose a pickup date and time.'; err.hidden = false; pickTime(); return; }
         const btn = $('button[type="submit"]', f); btn.disabled = true; btn.textContent = 'Placing order…';
         try {
           const order = await store.placeOrder({
@@ -534,9 +548,11 @@ export function checkout() {
             customer: { name: d.name.trim(), email: d.email.trim(), phone: d.phone.trim() },
             fulfillment: d.fulfillment, payment: d.payment,
             address: pickup ? null : { line1: d.line1.trim(), line2: (d.line2 || '').trim(), city: d.city.trim(), state: d.state.trim().toUpperCase(), zip: d.zip.trim() },
-            notes: (d.notes || '').trim(),
+            notes: [payPickup ? `Pickup time: ${draft.pickupWhen}` : '', (d.notes || '').trim()].filter(Boolean).join('\n'),
             createAccount: d.create ? { password: d.password } : null,
           });
+          if (payPickup) store.submitInquiry({ type: 'pickup', name: d.name.trim(), phone: d.phone.trim(), email: d.email.trim(), company: '', message: `Pickup request: ${cart.items().map((i) => (i.qty > 1 ? i.qty + ' × ' : '') + i.product.title).join(', ')}${order.number ? ` (Order #${order.number})` : ''}\nWhen: ${draft.pickupWhen}` }).catch(() => {});
+          delete draft.pickupWhen; ls.set('ml-co', draft);
           cart.clear();
           ls.set('ml-last-order', order.id);
           navigate('/order/' + order.id);
@@ -643,7 +659,8 @@ function slotsFor(dateStr) {
 }
 const fmtSlot = (hm) => { const [h, m] = hm.split(':').map(Number); return `${((h + 11) % 12) + 1}:${pad(m)} ${h < 12 ? 'AM' : 'PM'}`; };
 
-function openPickup(p) {
+function openPickup(p, opts = {}) {
+  const co = !!opts.onPick;
   const s = store.settings();
   let dlg = $('#pickup-dialog');
   if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'pickup-dialog'; dlg.className = 'modal'; dlg.setAttribute('aria-labelledby', 'pk-title'); document.body.appendChild(dlg); }
@@ -652,20 +669,22 @@ function openPickup(p) {
   while (!slotsFor(isoDay(first)).length) first.setDate(first.getDate() + 1);
   const max = new Date(today); max.setDate(max.getDate() + 60);
   const timeOpts = (day) => { const sl = slotsFor(day); return sl.length ? sl.map((t) => `<option value="${t}">${fmtSlot(t)}</option>`).join('') : '<option value="">Closed this day — pick another date</option>'; };
+  const contactFields = `<div class="field"><label for="pk-name">Name</label><input id="pk-name" name="name" autocomplete="name" required maxlength="80" value="${esc(opts.name || '')}"></div>
+      <div class="field"><label for="pk-phone">Phone number</label><input id="pk-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="(555) 555-5555" maxlength="24" value="${esc(opts.phone || '')}"></div>`;
   dlg.innerHTML = `
-    <div class="modal-head"><h2 id="pk-title">Schedule pickup</h2><button class="icon-btn" type="button" aria-label="Close" data-close-dialog>${icon('close')}</button></div>
+    <div class="modal-head"><h2 id="pk-title">${co ? 'Choose a pickup time' : 'Schedule pickup'}</h2><button class="icon-btn" type="button" aria-label="Close" data-close-dialog>${icon('close')}</button></div>
     <form class="modal-body form" novalidate data-pickup-form>
       <div class="offer-item">${imgTag(p.images[0], { alt: '', sizes: '64px' })}<div><b>${esc(p.title)}</b><span>Free pickup · ${esc(s.city)}, ${esc(s.state)}</span></div></div>
+      ${co ? contactFields : ''}
       <div class="form-row two">
         <div class="field"><label for="pk-date">${icon('calendar', 'icon-sm')} Date</label><input id="pk-date" name="date" type="date" required min="${isoDay(first)}" max="${isoDay(max)}" value="${isoDay(first)}"></div>
         <div class="field"><label for="pk-time">${icon('clock', 'icon-sm')} Time</label><select id="pk-time" name="time" required>${timeOpts(isoDay(first))}</select></div>
       </div>
       <p class="hint">${esc(s.pickupHours)}</p>
-      <div class="field"><label for="pk-name">Name</label><input id="pk-name" name="name" autocomplete="name" required maxlength="80"></div>
-      <div class="field"><label for="pk-phone">Phone number</label><input id="pk-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="(555) 555-5555" maxlength="24"></div>
+      ${co ? '' : contactFields}
       <div class="hp" aria-hidden="true"><label for="pk-web">Website</label><input id="pk-web" name="website" tabindex="-1" autocomplete="off"></div>
       <p class="form-error" data-err hidden></p>
-      <button class="btn btn-primary btn-lg btn-block" type="submit">Submit</button>
+      <button class="btn btn-primary btn-lg btn-block" type="submit">${co ? 'Confirm pickup time' : 'Submit'}</button>
     </form>`;
   const form = $('[data-pickup-form]', dlg);
   $('#pk-date', dlg).addEventListener('change', (e) => { $('#pk-time', dlg).innerHTML = timeOpts(e.target.value); });
@@ -678,6 +697,7 @@ function openPickup(p) {
     const bad = checks.find(([, b]) => b);
     if (bad) { err.textContent = 'Please choose a date and time, and enter your name and a 10-digit phone number.'; err.hidden = false; $('#' + bad[0], form).focus(); return; }
     const when = `${new Date(f.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${fmtSlot(f.time)}`;
+    if (co) { dlg.close(); opts.onPick({ name: f.name.trim(), phone: f.phone.trim(), when }); return; }
     const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Sending…';
     try {
       if (!f.website) await store.submitInquiry({ type: 'pickup', name: f.name.trim(), phone: f.phone.trim(), email: '', company: '', message: `Pickup request: ${p.title}\nWhen: ${when}` });
@@ -686,5 +706,6 @@ function openPickup(p) {
     } catch (ex) { err.textContent = ex.message || 'Something went wrong. Please try again.'; err.hidden = false; btn.disabled = false; btn.textContent = 'Submit'; }
   });
   dlg.onclick = (e) => { if (e.target === dlg || e.target.closest('[data-close-dialog]')) dlg.close(); };
+  dlg.onclose = () => { if (co && opts.onClose) opts.onClose(); };
   dlg.showModal();
 }
