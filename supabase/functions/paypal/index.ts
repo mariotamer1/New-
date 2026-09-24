@@ -3,9 +3,11 @@
 //   { action: 'create',  orderId }  -> creates a PayPal order for that store order
 //   { action: 'capture', orderId }  -> captures it and marks the store order paid
 //   { action: 'cancel',  orderId }  -> buyer closed PayPal: restock and cancel if still unpaid
+//   { action: 'refund',  orderId }  -> admin only: refunds the full PayPal payment
 //   { action: 'ping' }              -> checks the PayPal credentials
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
@@ -35,9 +37,9 @@ async function token() {
   if (!r.ok) throw new Error('PayPal login failed: ' + (j.error_description || r.status));
   return j.access_token as string;
 }
-async function pp(path: string, method = 'GET', body?: unknown) {
+async function pp(path: string, method = 'GET', body?: unknown, extra: Record<string, string> = {}) {
   const c = await paypalCreds();
-  const r = await fetch(`${c.base}${path}`, { method, headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json', Prefer: 'return=representation' }, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(`${c.base}${path}`, { method, headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json', Prefer: 'return=representation', ...extra }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, j };
 }
@@ -46,6 +48,12 @@ async function getOrder(id: string) {
   const rows = await db(`orders?id=eq.${id}&select=*`);
   if (!rows.length) throw new Error('Order not found');
   return rows[0];
+}
+
+async function isAdmin(req: Request) {
+  const auth = req.headers.get('authorization') || '';
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/is_admin`, { method: 'POST', headers: { apikey: SB_ANON, Authorization: auth, 'Content-Type': 'application/json' }, body: '{}' });
+  return r.ok && (await r.json()) === true;
 }
 
 Deno.serve(async (req) => {
@@ -85,6 +93,18 @@ Deno.serve(async (req) => {
       if (!paidOk) throw new Error('The PayPal payment did not complete. You have not been charged.');
       await db(`orders?id=eq.${o.id}`, { method: 'PATCH', body: JSON.stringify({ paid_at: new Date().toISOString(), paypal: { orderId: ppId, captureId: cap.id, amount: cap.amount.value, payer: r.j.payer?.email_address || null } }) });
       return json({ ok: true });
+    }
+
+    if (action === 'refund') {
+      if (!(await isAdmin(req))) return json({ error: 'Not allowed' }, 403);
+      if (!o.paid_at || !o.paypal?.captureId) throw new Error('This order was not paid through PayPal, so there is nothing to refund automatically.');
+      if (o.paypal.refund && o.paypal.refund.status !== 'FAILED' && o.paypal.refund.status !== 'CANCELLED') return json({ ok: true, refund: o.paypal.refund, already: true });
+      // Same request id on retries, so a double tap can never refund twice.
+      const r = await pp(`/v2/payments/captures/${o.paypal.captureId}/refund`, 'POST', { note_to_payer: `Refund for ML Group order #${o.number}` }, { 'PayPal-Request-Id': `refund-${o.id}` });
+      if (!r.ok) throw new Error(r.j?.details?.[0]?.description || r.j.message || 'PayPal could not refund this payment.');
+      const refund = { id: r.j.id, status: r.j.status, amount: r.j.amount?.value || String(o.paypal.amount || o.total), at: new Date().toISOString() };
+      await db(`orders?id=eq.${o.id}`, { method: 'PATCH', body: JSON.stringify({ paypal: { ...o.paypal, refund } }) });
+      return json({ ok: true, refund });
     }
 
     if (action === 'cancel') {
