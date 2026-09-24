@@ -14,7 +14,7 @@ export const CATEGORIES = [
 export const SETTINGS = {
   storeName: 'ML Group',
   phone: '(425) 757-2554',
-  email: 'sales@mlgroup.store',
+  email: 'Hi@mariotamer.com',
   address1: '',
   city: 'Auburn',
   state: 'WA',
