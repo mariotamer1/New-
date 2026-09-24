@@ -248,6 +248,8 @@ export const store = {
   getOrder: (id) => backend.getOrder(id),
   submitOffer: (x) => backend.submitOffer(x),
   submitInquiry: (x) => backend.submitInquiry(x),
+  get canPayPal() { return !!(backend && backend.paypal && !backend.offline && ENV.cfg.paypalClientId); },
+  paypal: (action, orderId) => backend.paypal(action, orderId),
   account: {
     register: (x) => backend.register(x),
     login: (x) => backend.login(x),

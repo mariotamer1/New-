@@ -454,7 +454,7 @@ export function checkout() {
     html: `<div class="page-head"><div class="wrap"><h1>Checkout</h1><p>No account needed. Choose shipping or free local pickup.</p></div></div><div class="wrap" data-co></div>`,
     mount(root, { navigate }) {
       const box = $('[data-co]', root);
-      const draft = { fulfillment: 'shipping', payment: 'link', ...ls.get('ml-co', {}) };
+      const draft = { fulfillment: 'shipping', payment: store.canPayPal ? 'paypal' : 'link', ...ls.get('ml-co', {}) };
       const draw = () => {
         const items = cart.items();
         if (!items.length) { box.innerHTML = `<div class="empty" style="margin-block:32px 64px"><h2>Your cart is empty</h2><p class="muted">Add something from today’s deals to check out.</p><a class="btn btn-primary" href="${href('/products')}">Browse Deals</a></div>`; return; }
@@ -464,6 +464,8 @@ export function checkout() {
         const shipTotal = round2(items.reduce((t, i) => t + i.product.shipping, 0));
         const sub = cart.subtotal();
         if (!pickup && draft.payment === 'pickup') draft.payment = 'link';
+        if (draft.payment === 'paypal' && !store.canPayPal) draft.payment = 'link';
+        const payPal = draft.payment === 'paypal';
         box.innerHTML = `<form class="checkout" novalidate data-co-form>
           <div>
             <section class="co-section"><h2><span class="n">1</span> Contact</h2><div class="co-body">
@@ -485,7 +487,8 @@ export function checkout() {
             </div></section>
             <section class="co-section"><h2><span class="n">3</span> Payment</h2><div class="co-body">
               <div class="radio-cards" role="radiogroup" aria-label="Payment method">
-                <label class="radio-card"><input type="radio" name="payment" value="link" ${draft.payment !== 'pickup' ? 'checked' : ''}><div><b>Pay by secure card link</b><span>After we confirm your items, we text and email a secure payment link. Nothing is charged until you pay.</span></div>${icon('link')}</label>
+                ${store.canPayPal ? `<label class="radio-card"><input type="radio" name="payment" value="paypal" ${payPal ? 'checked' : ''}><div><b>PayPal, Venmo or card</b><span>Pay now securely with PayPal, Venmo, or any debit or credit card — no PayPal account needed.</span></div>${icon('lock')}</label>` : ''}
+                <label class="radio-card"><input type="radio" name="payment" value="link" ${draft.payment === 'link' ? 'checked' : ''}><div><b>Pay by secure card link</b><span>After we confirm your items, we text and email a secure payment link. Nothing is charged until you pay.</span></div>${icon('link')}</label>
                 ${pickup ? `<label class="radio-card"><input type="radio" name="payment" value="pickup" ${draft.payment === 'pickup' ? 'checked' : ''}><div><b>Pay at pickup</b><span>Cash or card when you collect your order.</span></div>${icon('cash')}</label>` : ''}
                 ${pickup && draft.payment === 'pickup' ? `<div class="pickup-when" data-pk-when>${draft.pickupWhen ? `${icon('calendar', 'icon-sm')}<span>Pickup: <b>${esc(draft.pickupWhen)}</b></span><button class="btn-link" type="button" data-pk-open>Change</button>` : `<button class="btn" type="button" data-pk-open>${icon('calendar', 'icon-sm')} Choose date &amp; time</button>`}</div>` : ''}
               </div>
@@ -504,13 +507,49 @@ export function checkout() {
               <div class="row"><span>${pickup ? 'Local pickup' : 'Shipping'}</span><span class="tabnum">${pickup ? 'Free' : money(shipTotal)}</span></div>
               <div class="row total"><span>Total</span><span class="tabnum">${money(sub + (pickup ? 0 : shipTotal))}</span></div>
               <p class="form-error" data-err hidden></p>
-              <button class="btn btn-primary btn-lg btn-block" type="submit" style="margin-top:8px">${icon('lock', 'icon-sm')} Place order</button>
+              ${payPal ? `<div class="pp-wrap" data-pp><p class="muted" data-pp-loading style="font-size:13px">Loading PayPal…</p></div>` : `<button class="btn btn-primary btn-lg btn-block" type="submit" style="margin-top:8px">${icon('lock', 'icon-sm')} Place order</button>`}
               <p class="form-note">By placing your order you agree to our <a href="${href('/refund-policy')}">refund policy</a>.</p>
             </div>
           </aside>
         </form>`;
       };
-      draw();
+      let ppOrder = null;
+      const mountPayPal = async () => {
+        const host = $('[data-pp]', box); if (!host) return;
+        const form = $('[data-co-form]', box);
+        const fail = (msg) => { const err = $('[data-err]', box); if (err) { err.textContent = msg; err.hidden = false; } };
+        const release = async () => { if (!ppOrder) return; const id = ppOrder.id; ppOrder = null; try { await store.paypal('cancel', id); await store.reload(); } catch {} };
+        let paypal;
+        try { paypal = await loadPayPal(); } catch { host.innerHTML = ''; fail('PayPal could not load. Choose another payment method or try again.'); return; }
+        if (!host.isConnected) return;
+        host.innerHTML = '';
+        paypal.Buttons({
+          style: { layout: 'vertical', color: 'black', shape: 'rect', label: 'pay', height: 48 },
+          onClick: (data, actions) => (validate(form) ? actions.resolve() : actions.reject()),
+          createOrder: async () => {
+            const v = validate(form); if (!v) throw new Error('Please complete the highlighted fields.');
+            await release();
+            ppOrder = await store.placeOrder(orderInput(v));
+            if (v.payPickup) store.submitInquiry({ type: 'pickup', name: v.d.name.trim(), phone: v.d.phone.trim(), email: v.d.email.trim(), company: '', message: `Pickup request: ${cart.items().map((i) => (i.qty > 1 ? i.qty + ' × ' : '') + i.product.title).join(', ')} (Order #${ppOrder.number})\nWhen: ${draft.pickupWhen}` }).catch(() => {});
+            const r = await store.paypal('create', ppOrder.id);
+            return r.id;
+          },
+          onApprove: async () => {
+            host.innerHTML = '<p class="muted" style="font-size:14px">Confirming your payment…</p>';
+            try {
+              await store.paypal('capture', ppOrder.id);
+              const id = ppOrder.id; ppOrder = null;
+              delete draft.pickupWhen; ls.set('ml-co', draft);
+              cart.clear(); ls.set('ml-last-order', id);
+              navigate('/order/' + id);
+            } catch (ex) { await release(); drawAll(); fail(ex.message || 'Your payment did not go through. You have not been charged.'); }
+          },
+          onCancel: async () => { await release(); fail('Payment cancelled — you have not been charged.'); },
+          onError: async (ex) => { await release(); fail((ex && ex.message && !/^\s*$/.test(ex.message) && ex.message.length < 160) ? ex.message : 'PayPal could not complete the payment. You have not been charged.'); },
+        }).render(host).catch(() => fail('PayPal could not load. Choose another payment method.'));
+      };
+      const drawAll = () => { draw(); mountPayPal(); };
+      draw(); mountPayPal();
       const pickTime = () => {
         const items = cart.items(); if (!items.length) return;
         const f = $('[data-co-form]', box); const d = f ? Object.fromEntries(new FormData(f)) : draft;
@@ -518,18 +557,18 @@ export function checkout() {
         openPickup(p, { name: d.name, phone: d.phone, onPick: ({ name, phone, when }) => {
           const form = $('[data-co-form]', box);
           if (form) Object.assign(draft, Object.fromEntries(new FormData(form)));
-          Object.assign(draft, { name, phone, pickupWhen: when }); delete draft.password; ls.set('ml-co', draft); draw();
+          Object.assign(draft, { name, phone, pickupWhen: when }); delete draft.password; ls.set('ml-co', draft); drawAll();
         } });
       };
       box.addEventListener('click', (e) => { if (e.target.closest('[data-pk-open]')) pickTime(); });
       box.addEventListener('input', (e) => { const f = e.target.closest('form'); if (!f) return; const d = Object.fromEntries(new FormData(f)); Object.assign(draft, d, { create: !!d.create }); delete draft.password; ls.set('ml-co', draft); });
       box.addEventListener('change', (e) => {
-        if (e.target.name === 'fulfillment' || e.target.name === 'payment') { const f = e.target.closest('form'); Object.assign(draft, Object.fromEntries(new FormData(f))); delete draft.password; ls.set('ml-co', draft); draw(); if (e.target.name === 'payment' && e.target.value === 'pickup') pickTime(); }
+        if (e.target.name === 'fulfillment' || e.target.name === 'payment') { const f = e.target.closest('form'); Object.assign(draft, Object.fromEntries(new FormData(f))); delete draft.password; ls.set('ml-co', draft); drawAll(); if (e.target.name === 'payment' && e.target.value === 'pickup') pickTime(); }
         if (e.target.matches('[data-create]')) { $('[data-pw]', box).hidden = !e.target.checked; draft.create = e.target.checked; }
       });
-      box.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const f = e.target; const d = Object.fromEntries(new FormData(f));
+      // Returns the form values, or null after highlighting what is missing.
+      const validate = (f) => {
+        const d = Object.fromEntries(new FormData(f));
         const err = $('[data-err]', f);
         const pickup = d.fulfillment === 'pickup';
         const checks = [['co-name', !String(d.name).trim()], ['co-email', !/^\S+@\S+\.\S+$/.test(d.email)], ['co-phone', String(d.phone).replace(/\D/g, '').length < 10]];
@@ -537,19 +576,30 @@ export function checkout() {
         if (d.create) checks.push(['co-pw', String(d.password || '').length < 8]);
         checks.forEach(([id, bad]) => { const el = $('#' + id, f); if (el) el.setAttribute('aria-invalid', bad ? 'true' : 'false'); });
         const first = checks.find(([, bad]) => bad);
-        if (first) { err.textContent = 'Please complete the highlighted fields.'; err.hidden = false; $('#' + first[0], f).focus(); return; }
+        if (first) { err.textContent = 'Please complete the highlighted fields.'; err.hidden = false; $('#' + first[0], f).focus(); return null; }
         const payPickup = pickup && d.payment === 'pickup';
-        if (payPickup && !draft.pickupWhen) { err.textContent = 'Please choose a pickup date and time.'; err.hidden = false; pickTime(); return; }
+        if (payPickup && !draft.pickupWhen) { err.textContent = 'Please choose a pickup date and time.'; err.hidden = false; pickTime(); return null; }
+        err.hidden = true;
+        return { d, pickup, payPickup };
+      };
+      const orderInput = ({ d, pickup, payPickup }) => ({
+        items: cart.items().map((i) => ({ id: i.product.id, qty: i.qty })),
+        customer: { name: d.name.trim(), email: d.email.trim(), phone: d.phone.trim() },
+        fulfillment: d.fulfillment, payment: d.payment,
+        address: pickup ? null : { line1: d.line1.trim(), line2: (d.line2 || '').trim(), city: d.city.trim(), state: d.state.trim().toUpperCase(), zip: d.zip.trim() },
+        notes: [payPickup ? `Pickup time: ${draft.pickupWhen}` : '', (d.notes || '').trim()].filter(Boolean).join('\n'),
+        createAccount: d.create ? { password: d.password } : null,
+      });
+      box.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = e.target;
+        const v = validate(f); if (!v) return;
+        const { d, payPickup } = v;
+        const err = $('[data-err]', f);
+        if (d.payment === 'paypal') return;
         const btn = $('button[type="submit"]', f); btn.disabled = true; btn.textContent = 'Placing order…';
         try {
-          const order = await store.placeOrder({
-            items: cart.items().map((i) => ({ id: i.product.id, qty: i.qty })),
-            customer: { name: d.name.trim(), email: d.email.trim(), phone: d.phone.trim() },
-            fulfillment: d.fulfillment, payment: d.payment,
-            address: pickup ? null : { line1: d.line1.trim(), line2: (d.line2 || '').trim(), city: d.city.trim(), state: d.state.trim().toUpperCase(), zip: d.zip.trim() },
-            notes: [payPickup ? `Pickup time: ${draft.pickupWhen}` : '', (d.notes || '').trim()].filter(Boolean).join('\n'),
-            createAccount: d.create ? { password: d.password } : null,
-          });
+          const order = await store.placeOrder(orderInput(v));
           if (payPickup) store.submitInquiry({ type: 'pickup', name: d.name.trim(), phone: d.phone.trim(), email: d.email.trim(), company: '', message: `Pickup request: ${cart.items().map((i) => (i.qty > 1 ? i.qty + ' × ' : '') + i.product.title).join(', ')}${order.number ? ` (Order #${order.number})` : ''}\nWhen: ${draft.pickupWhen}` }).catch(() => {});
           delete draft.pickupWhen; ls.set('ml-co', draft);
           cart.clear();
@@ -576,11 +626,11 @@ export function order({ params }) {
       const pickup = o.fulfillment === 'pickup';
       box.innerHTML = `<div class="confirm">
         <div class="confirm-head"><span class="check">${icon('check')}</span><p class="eyebrow">Order #${o.number}</p><h1>Thank you, ${esc(o.customer.name.split(' ')[0])}!</h1>
-        <p class="muted" style="max-width:60ch">We received your order and emailed a receipt to <b>${esc(o.customer.email)}</b>. ${o.payment === 'pickup' ? 'You’ll pay when you pick up.' : 'We’ll text a secure payment link to ' + esc(o.customer.phone) + ' once your items are confirmed.'}</p></div>
+        <p class="muted" style="max-width:60ch">We received your order and emailed a receipt to <b>${esc(o.customer.email)}</b>. ${o.payment === 'paypal' ? (o.paidAt ? 'Your payment was received — thank you!' : 'Your payment is being confirmed.') : o.payment === 'pickup' ? 'You’ll pay when you pick up.' : 'We’ll text a secure payment link to ' + esc(o.customer.phone) + ' once your items are confirmed.'}</p></div>
         <dl class="kv">
           <div><dt>Order number</dt><dd class="mono">#${o.number}</dd></div>
           <div><dt>Delivery</dt><dd>${pickup ? 'Local pickup (free)' : 'Shipping'}</dd></div>
-          <div><dt>Payment</dt><dd>${o.payment === 'pickup' ? 'Pay at pickup' : 'Secure payment link'}</dd></div>
+          <div><dt>Payment</dt><dd>${o.payment === 'paypal' ? (o.paidAt ? 'Paid · PayPal' : 'PayPal (not completed)') : o.payment === 'pickup' ? 'Pay at pickup' : 'Secure payment link'}</dd></div>
           <div><dt>Total</dt><dd class="tabnum">${money(o.total)}</dd></div>
         </dl>
         ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up at</b><span>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)} — we’ll text you when it’s ready.</span></div>` : `<div class="pickup-box"><b>${icon('truck', 'icon-sm')} Shipping to</b><span>${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}, ${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}</span></div>`}
@@ -638,6 +688,20 @@ export function notFound(msg) {
     html: `<div class="wrap section"><div class="empty" style="margin-bottom:40px"><h2>${esc(msg || 'Page not found')}</h2><p class="muted">Try searching, or check out these deals.</p><a class="btn btn-primary" href="${href('/products')}">Browse all products</a></div><div class="grid cols-4">${deals.map((p) => cardHTML(p)).join('')}</div></div>`,
     mount: (root) => mountCarousels(root),
   };
+}
+
+// ---------------------------------------------------------------- PayPal SDK
+let paypalSdk = null;
+function loadPayPal() {
+  if (window.paypal && window.paypal.Buttons) return Promise.resolve(window.paypal);
+  if (!paypalSdk) paypalSdk = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(ENV.cfg.paypalClientId)}&currency=USD&intent=capture&components=buttons&enable-funding=venmo`;
+    sc.onload = () => (window.paypal ? res(window.paypal) : rej(new Error('PayPal unavailable')));
+    sc.onerror = () => { paypalSdk = null; sc.remove(); rej(new Error('PayPal unavailable')); };
+    document.head.appendChild(sc);
+  });
+  return paypalSdk;
 }
 
 // ---------------------------------------------------------------- pickup scheduler

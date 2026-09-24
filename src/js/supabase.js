@@ -27,7 +27,7 @@ const toProduct = (p) => {
   return o;
 };
 const fromOffer = (r) => ({ id: r.id, productId: r.product_id, productTitle: r.product_title, productSlug: r.product_slug, productImage: r.product_image, listPrice: Number(r.list_price), name: r.name, phone: r.phone, amount: Number(r.amount), status: r.status, createdAt: r.created_at });
-const fromOrder = (r) => ({ id: r.id, number: r.number, createdAt: r.created_at, status: r.status, fulfillment: r.fulfillment, payment: r.payment, customer: r.customer, address: r.address, notes: r.notes || '', items: r.items, subtotal: Number(r.subtotal), shippingTotal: Number(r.shipping_total), total: Number(r.total), customerId: r.customer_id });
+const fromOrder = (r) => ({ id: r.id, number: r.number, createdAt: r.created_at, status: r.status, fulfillment: r.fulfillment, payment: r.payment, customer: r.customer, address: r.address, notes: r.notes || '', items: r.items, subtotal: Number(r.subtotal), shippingTotal: Number(r.shipping_total), total: Number(r.total), customerId: r.customer_id, paidAt: r.paid_at || null, paypalCaptureId: (r.paypal && r.paypal.captureId) || null });
 const fromInquiry = (r) => ({ id: r.id, type: r.type, name: r.name, email: r.email, phone: r.phone, company: r.company, message: r.message, status: r.status, createdAt: r.created_at });
 
 export function createSupabaseBackend(cfg) {
@@ -140,6 +140,8 @@ export function createSupabaseBackend(cfg) {
     async getOrder(id) { try { return await rpc('get_order', { p_id: id }); } catch { return null; } },
     async submitOffer(o) { await rpc('submit_offer', { p_product_id: o.productId, p_name: o.name, p_phone: o.phone, p_amount: o.amount }); },
     async submitInquiry(q) { await rpc('submit_inquiry', { p: q }); },
+    // PayPal: prices come from the saved order on the server, never from the browser
+    paypal: (action, orderId) => raw('POST', '/functions/v1/paypal', { action, orderId }),
 
     async register(d) { ls.set(CUST_KEY, await rpc('customer_register', { p_email: d.email, p_password: d.password, p_name: d.name, p_phone: d.phone || '' })); },
     async login(d) { ls.set(CUST_KEY, await rpc('customer_login', { p_email: d.email, p_password: d.password })); },
