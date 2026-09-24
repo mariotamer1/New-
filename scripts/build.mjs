@@ -190,3 +190,11 @@ execSync(`cd "${SITE}" && zip -qr "${path.join(DIST, 'ml-group-website.zip')}" .
 const kb = (f) => (fs.statSync(f).size / 1024).toFixed(0) + ' KB';
 console.log('app.js', kb(path.join(SITE, 'assets/app.js')), '| admin.js', kb(path.join(SITE, 'assets/admin.js')), '| css', kb(path.join(SITE, 'assets/app.css')));
 console.log('ML-Group.html', kb(path.join(DIST, 'ML-Group.html')), '| zip', kb(path.join(DIST, 'ml-group-website.zip')), '| pages', live.length + 20);
+
+// GitHub Pages copy: served from the /docs folder of this repo
+const DOCS = path.join(ROOT, 'docs');
+fs.rmSync(DOCS, { recursive: true, force: true });
+fs.cpSync(SITE, DOCS, { recursive: true });
+fs.writeFileSync(path.join(DOCS, 'CNAME'), new URL(SITE_URL).hostname + '\n');
+fs.writeFileSync(path.join(DOCS, '.nojekyll'), '');
+console.log('docs/ ready for GitHub Pages →', new URL(SITE_URL).hostname);
