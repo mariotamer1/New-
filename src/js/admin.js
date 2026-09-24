@@ -363,8 +363,8 @@ function mount(main, { store, navigate, query }) {
   // ------------------------------------------------------------ messages
   function messages() {
     main.innerHTML = shell(data.inquiries.length ? `<div class="adm-msgs">${data.inquiries.map((m) => `<article class="adm-card adm-msg ${m.status === 'new' ? 'unread' : ''}">
-      <div class="adm-card-head"><h2>${esc(m.name)} <span class="status">${m.type === 'wholesale' ? 'Wholesale' : 'Contact'}</span></h2><span class="muted" style="font-size:13px">${fmtDate(m.createdAt, true)}</span></div>
-      <div class="adm-card-body"><p class="adm-msg-meta"><a href="${telHref(m.phone)}">${esc(m.phone)}</a> · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a>${m.company ? ' · ' + esc(m.company) : ''}</p><p class="adm-msg-text">${esc(m.message)}</p>
+      <div class="adm-card-head"><h2>${esc(m.name)} <span class="status">${m.type === 'wholesale' ? 'Wholesale' : m.type === 'pickup' ? 'Pickup request' : 'Contact'}</span></h2><span class="muted" style="font-size:13px">${fmtDate(m.createdAt, true)}</span></div>
+      <div class="adm-card-body"><p class="adm-msg-meta"><a href="${telHref(m.phone)}">${esc(m.phone)}</a> · <a href="sms:${esc(String(m.phone).replace(/[^\d+]/g, ''))}">Text</a>${m.email ? ` · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ''}${m.company ? ' · ' + esc(m.company) : ''}</p><p class="adm-msg-text">${esc(m.message)}</p>
       <div class="adm-msg-actions"><label class="sr-only" for="ms-${m.id}">Status</label><select id="ms-${m.id}" class="adm-status" data-msg-status="${m.id}">${MSG_STATUS.map(([v, l]) => `<option value="${v}" ${m.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button class="btn btn-sm" type="button" data-msg-del="${m.id}">${icon('trash', 'icon-sm')} Delete</button></div></div>
     </article>`).join('')}</div>` : '<div class="empty"><h2>No messages</h2><p class="muted">Contact form and wholesale requests appear here.</p></div>', 'Messages');
   }

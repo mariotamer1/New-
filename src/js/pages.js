@@ -268,7 +268,7 @@ export function product({ params }) {
             ${off ? `<div class="row"><span class="was">Retail <s class="tabnum">${money(p.originalPrice)}</s></span><span class="save">You save ${money(p.originalPrice - p.price)}</span></div>` : ''}
           </div>
           <ul class="facts">
-            <li>${icon('store')}<div><b>Available for pick up</b><span>Free · ${esc(s.city)}, ${esc(s.state)} · ${esc(s.pickupHours)}</span></div></li>
+            <li class="pickup-split"><div class="ps-left">${icon('store')}<div><b>Available for pick up</b><span>Free pickup · ${esc(s.city)}, ${esc(s.state)}</span></div></div><button class="ps-right" type="button" data-schedule="${p.id}"><b>Choose a date &amp; time</b>${icon('calendar')}</button></li>
             ${p.noShipping ? '' : `<li>${icon('truck')}<div><b>Available for shipping</b><span>Shipping: ${p.shipping > 0 ? money(p.shipping) : 'Free'} · ships in 1–2 business days</span></div></li>`}
           </ul>
           <div class="buy-row">
@@ -289,6 +289,7 @@ export function product({ params }) {
       root.addEventListener('click', (e) => {
         const b = e.target.closest('[data-q]');
         if (b) q.value = Math.min(p.inventory, Math.max(1, (parseInt(q.value, 10) || 1) + Number(b.dataset.q)));
+        if (e.target.closest('[data-schedule]')) openPickup(p);
         if (e.target.closest('[data-pdp-add]')) addToCart(p.id, Math.min(p.inventory, Math.max(1, parseInt(q.value, 10) || 1)));
       });
       const buy = $('.buy-row', root), sticky = $('[data-sticky]', root);
@@ -624,4 +625,68 @@ export function notFound(msg) {
     html: `<div class="wrap section"><div class="empty" style="margin-bottom:40px"><h2>${esc(msg || 'Page not found')}</h2><p class="muted">Try searching, or check out these deals.</p><a class="btn btn-primary" href="${href('/products')}">Browse all products</a></div><div class="grid cols-4">${deals.map((p) => cardHTML(p)).join('')}</div></div>`,
     mount: (root) => mountCarousels(root),
   };
+}
+
+// ---------------------------------------------------------------- pickup scheduler
+const pad = (n) => String(n).padStart(2, '0');
+const isoDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function slotsFor(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDay();
+  if (day === 0) return []; // closed Sunday
+  const end = day === 6 ? 16 : 18;
+  const out = [];
+  const now = new Date();
+  for (let h = 10; h < end; h++) for (const m of [0, 30]) {
+    const t = new Date(dateStr + `T${pad(h)}:${pad(m)}:00`);
+    if (t > new Date(now.getTime() + 30 * 60000)) out.push(`${pad(h)}:${pad(m)}`);
+  }
+  return out;
+}
+const fmtSlot = (hm) => { const [h, m] = hm.split(':').map(Number); return `${((h + 11) % 12) + 1}:${pad(m)} ${h < 12 ? 'AM' : 'PM'}`; };
+
+function openPickup(p) {
+  const s = store.settings();
+  let dlg = $('#pickup-dialog');
+  if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'pickup-dialog'; dlg.className = 'modal'; dlg.setAttribute('aria-labelledby', 'pk-title'); document.body.appendChild(dlg); }
+  const today = new Date();
+  let first = new Date(today);
+  while (!slotsFor(isoDay(first)).length) first.setDate(first.getDate() + 1);
+  const max = new Date(today); max.setDate(max.getDate() + 60);
+  const timeOpts = (day) => { const sl = slotsFor(day); return sl.length ? sl.map((t) => `<option value="${t}">${fmtSlot(t)}</option>`).join('') : '<option value="">Closed this day — pick another date</option>'; };
+  dlg.innerHTML = `
+    <div class="modal-head"><h2 id="pk-title">Schedule pickup</h2><button class="icon-btn" type="button" aria-label="Close" data-close-dialog>${icon('close')}</button></div>
+    <form class="modal-body form" novalidate data-pickup-form>
+      <div class="offer-item">${imgTag(p.images[0], { alt: '', sizes: '64px' })}<div><b>${esc(p.title)}</b><span>Free pickup · ${esc(s.city)}, ${esc(s.state)}</span></div></div>
+      <div class="form-row two">
+        <div class="field"><label for="pk-date">${icon('calendar', 'icon-sm')} Date</label><input id="pk-date" name="date" type="date" required min="${isoDay(first)}" max="${isoDay(max)}" value="${isoDay(first)}"></div>
+        <div class="field"><label for="pk-time">${icon('clock', 'icon-sm')} Time</label><select id="pk-time" name="time" required>${timeOpts(isoDay(first))}</select></div>
+      </div>
+      <p class="hint">${esc(s.pickupHours)}</p>
+      <div class="field"><label for="pk-name">Name</label><input id="pk-name" name="name" autocomplete="name" required maxlength="80"></div>
+      <div class="field"><label for="pk-phone">Phone number</label><input id="pk-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="(555) 555-5555" maxlength="24"></div>
+      <div class="hp" aria-hidden="true"><label for="pk-web">Website</label><input id="pk-web" name="website" tabindex="-1" autocomplete="off"></div>
+      <p class="form-error" data-err hidden></p>
+      <button class="btn btn-primary btn-lg btn-block" type="submit">Submit</button>
+    </form>`;
+  const form = $('[data-pickup-form]', dlg);
+  $('#pk-date', dlg).addEventListener('change', (e) => { $('#pk-time', dlg).innerHTML = timeOpts(e.target.value); });
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(form));
+    const err = $('[data-err]', form);
+    const checks = [['pk-date', !f.date], ['pk-time', !f.time], ['pk-name', !String(f.name).trim()], ['pk-phone', String(f.phone).replace(/\D/g, '').length < 10]];
+    checks.forEach(([id, bad]) => $('#' + id, form).setAttribute('aria-invalid', bad ? 'true' : 'false'));
+    const bad = checks.find(([, b]) => b);
+    if (bad) { err.textContent = 'Please choose a date and time, and enter your name and a 10-digit phone number.'; err.hidden = false; $('#' + bad[0], form).focus(); return; }
+    const when = `${new Date(f.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${fmtSlot(f.time)}`;
+    const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      if (!f.website) await store.submitInquiry({ type: 'pickup', name: f.name.trim(), phone: f.phone.trim(), email: '', company: '', message: `Pickup request: ${p.title}\nWhen: ${when}` });
+      const first = esc(f.name.trim().split(' ')[0]);
+      form.innerHTML = `<div class="success"><span class="check">${icon('check')}</span><h3>Thank you ${first}, we will text you shortly to confirm with you!</h3><p class="muted">Requested: ${esc(when)}</p><button class="btn btn-primary" type="button" data-close-dialog>Close</button></div>`;
+    } catch (ex) { err.textContent = ex.message || 'Something went wrong. Please try again.'; err.hidden = false; btn.disabled = false; btn.textContent = 'Submit'; }
+  });
+  dlg.onclick = (e) => { if (e.target === dlg || e.target.closest('[data-close-dialog]')) dlg.close(); };
+  dlg.showModal();
 }
