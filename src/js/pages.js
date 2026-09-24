@@ -37,7 +37,6 @@ export function home() {
           <p class="hero-lede">ML Group offers brand-new products sourced from big retailers like Walmart and Amazon, and more. Every item is new and was purchased through clearance opportunities—we simply pass the savings on to you at prices below retail.</p>
           <div class="hero-cta">
             <a class="btn btn-primary btn-lg" href="${href('/products')}">Browse Deals ${icon('arrow', 'icon-sm')}</a>
-            <a class="btn btn-lg" href="${href('/wholesale')}">Wholesale buyers</a>
           </div>
           <div class="hero-proof"><span>${icon('truck')} Ships nationwide</span><span>${icon('store')} Free local pickup</span></div>
         </div>

@@ -181,6 +181,7 @@ function createLocalBackend() {
         delete patch.restock; Object.assign(o, patch); persist(); return o;
       },
       async offers() { return db.offers; },
+      async deleteOffer(id) { db.offers = db.offers.filter((x) => x.id !== id); persist(); },
       async updateOffer(id, patch) { const o = db.offers.find((x) => x.id === id); if (o) Object.assign(o, patch); persist(); },
       async inquiries() { return db.inquiries; },
       async updateInquiry(id, patch) { const o = db.inquiries.find((x) => x.id === id); if (o) Object.assign(o, patch); persist(); },

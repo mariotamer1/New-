@@ -354,7 +354,7 @@ function mount(main, { store, navigate, query }) {
         <td class="tabnum"><b>${money(o.amount)}</b><small>${ratio}% of list</small></td>
         <td>${esc(o.name)}<small><a href="${telHref(o.phone)}">${esc(o.phone)}</a> · <a href="sms:${esc(o.phone.replace(/[^\d+]/g, ''))}">Text</a></small></td>
         <td><label class="sr-only" for="ofs-${o.id}">Status</label><select id="ofs-${o.id}" class="adm-status" data-offer-status="${o.id}">${OFFER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-        <td>${p && o.status !== 'accepted' ? `<button class="btn btn-sm" type="button" data-accept-price="${o.id}" title="Set the product price to this offer">Use as price</button>` : ''}</td></tr>`; }).join('')}
+        <td>${p && o.status !== 'accepted' ? `<button class="btn btn-sm" type="button" data-accept-price="${o.id}" title="Set the product price to this offer">Use as price</button>` : ''} <button class="btn btn-sm adm-danger" type="button" data-offer-del="${o.id}">${icon('trash', 'icon-sm')} Delete</button></td></tr>`; }).join('')}
       </tbody></table></div>` : '<div class="empty"><h2>No offers yet</h2><p class="muted">When a customer taps “Make Offer”, their name, phone and amount appear here.</p></div>', 'Offers');
   }
 
@@ -476,6 +476,8 @@ function mount(main, { store, navigate, query }) {
     if (cs) { const li = cs.closest('[data-cat]'); const name = $('[data-cat-name]', li).value.trim(); if (!name) return; await A.saveCategory({ id: li.dataset.cat, name }); refreshStore(); toast('Category saved'); categories(); return; }
     const cd = t.closest('[data-cat-del]');
     if (cd) { if (!cd.dataset.sure) { cd.dataset.sure = '1'; cd.textContent = 'Confirm'; return; } await A.deleteCategory(cd.closest('[data-cat]').dataset.cat); refreshStore(); toast('Category deleted'); await loadAll(); categories(); return; }
+    const od = t.closest('[data-offer-del]');
+    if (od) { if (!od.dataset.sure) { od.dataset.sure = '1'; od.textContent = 'Tap again to delete'; return; } await A.deleteOffer(od.dataset.offerDel); await loadAll(); offers(); toast('Offer deleted'); return; }
     const md = t.closest('[data-msg-del]');
     if (md) { await A.deleteInquiry(md.dataset.msgDel); await loadAll(); (md.dataset.back === 'requests' ? requests : messages)(); toast('Deleted'); return; }
     if (t.closest('[data-export]')) { const json = await A.exportData(); const blob = new Blob([json], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `mlgroup-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove(); toast('Backup downloaded'); return; }

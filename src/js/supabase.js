@@ -189,6 +189,7 @@ export function createSupabaseBackend(cfg) {
         await rest('PATCH', `orders?id=eq.${id}`, { status: patch.status });
       },
       async offers() { return (await rest('GET', 'offers?select=*&order=created_at.desc')).map(fromOffer); },
+      async deleteOffer(id) { await rest('DELETE', `offers?id=eq.${id}`); },
       async updateOffer(id, patch) { await rest('PATCH', `offers?id=eq.${id}`, { status: patch.status }); },
       async inquiries() { return (await rest('GET', 'inquiries?select=*&order=created_at.desc')).map(fromInquiry); },
       async updateInquiry(id, patch) { await rest('PATCH', `inquiries?id=eq.${id}`, { status: patch.status }); },
