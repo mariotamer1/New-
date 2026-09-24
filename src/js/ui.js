@@ -133,7 +133,7 @@ export function footerHTML() {
       <div class="f-col"><h2>Contact</h2><ul class="f-contact">
         <li>${icon('phone', 'icon-sm')}<a href="${telHref(s.phone)}">${esc(s.phone)}</a></li>
         <li>${icon('mail', 'icon-sm')}<a href="mailto:${esc(s.email)}">${esc(s.email)}</a></li>
-        <li>${icon('pin', 'icon-sm')}<span>${esc(s.address1)}<br>${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span></li>
+        <li>${icon('pin', 'icon-sm')}<span>${s.address1 ? esc(s.address1) + '<br>' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span></li>
         <li>${icon('clock', 'icon-sm')}<span>${esc(s.pickupHours)}</span></li>
       </ul></div>
     </div>

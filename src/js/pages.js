@@ -86,7 +86,7 @@ export function home() {
     </section>
     <section class="section" aria-labelledby="pickup-h">
       <div class="wrap">
-        <div class="section-head"><div><h2 id="pickup-h">Local pickup, made easy</h2><p>${esc(s.address1)}, ${esc(s.city)}, ${esc(s.state)} · ${esc(s.pickupHours)}</p></div></div>
+        <div class="section-head"><div><h2 id="pickup-h">Local pickup, made easy</h2><p>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} · ${esc(s.pickupHours)}</p></div></div>
         <ol class="steps">
           <li><h3>Order online</h3><p>Choose “Local pickup” at checkout — it’s always free.</p></li>
           <li><h3>Get a text</h3><p>We’ll text you when your order is ready, usually within one business day.</p></li>
@@ -390,7 +390,7 @@ export function about() {
         <h2>How we keep prices low</h2>
         <ul><li>We buy in volume and sell direct — no middlemen.</li><li>Every item is checked and honestly graded: New, Open Box, Like New, Refurbished or Used.</li><li>Flat shipping prices and free local pickup, so there are no surprises at checkout.</li></ul>
         <h2>Visit us</h2>
-        <p>Pickup is at ${esc(s.address1)}, ${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)} — ${esc(s.pickupHours)}.</p>
+        <p>Pickup is at ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)} — ${esc(s.pickupHours)}.</p>
         <p><a class="btn btn-primary" href="${href('/products?deals=1')}">Browse Deals</a></p>
       </div>
       <div style="display:grid;gap:12px;align-content:start">
@@ -418,11 +418,11 @@ export function contact() {
           <li>${icon('mail')}<div><b>Email</b><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></div></li>
         </ul></div>
         <div class="info-card"><h2>Local pickup</h2><ul class="info-list">
-          <li>${icon('pin')}<div><b>${esc(s.address1)}</b><span>${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span></div></li>
+          <li>${icon('pin')}<div><b>${esc(s.address1 || `${s.city}, ${s.state}`)}</b><span>${s.address1 ? `${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}` : 'Exact address sent with your pickup confirmation'}</span></div></li>
           <li>${icon('clock')}<div><b>Pickup hours</b><span>${esc(s.pickupHours)}</span></div></li>
           <li>${icon('store')}<div><b>How it works</b><span>Choose “Local pickup” at checkout. We text you when it’s ready. ${esc(s.pickupNote)}</span></div></li>
         </ul>
-        <a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.address1}, ${s.city}, ${s.state} ${s.zip}`)}" target="_blank" rel="noopener">${icon('pin', 'icon-sm')} Get directions</a></div>
+        <a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.address1 ? s.address1 + ', ' : ''}${s.city}, ${s.state} ${s.zip}`)}" target="_blank" rel="noopener">${icon('pin', 'icon-sm')} Get directions</a></div>
       </div>
       <div class="info-card"><h2>Send a message</h2>${inquiryForm('contact')}</div>
     </div>`,
@@ -440,7 +440,7 @@ export function policy({ kind }) {
     <div class="wrap section" style="padding-top:28px"><div class="prose">${ship ? `
       <p>Every product page shows its exact shipping price. Shipping is charged once per item line, and local pickup is always free.</p>
       <h2>Shipping</h2><ul><li>Orders ship within 1–2 business days to the contiguous United States.</li><li>Tracking is sent by text or email as soon as your order ships.</li><li>Large items (furniture, appliances) ship by freight; we’ll call to schedule delivery.</li></ul>
-      <h2>Local pickup</h2><ul><li>Location: ${esc(s.address1)}, ${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}.</li><li>Hours: ${esc(s.pickupHours)}.</li><li>We’ll text you when your order is ready — usually within one business day. ${esc(s.pickupNote)}</li><li>Orders are held for 7 days.</li></ul>` : `
+      <h2>Local pickup</h2><ul><li>Location: ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}.</li><li>Hours: ${esc(s.pickupHours)}.</li><li>We’ll text you when your order is ready — usually within one business day. ${esc(s.pickupNote)}</li><li>Orders are held for 7 days.</li></ul>` : `
       <p>We want you to be happy with your deal. If something isn’t right, contact us within <b>14 days</b> of delivery or pickup.</p>
       <h2>Returns</h2><ul><li>New and Open Box items can be returned within 14 days if unused and complete.</li><li>Refurbished items include a 90-day warranty against defects.</li><li>Used and Scratch &amp; Dent items are sold as described and are final sale unless not working on arrival.</li><li>Accepted offers and wholesale lots are final sale.</li></ul>
       <h2>Refunds</h2><ul><li>Refunds go back to your original payment method within 5 business days of receiving the return.</li><li>Original shipping is non-refundable unless we made an error.</li><li>Items not as described or damaged in shipping are refunded in full, including shipping.</li></ul>
@@ -478,7 +478,7 @@ export function checkout() {
                 ${pickupOnly.length ? `<p class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up only</b><span>${pickupOnly.map((i) => esc(i.product.title)).join(', ')} ${pickupOnly.length > 1 ? 'are' : 'is'} not available for shipping, so this order is for local pickup.</span></p>` : `<label class="radio-card"><input type="radio" name="fulfillment" value="shipping" ${!pickup ? 'checked' : ''}><div><b>Ship to me</b><span>Ships in 1–2 business days</span></div><span class="rc-price tabnum">${money(shipTotal)}</span></label>`}
                 <label class="radio-card"><input type="radio" name="fulfillment" value="pickup" ${pickup ? 'checked' : ''}><div><b>Local pickup</b><span>${esc(s.city)}, ${esc(s.state)} · ready in about 1 business day</span></div><span class="rc-price">Free</span></label>
               </div>
-              ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pickup location</b><span>${esc(s.address1)}, ${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)}</span><span class="muted">${esc(s.pickupNote)}</span></div>` : `
+              ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pickup location</b><span>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)}</span><span class="muted">${esc(s.pickupNote)}</span></div>` : `
               <div class="field"><label for="co-a1">Street address</label><input id="co-a1" name="line1" autocomplete="address-line1" required value="${esc(draft.line1 || '')}"></div>
               <div class="field"><label for="co-a2">Apt, suite, unit <span class="opt">(optional)</span></label><input id="co-a2" name="line2" autocomplete="address-line2" value="${esc(draft.line2 || '')}"></div>
               <div class="form-row three"><div class="field"><label for="co-city">City</label><input id="co-city" name="city" autocomplete="address-level2" required value="${esc(draft.city || '')}"></div>
@@ -569,7 +569,7 @@ export function order({ params }) {
           <div><dt>Payment</dt><dd>${o.payment === 'pickup' ? 'Pay at pickup' : 'Secure payment link'}</dd></div>
           <div><dt>Total</dt><dd class="tabnum">${money(o.total)}</dd></div>
         </dl>
-        ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up at</b><span>${esc(s.address1)}, ${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)} — we’ll text you when it’s ready.</span></div>` : `<div class="pickup-box"><b>${icon('truck', 'icon-sm')} Shipping to</b><span>${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}, ${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}</span></div>`}
+        ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up at</b><span>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)} — we’ll text you when it’s ready.</span></div>` : `<div class="pickup-box"><b>${icon('truck', 'icon-sm')} Shipping to</b><span>${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}, ${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}</span></div>`}
         <div class="summary" style="position:static"><h2>Items</h2><ul class="sum-items" style="max-height:none">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
         <div class="sum-totals"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>${pickup ? 'Local pickup' : 'Shipping'}</span><span class="tabnum">${pickup ? 'Free' : money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div></div>
         <div class="hero-cta"><a class="btn btn-primary" href="${href('/products?deals=1')}">Keep shopping</a><a class="btn" href="${telHref(s.phone)}">${icon('phone', 'icon-sm')} Questions? ${esc(s.phone)}</a></div>

@@ -13,12 +13,12 @@ export const CATEGORIES = [
 
 export const SETTINGS = {
   storeName: 'ML Group',
-  phone: '(800) 555-0142',
+  phone: '(425) 757-2554',
   email: 'sales@mlgroup.store',
-  address1: '4200 Commerce Way, Unit 5',
-  city: 'Springfield',
-  state: 'IL',
-  zip: '62701',
+  address1: '',
+  city: 'Auburn',
+  state: 'WA',
+  zip: '',
   pickupHours: 'Mon–Fri 10am–6pm · Sat 10am–4pm',
   pickupNote: 'Bring your order number. We load large items for you.',
   announcement: 'Local pickup always available · Ships nationwide · New deals every week',
