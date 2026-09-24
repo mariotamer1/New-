@@ -862,6 +862,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 @media (max-width: 759px) { .adm-req-actions .btn { flex: 1; min-height: 44px; } .adm-req-actions .adm-status { flex-basis: 100%; max-width: none; } }
 .offer-thanks { font-size: 17px; line-height: 1.5; }
 /* hero tiles: small product title instead of category */
+.hero-tile { container-type: inline-size; }
+.hero-tile .tag { max-width: 100%; white-space: nowrap; }
+.hero-tile .tag b, .hero-tile .tag span { font-size: clamp(10px, 8.5cqw, 13px); padding: 5px clamp(4px, 3.5cqw, 8px); }
 .hero-tile .cat { max-width: calc(100% - 16px); font: 600 11px/1.3 var(--font-body); letter-spacing: 0; text-transform: none; padding: 4px 7px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .hero-tile.big .cat { font-size: 12.5px; max-width: 70%; }
 .hero-tile .cat { display: block; white-space: nowrap; text-overflow: ellipsis; font-size: 10.5px; padding: 3px 6px; top: 6px; left: 6px; max-width: calc(100% - 12px); }

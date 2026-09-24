@@ -3,6 +3,9 @@ import { $, $$, esc, money, pctOff, href, img, imgTag, icon, barcode, telHref, l
 import { store, cart } from './store.js';
 import { cardHTML, priceHTML, mountCarousels, searchProducts, toast, addToCart } from './ui.js';
 
+// Whole-dollar prices drop the cents so tile tags fit on small screens.
+const tileMoney = (n) => (Number(n) % 1 ? money(n) : money(n).replace(/\.00$/, ''));
+
 const catName = (id) => (store.category(id) || {}).name || 'Other';
 const bestDeals = () => {
   const all = store.products();
@@ -42,7 +45,7 @@ export function home() {
           ${hero.map((p, i) => `<a class="hero-tile ${i === 0 ? 'big' : ''}" href="${href('/products/' + p.slug)}">
             ${imgTag(p.images[0], { alt: p.title, eager: i < 3, sizes: i === 0 ? '(min-width:900px) 34vw, 66vw' : '(min-width:900px) 17vw, 33vw' })}
             <span class="cat">${esc(p.title)}</span>
-            <span class="tag">${pctOff(p) ? `<b class="was-slash tabnum">${money(p.originalPrice)}</b>` : ''}<span class="tabnum">${money(p.price)}</span></span>
+            <span class="tag">${pctOff(p) ? `<b class="was-slash tabnum">${tileMoney(p.originalPrice)}</b>` : ''}<span class="tabnum">${tileMoney(p.price)}</span></span>
           </a>`).join('')}
         </div>
       </div>
