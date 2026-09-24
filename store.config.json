@@ -1,1 +1,4 @@
-{}
+{
+  "supabaseUrl": "https://nwlqabwleckoukgroevc.supabase.co",
+  "supabaseKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53bHFhYndsZWNrb3VrZ3JvZXZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxNDIxMDQsImV4cCI6MjEwNTcxODEwNH0.X9umiHrebzIfpZ_8H3VJQJyIK1oOQQeVeLWP2x_d9Ws"
+}
