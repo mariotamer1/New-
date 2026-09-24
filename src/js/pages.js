@@ -33,7 +33,7 @@ export function home() {
         <div class="hero-copy">
           <p class="eyebrow">Retail &amp; wholesale · Up to ${maxOff}% off</p>
           <h1 class="display"><span>Big savings.</span><span>Great products.</span></h1>
-          <p class="hero-lede">ML Group sells discounted electronics, home goods, tools, appliances and more — one piece at a time for shoppers, or by the case and pallet for wholesale buyers.</p>
+          <p class="hero-lede">ML Group offers brand-new products sourced from big retailers like Walmart and Amazon, and more. Every item is new and was purchased through clearance opportunities—we simply pass the savings on to you at prices below retail.</p>
           <div class="hero-cta">
             <a class="btn btn-primary btn-lg" href="${href('/products?deals=1')}">Browse Deals ${icon('arrow', 'icon-sm')}</a>
             <a class="btn btn-lg" href="${href('/wholesale')}">Wholesale buyers</a>
