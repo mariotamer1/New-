@@ -378,26 +378,33 @@ export function wholesale() {
 
 export function about() {
   const s = store.settings();
+  const top = Math.max(0, ...store.products().map(pctOff));
   return {
-    title: 'About', description: 'ML Group is a retail and wholesale seller offering discounted products at competitive prices, with fast shipping and free local pickup.',
+    title: 'About', description: 'ML Group sells only brand-new products bought from major retailers like Walmart, Amazon, Target, Costco and Best Buy — at prices below retail. Receipts available on request.',
     html: `<div class="page-head"><div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="${href('/')}">Home</a><span aria-hidden="true">/</span><span aria-current="page">About</span></nav><h1>About ML Group</h1></div></div>
     <div class="wrap split">
       <div class="prose">
-        <p><b>ML Group is a retail and wholesale seller focused on one thing: great products at prices well below retail.</b></p>
-        <p>We buy overstock, open-box returns, closeouts and brand-new inventory, inspect it, and pass the savings on — whether you need one item for your home or a pallet for your store.</p>
-        <h2>How we keep prices low</h2>
-        <ul><li>We buy in volume and sell direct — no middlemen.</li><li>Every item is checked and honestly graded: New, Open Box, Like New, Refurbished or Used.</li><li>Flat shipping prices and free local pickup, so there are no surprises at checkout.</li></ul>
+        <p><b>ML Group sells brand-new products from the stores you already trust — for less than you’d pay on the shelf.</b></p>
+        <p>We buy only brand-new items from major retailers like <b>Walmart, Amazon, Target, Costco, Best Buy</b> and other big-name stores, mostly through clearance and closeout opportunities. Then we pass those savings straight on to you, so you get the exact same products at a discount.</p>
+        <h2>100% brand new — guaranteed</h2>
+        <p>Every item we sell is brand new. Nothing is used, refurbished or pre-owned in any way. We stand behind that: if you’d like proof, just ask and we’ll show you the <b>original store receipt</b> for your item.</p>
+        <h2>Why our prices are lower</h2>
+        <ul>
+          <li>We buy clearance and closeout stock from major retailers at a deep discount.</li>
+          <li>We sell direct to you — no middlemen and no store overhead.</li>
+          <li>Local pickup is always free, and shipping prices are shown up front on every item.</li>
+        </ul>
         <h2>Visit us</h2>
-        <p>Pickup is at ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)} — ${esc(s.pickupHours)}.</p>
-        <p><a class="btn btn-primary" href="${href('/products')}">Browse Deals</a></p>
+        <p>Pickup is in ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)}${s.zip ? ' ' + esc(s.zip) : ''} — ${esc(s.pickupHours)}. Questions? Call or text <a href="${telHref(s.phone)}">${esc(s.phone)}</a>.</p>
+        <p><a class="btn btn-primary" href="${href('/products')}">Browse Deals ${icon('arrow', 'icon-sm')}</a></p>
       </div>
       <div style="display:grid;gap:12px;align-content:start">
-        <div class="tiers"><div class="tier"><span class="t-qty">Products in stock</span><span class="t-off tabnum">${store.products().length}</span></div><div class="tier dark"><span class="t-qty">Top discount</span><span class="t-off">${Math.max(0, ...store.products().map(pctOff))}%</span></div></div>
-        <div class="info-card"><h2>Condition guide</h2><ul class="info-list">
-          <li>${icon('tag')}<div><b>New</b><span class="muted">Unused, in original packaging.</span></div></li>
-          <li>${icon('tag')}<div><b>Open Box</b><span class="muted">Opened or returned, unused and complete.</span></div></li>
-          <li>${icon('tag')}<div><b>Like New / Refurbished</b><span class="muted">Tested and restored to full working order.</span></div></li>
-          <li>${icon('tag')}<div><b>Used / Scratch &amp; Dent</b><span class="muted">Works perfectly; cosmetic wear described in the listing.</span></div></li>
+        <div class="tiers"><div class="tier"><span class="t-qty">Products in stock</span><span class="t-off tabnum">${store.products().length}</span></div><div class="tier dark"><span class="t-qty">Up to</span><span class="t-off">${top}% off</span></div></div>
+        <div class="info-card"><h2>Our promise</h2><ul class="info-list">
+          <li>${icon('check')}<div><b>Always brand new</b><span class="muted">Never used, never refurbished — in original packaging.</span></div></li>
+          <li>${icon('store')}<div><b>From major retailers</b><span class="muted">Walmart, Amazon, Target, Costco, Best Buy and more.</span></div></li>
+          <li>${icon('list')}<div><b>Receipts on request</b><span class="muted">Ask and we’ll show you the original store receipt.</span></div></li>
+          <li>${icon('percent')}<div><b>Below retail prices</b><span class="muted">The same products you’d find in store, for less.</span></div></li>
         </ul></div>
       </div>
     </div>`,
