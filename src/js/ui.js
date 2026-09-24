@@ -156,13 +156,12 @@ export function cardHTML(p, { eager = false, sizes } = {}) {
   return `<article class="card" data-pid="${p.id}">
     <div class="card-media" data-carousel>
       <div class="track">${slides}</div>
-      ${off ? `<span class="badge">-${off}%</span>` : ''}
       ${ims.length > 1 ? `<button class="car-btn prev" type="button" aria-label="Previous photo" data-car="-1">${icon('left', 'icon-sm')}</button><button class="car-btn next" type="button" aria-label="Next photo" data-car="1">${icon('right', 'icon-sm')}</button><div class="dots">${ims.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}
     </div>
     <div class="card-body">
       <p class="card-cond">${esc(p.condition)}</p>
       <h3 class="card-title"><a href="${url}">${esc(p.title)}</a></h3>
-      ${priceHTML(p)}
+      <div class="price">${off ? `<s class="was was-slash tabnum">${money(p.originalPrice)}</s>` : ''}<span class="now tabnum">${money(p.price)}</span></div>
       <ul class="card-ship"><li>${icon('store', 'icon-sm')} Available for pick up</li>${p.noShipping ? '' : `<li>${icon('truck', 'icon-sm')} Available for shipping${p.shipping > 0 ? ` · ${money(p.shipping)}` : ' · Free'}</li>`}</ul>
       ${p.inventory <= 3 ? `<p class="stock-low">Only ${p.inventory} left</p>` : ''}
       <div class="card-actions">

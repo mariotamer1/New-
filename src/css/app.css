@@ -226,6 +226,7 @@ mark { background: none; color: inherit; font-weight: 800; text-decoration: unde
 .hero-tile.big { grid-column: span 2; grid-row: span 2; }
 .hero-tile .tag { position: absolute; left: 0; bottom: 0; display: flex; align-items: stretch; font-size: 12.5px; }
 .hero-tile .tag b { background: var(--ink); color: #fff; padding: 5px 8px; font: 800 13px var(--font-display); }
+.hero-tile .tag b.was-slash::after { left: 5px; right: 5px; }
 .hero-tile .tag span { background: #fff; border-top: 1px solid var(--line); border-right: 1px solid var(--line); padding: 5px 8px; font: 800 13px var(--font-display); }
 .hero-tile .cat { position: absolute; top: 8px; left: 8px; background: rgba(255,255,255,.92); border: 1px solid var(--line); padding: 3px 7px; font: 600 11px var(--font-body); letter-spacing: .08em; text-transform: uppercase; }
 @media (min-width: 900px) {
@@ -296,6 +297,9 @@ mark { background: none; color: inherit; font-weight: 800; text-decoration: unde
 .price { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; margin-top: auto; padding-top: 4px; }
 .price .now { font: 800 19px/1 var(--font-display); letter-spacing: -.01em; }
 .price .was { color: var(--mute); font-size: 13.5px; }
+.was-slash { position: relative; display: inline-block; text-decoration: none; }
+.was-slash::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 2px solid currentColor; transform: rotate(-12deg); pointer-events: none; }
+.price .was-slash { font-size: 14.5px; font-weight: 600; }
 .price .save { font-size: 12px; font-weight: 700; }
 .card-ship { list-style: none; display: grid; gap: 3px; font-size: 12.5px; color: var(--mute); }
 .card-ship li { display: flex; align-items: center; gap: 6px; }
