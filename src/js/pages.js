@@ -437,8 +437,8 @@ export function policy({ kind }) {
       <p>Every product page shows its exact shipping price. Shipping is charged once per item line, and local pickup is always free.</p>
       <h2>Shipping</h2><ul><li>Orders ship within 1–2 business days to the contiguous United States.</li><li>Tracking is sent by text or email as soon as your order ships.</li><li>Large items (furniture, appliances) ship by freight; we’ll call to schedule delivery.</li></ul>
       <h2>Local pickup</h2><ul><li>Location: ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}.</li><li>Hours: ${esc(s.pickupHours)}.</li><li>We’ll text you when your order is ready — usually within one business day. ${esc(s.pickupNote)}</li><li>Orders are held for 7 days.</li></ul>` : `
-      <p>We want you to be happy with your deal. If something isn’t right, contact us within <b>14 days</b> of delivery or pickup.</p>
-      <h2>Returns</h2><ul><li>New and Open Box items can be returned within 14 days if unused and complete.</li><li>Refurbished items include a 90-day warranty against defects.</li><li>Used and Scratch &amp; Dent items are sold as described and are final sale unless not working on arrival.</li><li>Accepted offers and wholesale lots are final sale.</li></ul>
+      <p>We want you to be happy with your deal. If something isn’t right, contact us within <b>3 days</b> of delivery or pickup.</p>
+      <h2>Returns</h2><ul><li>New items (only) can be returned and fully refunded if the product is unused/same condition as received as new, or defective/doesn’t work/broken. Within 3 days after delivery or pick up.</li></ul>
       <h2>Refunds</h2><ul><li>Refunds go back to your original payment method within 5 business days of receiving the return.</li><li>Original shipping is non-refundable unless we made an error.</li><li>Items not as described or damaged in shipping are refunded in full, including shipping.</li></ul>
       <h2>Start a return</h2><p>Call or text ${esc(s.phone)} or email ${esc(s.email)} with your order number.</p>`}</div></div>`,
   };
