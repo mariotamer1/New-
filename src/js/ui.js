@@ -422,7 +422,7 @@ export function openOffer(id) {
     const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Sending…';
     try {
       if (!f.get('website')) await store.submitOffer({ productId: p.id, name, phone, amount });
-      form.innerHTML = `<div class="success"><span class="check">${icon('check')}</span><h3>Offer sent</h3><p>Thanks, ${esc(name.split(' ')[0])}. We received your offer of <b>${money(amount)}</b> for <b>${esc(p.title)}</b>. We’ll call or text <b>${esc(phone)}</b> soon.</p><button class="btn btn-primary" type="button" data-close-dialog>Done</button></div>`;
+      form.innerHTML = `<div class="success"><span class="check">${icon('check')}</span><p class="offer-thanks">We have received your offer, and we will text you later today. The text will come from our number <b>${esc(store.settings().phone || '(425) 757-2554')}</b>.</p><p class="offer-thanks"><b>Thank you.</b></p><button class="btn btn-primary" type="button" data-close-dialog>Done</button></div>`;
     } catch (ex) { err.textContent = ex.message || 'Something went wrong. Please try again.'; err.hidden = false; btn.disabled = false; btn.textContent = 'Submit offer'; }
   });
   dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('[data-close-dialog]')) dlg.close(); });

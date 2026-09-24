@@ -856,3 +856,4 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .adm-req-body { padding: 14px 16px 16px; display: grid; gap: 12px; }
 .adm-req-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 759px) { .adm-req-actions .btn { flex: 1; min-height: 44px; } .adm-req-actions .adm-status { flex-basis: 100%; max-width: none; } }
+.offer-thanks { font-size: 17px; line-height: 1.5; }
