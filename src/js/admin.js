@@ -7,6 +7,7 @@ const TABS = [
   ['products', 'Products', 'tag'],
   ['orders', 'Orders', 'box'],
   ['offers', 'Offers', 'cash'],
+  ['requests', 'Requests', 'calendar'],
   ['messages', 'Messages', 'msg'],
   ['categories', 'Categories', 'layers'],
   ['settings', 'Settings', 'gear'],
@@ -54,7 +55,7 @@ function mount(main, { store, navigate, query }) {
   // ------------------------------------------------------------ shell
   function shell(body, title, actions = '') {
     const nNew = (k, st = 'new') => data[k].filter((x) => x.status === st).length;
-    const badge = { orders: nNew('orders'), offers: nNew('offers'), messages: nNew('inquiries') };
+    const badge = { orders: nNew('orders'), offers: nNew('offers'), requests: data.inquiries.filter((m) => m.type === 'pickup' && m.status === 'new').length, messages: data.inquiries.filter((m) => m.type !== 'pickup' && m.status === 'new').length };
     return `<div class="admin">
       <aside class="adm-side on-ink">
         <a class="logo" href="${href('/')}" aria-label="View store">${logo()}</a>
@@ -75,7 +76,7 @@ function mount(main, { store, navigate, query }) {
     await loadAll();
     setURL();
     if (tab === 'products' && editId) return renderEditor();
-    const views = { overview, products, orders, offers, messages, categories, settings };
+    const views = { overview, products, orders, offers, requests, messages, categories, settings };
     (views[tab] || overview)();
   }
 
@@ -361,8 +362,30 @@ function mount(main, { store, navigate, query }) {
   }
 
   // ------------------------------------------------------------ messages
+  // ------------------------------------------------------------ pickup requests
+  function requests() {
+    const list = data.inquiries.filter((m) => m.type === 'pickup');
+    const parse = (m) => {
+      const item = ((m.message || '').match(/Pickup request:\s*(.+)/) || [])[1] || 'Pickup request';
+      const when = ((m.message || '').match(/When:\s*(.+)/) || [])[1] || '';
+      return { item: item.trim(), when: when.trim() };
+    };
+    main.innerHTML = shell(list.length ? `<div class="adm-reqs">${list.map((m) => { const r = parse(m); const tel = String(m.phone || '').replace(/[^\d+]/g, ''); return `<details class="adm-req ${m.status === 'new' ? 'unread' : ''}">
+      <summary><span class="adm-req-title"><b>${esc(r.item)}</b><small>${icon('calendar', 'icon-sm')} ${esc(r.when || fmtDate(m.createdAt, true))}</small></span>${m.status === 'new' ? '<span class="status s-new">New</span>' : `<span class="status s-${m.status}">${m.status === 'read' ? 'Confirmed' : 'Done'}</span>`}${icon('down')}</summary>
+      <div class="adm-req-body">
+        <dl class="kv"><div><dt>Name</dt><dd>${esc(m.name)}</dd></div><div><dt>Phone</dt><dd><a href="${telHref(m.phone)}">${esc(m.phone)}</a></dd></div><div><dt>Pickup time</dt><dd>${esc(r.when || '—')}</dd></div><div><dt>Requested</dt><dd>${fmtDate(m.createdAt, true)}</dd></div></dl>
+        <div class="adm-req-actions">
+          <a class="btn btn-primary" href="sms:${esc(tel)}">${icon('msg', 'icon-sm')} Text</a>
+          <a class="btn" href="${telHref(m.phone)}">${icon('phone', 'icon-sm')} Call</a>
+          <label class="sr-only" for="rq-${m.id}">Status</label><select id="rq-${m.id}" class="adm-status" data-msg-status="${m.id}"><option value="new" ${m.status === 'new' ? 'selected' : ''}>New</option><option value="read" ${m.status === 'read' ? 'selected' : ''}>Confirmed</option><option value="archived" ${m.status === 'archived' ? 'selected' : ''}>Done</option></select>
+          <button class="btn btn-sm" type="button" data-msg-del="${m.id}" data-back="requests">${icon('trash', 'icon-sm')} Delete</button>
+        </div>
+      </div></details>`; }).join('')}</div>` : '<div class="empty"><h2>No pickup requests yet</h2><p class="muted">When a customer taps “Choose a date &amp; time” on a product, their request shows up here.</p></div>', 'Requests');
+  }
+
   function messages() {
-    main.innerHTML = shell(data.inquiries.length ? `<div class="adm-msgs">${data.inquiries.map((m) => `<article class="adm-card adm-msg ${m.status === 'new' ? 'unread' : ''}">
+    const msgs = data.inquiries.filter((m) => m.type !== 'pickup');
+    main.innerHTML = shell(msgs.length ? `<div class="adm-msgs">${msgs.map((m) => `<article class="adm-card adm-msg ${m.status === 'new' ? 'unread' : ''}">
       <div class="adm-card-head"><h2>${esc(m.name)} <span class="status">${m.type === 'wholesale' ? 'Wholesale' : m.type === 'pickup' ? 'Pickup request' : 'Contact'}</span></h2><span class="muted" style="font-size:13px">${fmtDate(m.createdAt, true)}</span></div>
       <div class="adm-card-body"><p class="adm-msg-meta"><a href="${telHref(m.phone)}">${esc(m.phone)}</a> · <a href="sms:${esc(String(m.phone).replace(/[^\d+]/g, ''))}">Text</a>${m.email ? ` · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ''}${m.company ? ' · ' + esc(m.company) : ''}</p><p class="adm-msg-text">${esc(m.message)}</p>
       <div class="adm-msg-actions"><label class="sr-only" for="ms-${m.id}">Status</label><select id="ms-${m.id}" class="adm-status" data-msg-status="${m.id}">${MSG_STATUS.map(([v, l]) => `<option value="${v}" ${m.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button class="btn btn-sm" type="button" data-msg-del="${m.id}">${icon('trash', 'icon-sm')} Delete</button></div></div>
@@ -457,7 +480,7 @@ function mount(main, { store, navigate, query }) {
     const cd = t.closest('[data-cat-del]');
     if (cd) { if (!cd.dataset.sure) { cd.dataset.sure = '1'; cd.textContent = 'Confirm'; return; } await A.deleteCategory(cd.closest('[data-cat]').dataset.cat); refreshStore(); toast('Category deleted'); await loadAll(); categories(); return; }
     const md = t.closest('[data-msg-del]');
-    if (md) { await A.deleteInquiry(md.dataset.msgDel); await loadAll(); messages(); return; }
+    if (md) { await A.deleteInquiry(md.dataset.msgDel); await loadAll(); (md.dataset.back === 'requests' ? requests : messages)(); toast('Deleted'); return; }
     if (t.closest('[data-export]')) { const json = await A.exportData(); const blob = new Blob([json], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `mlgroup-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove(); toast('Backup downloaded'); return; }
     if (t.closest('[data-reset]')) { $('[data-reset-confirm]').hidden = false; return; }
     if (t.closest('[data-reset-no]')) { $('[data-reset-confirm]').hidden = true; return; }
@@ -473,7 +496,7 @@ function mount(main, { store, navigate, query }) {
     if (t.matches('[data-of]')) { orderFilter = t.value; orders(); }
     if (t.matches('[data-order-status]')) { await A.updateOrder(t.dataset.orderStatus, { status: t.value }); toast('Order status updated'); await loadAll(); }
     if (t.matches('[data-offer-status]')) { await A.updateOffer(t.dataset.offerStatus, { status: t.value }); toast('Offer updated'); await loadAll(); }
-    if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); }
+    if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests') requests(); }
     if (t.matches('[data-import]') && t.files[0]) { try { await A.importData(await t.files[0].text()); refreshStore(); toast('Backup imported'); render(); } catch (ex) { toast(ex.message, 'err'); } }
   };
   const onInput = (e) => { if (e.target.matches('[data-pf-q]')) { prodFilter.q = e.target.value; const pos = e.target.selectionStart; products(); const i = $('[data-pf-q]'); i.focus(); i.setSelectionRange(pos, pos); } };
