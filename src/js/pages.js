@@ -629,7 +629,7 @@ function slotsFor(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
   const day = d.getDay();
   const weekend = day === 0 || day === 6;
-  const start = weekend ? 9 : 11, end = weekend ? 21 : 22; // Sat–Sun 9am–9pm, Mon–Fri 11am–10pm
+  const start = 11, end = 22; // Monday–Sunday 11am–10pm
   const out = [];
   const now = new Date();
   for (let h = start; h < end; h++) for (const m of [0, 30]) {
