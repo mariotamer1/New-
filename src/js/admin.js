@@ -120,12 +120,11 @@ function mount(main, { store, navigate, query }) {
     if (f === 'live') list = list.filter((p) => p.published && p.inventory > 0);
     if (f === 'hidden') list = list.filter((p) => !p.published);
     if (f === 'out') list = list.filter((p) => p.inventory <= 0);
-    if (f === 'deal') list = list.filter((p) => p.bestDeal);
     selected = new Set([...selected].filter((id) => data.products.some((p) => p.id === id)));
     main.innerHTML = shell(`
       <div class="adm-toolbar">
         <div class="search-field adm-search">${icon('search')}<label class="sr-only" for="pf-q">Search products</label><input id="pf-q" type="search" placeholder="Search title, brand, UPC" value="${esc(prodFilter.q)}" data-pf-q></div>
-        <div class="select"><label class="sr-only" for="pf-f">Show</label><select id="pf-f" data-pf-f>${[['all', 'All products'], ['live', 'Live'], ['hidden', 'Unpublished'], ['out', 'Sold out'], ['deal', 'Best deals']].map(([v, l]) => `<option value="${v}" ${f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div>
+        <div class="select"><label class="sr-only" for="pf-f">Show</label><select id="pf-f" data-pf-f>${[['all', 'All products'], ['live', 'Live'], ['hidden', 'Unpublished'], ['out', 'Sold out']].map(([v, l]) => `<option value="${v}" ${f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div>
         <span class="muted" style="font-size:14px">${list.length} of ${data.products.length}</span>
       </div>
       <div class="adm-bulk" data-bulk ${selected.size ? '' : 'hidden'}>
@@ -144,8 +143,7 @@ function mount(main, { store, navigate, query }) {
           <td><div class="adm-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="" width="48" height="48" loading="lazy">` : '<span class="adm-noimg"></span>'}<div><button class="adm-title" type="button" data-edit="${p.id}">${esc(p.title)}</button><small>${esc(catName(p.categoryId))} · ${esc(p.condition)}${p.noShipping ? ' · Pick up only' : ''}${p.upc ? ' · ' + esc(p.upc) : ''}</small></div></div></td>
           <td class="tabnum"><b>${money(p.price)}</b>${pctOff(p) ? `<small><s>${money(p.originalPrice)}</s> · -${pctOff(p)}%</small>` : ''}</td>
           <td><div class="adm-stock"><button type="button" aria-label="Decrease inventory" data-inv="-1" data-id="${p.id}">${icon('minus', 'icon-sm')}</button><b class="tabnum">${p.inventory}</b><button type="button" aria-label="Increase inventory" data-inv="1" data-id="${p.id}">${icon('plus', 'icon-sm')}</button></div>${p.inventory <= 0 ? '<small>Sold out · hidden</small>' : ''}</td>
-          <td><label class="switch"><input type="checkbox" data-pub="${p.id}" ${p.published ? 'checked' : ''}><span>${p.published ? 'Published' : 'Hidden'}</span></label>
-              <label class="switch"><input type="checkbox" data-deal="${p.id}" ${p.bestDeal ? 'checked' : ''}><span>Best deal</span></label></td>
+          <td><label class="switch"><input type="checkbox" data-pub="${p.id}" ${p.published ? 'checked' : ''}><span>${p.published ? 'Published' : 'Hidden'}</span></label></td>
           <td class="adm-row-actions"><button class="btn btn-sm" type="button" data-edit="${p.id}">${icon('edit', 'icon-sm')} Edit</button>${p.published && p.inventory > 0 ? `<a class="btn btn-sm" href="${href('/products/' + p.slug)}" target="_blank" rel="noopener" aria-label="View ${esc(p.title)} on the store">${icon('eye', 'icon-sm')}</a>` : ''}</td>
         </tr>`).join('') || '<tr><td colspan="6" class="muted">No products match.</td></tr>'}
       </tbody></table></div>`, 'Products', `<button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button>`);
@@ -182,7 +180,6 @@ function mount(main, { store, navigate, query }) {
         <div class="adm-ed-side">
           <section class="adm-card"><div class="adm-card-head"><h2>Visibility</h2></div><div class="adm-card-body form">
             <label class="switch big"><input type="checkbox" name="published" ${d.published ? 'checked' : ''}><span>Published on the store</span></label>
-            <label class="switch big"><input type="checkbox" name="bestDeal" ${d.bestDeal ? 'checked' : ''}><span>Show in Best Deals</span></label>
             <p class="hint">Items with 0 in stock are hidden automatically.</p>
           </div></section>
           <section class="adm-card"><div class="adm-card-head"><h2>Pricing</h2></div><div class="adm-card-body form">
@@ -235,7 +232,7 @@ function mount(main, { store, navigate, query }) {
     const syncDraft = () => {
       ['title', 'description', 'brand', 'upc', 'slug', 'condition', 'categoryId'].forEach((k) => { draft[k] = f(k).value; });
       draft.price = f('price').value; draft.originalPrice = f('originalPrice').value; draft.shipping = f('shipping').value; draft.inventory = f('inventory').value;
-      draft.published = f('published').checked; draft.bestDeal = f('bestDeal').checked; draft.noShipping = f('noShipping').checked;
+      draft.published = f('published').checked; draft.noShipping = f('noShipping').checked;
     };
     form.addEventListener('input', (e) => {
       const n = e.target.name;
@@ -303,7 +300,7 @@ function mount(main, { store, navigate, query }) {
         id: editId === 'new' ? undefined : editId, title: draft.title.trim(), slug: draft.slug.trim(), brand: draft.brand.trim(), upc,
         condition: draft.condition, categoryId: draft.categoryId || null, description: draft.description.trim(),
         price: round2(price), originalPrice: orig > price ? round2(orig) : null, shipping: round2(ship), inventory: inv,
-        published: draft.published, bestDeal: draft.bestDeal, noShipping: !!draft.noShipping, images: draft.images,
+        published: draft.published, bestDeal: false, noShipping: !!draft.noShipping, images: draft.images,
       };
       const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Saving…';
       try {
@@ -492,7 +489,6 @@ function mount(main, { store, navigate, query }) {
     if (t.matches('[data-sel]')) { t.checked ? selected.add(t.dataset.sel) : selected.delete(t.dataset.sel); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
     if (t.matches('[data-sel-all]')) { $$('[data-sel]').forEach((c) => { c.checked = t.checked; t.checked ? selected.add(c.dataset.sel) : selected.delete(c.dataset.sel); }); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
     if (t.matches('[data-pub]')) { await A.patchProduct(t.dataset.pub, { published: t.checked }); refreshStore(); t.nextElementSibling.textContent = t.checked ? 'Published' : 'Hidden'; toast(t.checked ? 'Published' : 'Hidden from store'); }
-    if (t.matches('[data-deal]')) { await A.patchProduct(t.dataset.deal, { bestDeal: t.checked }); refreshStore(); toast(t.checked ? 'Added to Best Deals' : 'Removed from Best Deals'); }
     if (t.matches('[data-of]')) { orderFilter = t.value; orders(); }
     if (t.matches('[data-order-status]')) { await A.updateOrder(t.dataset.orderStatus, { status: t.value }); toast('Order status updated'); await loadAll(); }
     if (t.matches('[data-offer-status]')) { await A.updateOffer(t.dataset.offerStatus, { status: t.value }); toast('Offer updated'); await loadAll(); }

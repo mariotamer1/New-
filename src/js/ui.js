@@ -91,7 +91,6 @@ export function menuHTML() {
         <li><a href="${href('/products')}">Products ${icon('right', 'icon-sm')}</a></li>
         <li><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-cats">Categories ${icon('down')}</button>
           <ul class="menu-sub" id="menu-cats" hidden>${cats.map((c) => `<li><a href="${href('/categories/' + c.slug)}">${esc(c.name)}</a></li>`).join('')}<li><a href="${href('/categories')}">All categories</a></li></ul></li>
-        <li><a href="${href('/products?deals=1')}">Best Deals ${icon('right', 'icon-sm')}</a></li>
         <li><a href="${href('/wholesale')}">Wholesale ${icon('right', 'icon-sm')}</a></li>
         <li><a href="${href('/about')}">About ${icon('right', 'icon-sm')}</a></li>
         <li><a href="${href('/contact')}">Contact ${icon('right', 'icon-sm')}</a></li>
@@ -119,7 +118,6 @@ export function footerHTML() {
       </div>
       <div class="f-col"><h2>Shop</h2><ul>
         <li><a href="${href('/products')}">All products</a></li>
-        <li><a href="${href('/products?deals=1')}">Best deals</a></li>
         <li><a href="${href('/categories')}">Categories</a></li>
         <li><a href="${href('/wholesale')}">Wholesale</a></li>
       </ul></div>
@@ -159,7 +157,6 @@ export function cardHTML(p, { eager = false, sizes } = {}) {
     <div class="card-media" data-carousel>
       <div class="track">${slides}</div>
       ${off ? `<span class="badge">-${off}%</span>` : ''}
-      ${p.bestDeal ? '<span class="badge-deal">Best deal</span>' : ''}
       ${ims.length > 1 ? `<button class="car-btn prev" type="button" aria-label="Previous photo" data-car="-1">${icon('left', 'icon-sm')}</button><button class="car-btn next" type="button" aria-label="Next photo" data-car="1">${icon('right', 'icon-sm')}</button><div class="dots">${ims.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}
     </div>
     <div class="card-body">
@@ -239,7 +236,7 @@ export function searchProducts(q, limit = 99) {
       if (upc && upc.startsWith(t)) score += 8;
       if (cat.startsWith(t)) score += 2;
     });
-    res.push({ p, score: score + (p.bestDeal ? 1 : 0) });
+    res.push({ p, score: score });
   }
   return res.sort((a, b) => b.score - a.score).slice(0, limit).map((r) => r.p);
 }
@@ -343,7 +340,7 @@ export function renderCart() {
   if (!body) return;
   $('#cart-title').textContent = count ? `Your cart (${count})` : 'Your cart';
   if (!items.length) {
-    body.innerHTML = `<div class="cart-empty">${icon('bag')}<p><b>Your cart is empty.</b></p><p class="muted">Find something good in today’s deals.</p><a class="btn btn-primary" href="${href('/products?deals=1')}" data-close-cart>Browse Deals</a></div>`;
+    body.innerHTML = `<div class="cart-empty">${icon('bag')}<p><b>Your cart is empty.</b></p><p class="muted">Find something good in today’s deals.</p><a class="btn btn-primary" href="${href('/products')}" data-close-cart>Browse Deals</a></div>`;
     foot.innerHTML = '';
     return;
   }

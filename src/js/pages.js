@@ -6,9 +6,7 @@ import { cardHTML, priceHTML, mountCarousels, searchProducts, toast, addToCart }
 const catName = (id) => (store.category(id) || {}).name || 'Other';
 const bestDeals = () => {
   const all = store.products();
-  const featured = all.filter((p) => p.bestDeal).sort((a, b) => pctOff(b) - pctOff(a));
-  const rest = all.filter((p) => !p.bestDeal).sort((a, b) => pctOff(b) - pctOff(a));
-  return [...featured, ...rest];
+  return all.slice().sort((a, b) => pctOff(b) - pctOff(a));
 };
 
 // ---------------------------------------------------------------- home
@@ -35,7 +33,7 @@ export function home() {
           <h1 class="display"><span>Big savings.</span><span>Great products.</span></h1>
           <p class="hero-lede">ML Group offers brand-new products sourced from big retailers like Walmart and Amazon, and more. Every item is new and was purchased through clearance opportunities—we simply pass the savings on to you at prices below retail.</p>
           <div class="hero-cta">
-            <a class="btn btn-primary btn-lg" href="${href('/products?deals=1')}">Browse Deals ${icon('arrow', 'icon-sm')}</a>
+            <a class="btn btn-primary btn-lg" href="${href('/products')}">Browse Deals ${icon('arrow', 'icon-sm')}</a>
             <a class="btn btn-lg" href="${href('/wholesale')}">Wholesale buyers</a>
           </div>
           <div class="hero-proof"><span>${icon('truck')} Ships nationwide</span><span>${icon('store')} Free local pickup</span></div>
@@ -59,7 +57,7 @@ export function home() {
     </section>
     <section class="section" aria-labelledby="deals-h">
       <div class="wrap">
-        <div class="section-head"><div><h2 id="deals-h">Best deals</h2><p>The biggest markdowns in the warehouse right now. When they’re gone, they’re gone.</p></div><a class="link-arrow" href="${href('/products?deals=1')}">View all deals ${icon('arrow', 'icon-sm')}</a></div>
+        <div class="section-head"><div><h2 id="deals-h">Shop our products</h2><p>Brand-new items below retail. When they’re gone, they’re gone.</p></div><a class="link-arrow" href="${href('/products')}">View all products ${icon('arrow', 'icon-sm')}</a></div>
         <div class="grid cols-4">${deals.slice(0, 8).map((p) => cardHTML(p)).join('')}</div>
       </div>
     </section>
@@ -100,7 +98,7 @@ export function home() {
 
 // ---------------------------------------------------------------- catalog
 const VIEWS = [['grid4', '4-column grid', 'grid4'], ['grid2', '2-column grid', 'grid2'], ['list', 'List view', 'list'], ['scroll', 'Horizontal scrolling', 'rows']];
-const SORTS = [['deals', 'Best deals'], ['price-asc', 'Price: Low to High'], ['price-desc', 'Price: High to Low'], ['new', 'Newest']];
+const SORTS = [['deals', 'Featured'], ['price-asc', 'Price: Low to High'], ['price-desc', 'Price: High to Low'], ['new', 'Newest']];
 const RANGES = [['', 'Any price'], ['0-25', 'Under $25'], ['25-100', '$25 – $100'], ['100-500', '$100 – $500'], ['500-', '$500 & up']];
 
 export function catalog({ query, params = {} }) {
@@ -111,8 +109,8 @@ export function catalog({ query, params = {} }) {
     min: query.get('min') || '', max: query.get('max') || '',
     sort: query.get('sort') || 'deals', view: query.get('view') || ls.get('ml-view', 'grid4'), shown: 24,
   };
-  const title = cat ? cat.name : state.q ? `Search: ${state.q}` : state.deals ? 'Best Deals' : 'All Products';
-  const lead = cat ? `Discounted ${cat.name.toLowerCase()} — new and like-new stock at below-retail prices.` : 'Every deal in stock right now. Filter by category, price or best deals.';
+  const title = cat ? cat.name : state.q ? `Search: ${state.q}` : 'All Products';
+  const lead = cat ? `Discounted ${cat.name.toLowerCase()} — new and like-new stock at below-retail prices.` : 'Everything in stock right now. Filter by category or price.';
   return {
     title, description: cat ? `Shop discounted ${cat.name.toLowerCase()} at ML Group. Big savings, fast shipping and free local pickup.` : 'Shop all discounted products at ML Group — electronics, home & kitchen, tools, appliances, toys and more.',
     path: cat ? '/categories/' + cat.slug : '/products',
@@ -145,7 +143,6 @@ export function catalog({ query, params = {} }) {
           <label class="f-opt"><input type="radio" name="cat${sfx}" value="" ${!state.cat ? 'checked' : ''}> All categories <span class="count">${store.products().length}</span></label>
           ${store.categories().map((c) => `<label class="f-opt"><input type="radio" name="cat${sfx}" value="${c.slug}" ${state.cat === c.slug ? 'checked' : ''}> ${esc(c.name)} <span class="count">${counts[c.id] || 0}</span></label>`).join('')}
         </div></div>
-        <div class="f-group"><h3>Deals</h3><label class="f-opt"><input type="checkbox" name="deals${sfx}" ${state.deals ? 'checked' : ''}> Best deals only</label></div>
         <div class="f-group"><h3>Price</h3><div class="f-options">
           ${RANGES.map(([v, l]) => `<label class="f-opt"><input type="radio" name="range${sfx}" value="${v}" ${(v === '' ? !state.min && !state.max : range === v) ? 'checked' : ''}> ${l}</label>`).join('')}
         </div>
@@ -154,11 +151,10 @@ export function catalog({ query, params = {} }) {
       const filtered = () => {
         let list = state.q ? searchProducts(state.q) : store.products().slice();
         if (state.cat) { const c = store.category(state.cat); list = list.filter((p) => c && p.categoryId === c.id); }
-        if (state.deals) list = list.filter((p) => p.bestDeal || pctOff(p) >= 40);
         const mn = parseFloat(state.min), mx = parseFloat(state.max);
         if (!isNaN(mn)) list = list.filter((p) => p.price >= mn);
         if (!isNaN(mx)) list = list.filter((p) => p.price <= mx);
-        const by = { deals: (a, b) => (b.bestDeal - a.bestDeal) || (pctOff(b) - pctOff(a)), 'price-asc': (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, new: (a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) };
+        const by = { deals: (a, b) => (pctOff(b) - pctOff(a)), 'price-asc': (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, new: (a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) };
         if (!(state.q && state.sort === 'deals')) list.sort(by[state.sort] || by.deals);
         return list;
       };
@@ -178,7 +174,6 @@ export function catalog({ query, params = {} }) {
         const chips = [];
         if (state.q) chips.push(['q', `“${state.q}”`]);
         if (state.cat) chips.push(['cat', catName((store.category(state.cat) || {}).id)]);
-        if (state.deals) chips.push(['deals', 'Best deals']);
         if (state.min || state.max) chips.push(['price', `${state.min ? '$' + state.min : '$0'} – ${state.max ? '$' + state.max : 'any'}`]);
         $('[data-active]', root).innerHTML = chips.map(([k, l]) => `<button class="chip" type="button" data-clear-f="${k}" aria-label="Remove filter ${esc(l)}">${esc(l)} ${icon('close')}</button>`).join('') + (chips.length > 1 ? '<button class="link" type="button" data-clear-f="all" style="font-size:13px">Clear all</button>' : '');
         const box = $('[data-results]', root);
@@ -261,7 +256,7 @@ export function product({ params }) {
           <div style="display:grid;gap:10px">
             ${p.brand ? `<p class="pdp-brand"><a href="${href('/products?q=' + encodeURIComponent(p.brand))}">${esc(p.brand)}</a></p>` : ''}
             <h1>${esc(p.title)}</h1>
-            <div class="cond-row"><span class="cond">Condition: ${esc(p.condition)}</span>${p.bestDeal ? '<span class="cond">Best deal</span>' : ''}${p.inventory <= 5 ? `<span class="stock-low">Only ${p.inventory} left</span>` : '<span class="muted" style="font-size:14px">In stock</span>'}</div>
+            <div class="cond-row"><span class="cond">Condition: ${esc(p.condition)}</span>${p.inventory <= 5 ? `<span class="stock-low">Only ${p.inventory} left</span>` : '<span class="muted" style="font-size:14px">In stock</span>'}</div>
           </div>
           <div class="pdp-price">
             <div class="row"><span class="now tabnum">${money(p.price)}</span>${off ? `<span class="off">-${off}%</span>` : ''}</div>
@@ -392,7 +387,7 @@ export function about() {
         <ul><li>We buy in volume and sell direct — no middlemen.</li><li>Every item is checked and honestly graded: New, Open Box, Like New, Refurbished or Used.</li><li>Flat shipping prices and free local pickup, so there are no surprises at checkout.</li></ul>
         <h2>Visit us</h2>
         <p>Pickup is at ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)} — ${esc(s.pickupHours)}.</p>
-        <p><a class="btn btn-primary" href="${href('/products?deals=1')}">Browse Deals</a></p>
+        <p><a class="btn btn-primary" href="${href('/products')}">Browse Deals</a></p>
       </div>
       <div style="display:grid;gap:12px;align-content:start">
         <div class="tiers"><div class="tier"><span class="t-qty">Products in stock</span><span class="t-off tabnum">${store.products().length}</span></div><div class="tier dark"><span class="t-qty">Top discount</span><span class="t-off">${Math.max(0, ...store.products().map(pctOff))}%</span></div></div>
@@ -460,7 +455,7 @@ export function checkout() {
       const draft = { fulfillment: 'shipping', payment: 'link', ...ls.get('ml-co', {}) };
       const draw = () => {
         const items = cart.items();
-        if (!items.length) { box.innerHTML = `<div class="empty" style="margin-block:32px 64px"><h2>Your cart is empty</h2><p class="muted">Add something from today’s deals to check out.</p><a class="btn btn-primary" href="${href('/products?deals=1')}">Browse Deals</a></div>`; return; }
+        if (!items.length) { box.innerHTML = `<div class="empty" style="margin-block:32px 64px"><h2>Your cart is empty</h2><p class="muted">Add something from today’s deals to check out.</p><a class="btn btn-primary" href="${href('/products')}">Browse Deals</a></div>`; return; }
         const pickupOnly = items.filter((i) => i.product.noShipping);
         if (pickupOnly.length) draft.fulfillment = 'pickup';
         const pickup = draft.fulfillment === 'pickup';
@@ -573,7 +568,7 @@ export function order({ params }) {
         ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up at</b><span>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)} — we’ll text you when it’s ready.</span></div>` : `<div class="pickup-box"><b>${icon('truck', 'icon-sm')} Shipping to</b><span>${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}, ${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}</span></div>`}
         <div class="summary" style="position:static"><h2>Items</h2><ul class="sum-items" style="max-height:none">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
         <div class="sum-totals"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>${pickup ? 'Local pickup' : 'Shipping'}</span><span class="tabnum">${pickup ? 'Free' : money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div></div>
-        <div class="hero-cta"><a class="btn btn-primary" href="${href('/products?deals=1')}">Keep shopping</a><a class="btn" href="${telHref(s.phone)}">${icon('phone', 'icon-sm')} Questions? ${esc(s.phone)}</a></div>
+        <div class="hero-cta"><a class="btn btn-primary" href="${href('/products')}">Keep shopping</a><a class="btn" href="${telHref(s.phone)}">${icon('phone', 'icon-sm')} Questions? ${esc(s.phone)}</a></div>
       </div>`;
     },
   };
