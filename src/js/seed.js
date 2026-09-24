@@ -19,7 +19,7 @@ export const SETTINGS = {
   city: 'Auburn',
   state: 'WA',
   zip: '',
-  pickupHours: 'Mon–Fri 10am–6pm · Sat 10am–4pm',
+  pickupHours: 'Mon–Fri 11am–10pm · Sat–Sun 9am–9pm',
   pickupNote: 'Bring your order number. We load large items for you.',
   announcement: 'Local pickup always available · Ships nationwide · New deals every week',
 };

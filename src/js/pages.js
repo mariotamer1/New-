@@ -633,11 +633,11 @@ const isoDay = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDa
 function slotsFor(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
   const day = d.getDay();
-  if (day === 0) return []; // closed Sunday
-  const end = day === 6 ? 16 : 18;
+  const weekend = day === 0 || day === 6;
+  const start = weekend ? 9 : 11, end = weekend ? 21 : 22; // Sat–Sun 9am–9pm, Mon–Fri 11am–10pm
   const out = [];
   const now = new Date();
-  for (let h = 10; h < end; h++) for (const m of [0, 30]) {
+  for (let h = start; h < end; h++) for (const m of [0, 30]) {
     const t = new Date(dateStr + `T${pad(h)}:${pad(m)}:00`);
     if (t > new Date(now.getTime() + 30 * 60000)) out.push(`${pad(h)}:${pad(m)}`);
   }
