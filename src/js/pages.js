@@ -38,7 +38,7 @@ export function home() {
             <a class="btn btn-primary btn-lg" href="${href('/products?deals=1')}">Browse Deals ${icon('arrow', 'icon-sm')}</a>
             <a class="btn btn-lg" href="${href('/wholesale')}">Wholesale buyers</a>
           </div>
-          <div class="hero-proof"><span>${icon('truck')} Ships nationwide</span><span>${icon('store')} Free local pickup</span><span>${icon('box')} Bulk lots available</span></div>
+          <div class="hero-proof"><span>${icon('truck')} Ships nationwide</span><span>${icon('store')} Free local pickup</span></div>
         </div>
         <div class="hero-collage" aria-label="Featured deals">
           ${hero.map((p, i) => `<a class="hero-tile ${i === 0 ? 'big' : ''}" href="${href('/products/' + p.slug)}">

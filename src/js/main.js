@@ -65,7 +65,7 @@ let adminMod = null;
 async function loadAdmin() {
   if (adminMod) return adminMod;
   if (window.MLAdmin) return (adminMod = window.MLAdmin);
-  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = ENV.root + 'assets/admin.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  await new Promise((res, rej) => { const s = document.createElement('script'); s.src = ENV.root + 'assets/admin.js' + (ENV.cfg.v ? '?v=' + ENV.cfg.v : ''); s.onload = res; s.onerror = rej; document.head.appendChild(s); });
   return (adminMod = window.MLAdmin);
 }
 

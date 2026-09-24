@@ -30,6 +30,7 @@ const appJS = appRes.outputFiles[0].text;
 const adminJS = adminRes.outputFiles[0].text;
 const cssRes = await build({ entryPoints: [path.join(SRC, 'css/app.css')], bundle: true, minify: true, write: false });
 const appCSS = cssRes.outputFiles[0].text;
+const VER = (await import('node:crypto')).createHash('sha1').update(appJS + adminJS + appCSS).digest('hex').slice(0, 10);
 fs.writeFileSync(path.join(SITE, 'assets/app.js'), appJS);
 fs.writeFileSync(path.join(SITE, 'assets/admin.js'), adminJS);
 fs.writeFileSync(path.join(SITE, 'assets/app.css'), appCSS);
@@ -81,10 +82,10 @@ ${url ? `<meta property="og:url" content="${esc(url)}">` : ''}
 <link rel="manifest" href="${rel}site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${FONTS}">
-<link rel="stylesheet" href="${rel}assets/app.css">
+<link rel="stylesheet" href="${rel}assets/app.css?v=${VER}">
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'Organization', name: 'ML Group', url: SITE_URL, logo: SITE_URL + 'logo.svg' })}</script>
 ${jsonld ? `<script type="application/ld+json" id="ld-page">${JSON.stringify(jsonld).replace(/</g, '\\u003c')}</script>` : ''}
-<script>window.ML_CONFIG=${JSON.stringify(cfg)}</script>`;
+<script>window.ML_CONFIG=${JSON.stringify({ ...cfg, v: VER })}</script>`;
 }
 const noscript = (inner) => `<noscript><div style="padding:24px;font-family:system-ui">${inner}<p>Please enable JavaScript to shop ML Group.</p></div></noscript>`;
 
@@ -98,7 +99,7 @@ ${head({ ...meta, rel, url: SITE_URL + route.replace(/^\//, ''), cfg: CONFIG })}
 </head>
 <body>
 <div id="app">${noscript(meta.body || `<h1>${esc(meta.title || 'ML Group')}</h1><p>${esc(meta.desc || DEFAULT_DESC)}</p>`)}</div>
-<script src="${rel}assets/app.js" defer></script>
+<script src="${rel}assets/app.js?v=${VER}" defer></script>
 </body>
 </html>`;
   const dir = path.join(SITE, route);
