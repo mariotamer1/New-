@@ -43,7 +43,7 @@ export function home() {
         <div class="hero-collage" aria-label="Featured deals">
           ${hero.map((p, i) => `<a class="hero-tile ${i === 0 ? 'big' : ''}" href="${href('/products/' + p.slug)}">
             ${imgTag(p.images[0], { alt: p.title, eager: i < 3, sizes: i === 0 ? '(min-width:900px) 34vw, 66vw' : '(min-width:900px) 17vw, 33vw' })}
-            <span class="cat">${esc(catName(p.categoryId))}</span>
+            <span class="cat">${esc(p.title)}</span>
             <span class="tag">${pctOff(p) ? `<b>-${pctOff(p)}%</b>` : ''}<span class="tabnum">${money(p.price)}</span></span>
           </a>`).join('')}
         </div>
