@@ -493,12 +493,19 @@ function mount(main, { store, navigate, query }) {
     }
     if (f.matches('[data-cat-add]')) { e.preventDefault(); const name = f.elements.name.value.trim(); if (!name) return; await A.saveCategory({ name }); refreshStore(); toast('Category added'); categories(); }
   };
+  // label table cells so they can stack as cards on phones
+  const labelTables = () => $$('table.tbl', main).forEach((t) => {
+    const heads = $$('thead th', t).map((th) => th.textContent.trim());
+    $$('tbody tr', t).forEach((tr) => $$('td', tr).forEach((td, i) => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', heads[i] || ''); }));
+  });
+  const mo = new MutationObserver(labelTables);
+  mo.observe(main, { childList: true, subtree: true });
   main.addEventListener('click', onClick);
   main.addEventListener('change', onChange);
   main.addEventListener('input', onInput);
   main.addEventListener('submit', onSubmit);
   render();
-  return () => { main.removeEventListener('click', onClick); main.removeEventListener('change', onChange); main.removeEventListener('input', onInput); main.removeEventListener('submit', onSubmit); };
+  return () => { mo.disconnect(); main.removeEventListener('click', onClick); main.removeEventListener('change', onChange); main.removeEventListener('input', onInput); main.removeEventListener('submit', onSubmit); };
 }
 
 window.MLAdmin = { mount };
