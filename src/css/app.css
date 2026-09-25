@@ -889,3 +889,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .adm-track { display: block; margin-top: 6px; font-size: 12.5px; line-height: 1.4; word-break: break-all; }
 .adm-track a { text-decoration: underline; font-weight: 700; }
 @media (max-width: 719px) { .tbl td:has(.adm-track), .tbl td:has([data-track]) { flex-wrap: wrap; } .tbl td .adm-track, .tbl td small:has([data-track]) { flex-basis: 100%; text-align: right; } }
+.lookup-list { list-style: none; display: grid; gap: 10px; margin-top: 16px; }
+.lookup-list li { border: 1px solid var(--line); padding: 12px 14px; background: #fff; }
+.lookup-list li > a { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; text-decoration: none; flex-wrap: wrap; }
+.lookup-list li > a:hover b { text-decoration: underline; }
+.lookup-list .track-box { margin: 10px 0 0; }

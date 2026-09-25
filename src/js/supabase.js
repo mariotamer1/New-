@@ -140,6 +140,7 @@ export function createSupabaseBackend(cfg) {
     async getOrder(id) { try { return await rpc('get_order', { p_id: id }); } catch { return null; } },
     async submitOffer(o) { await rpc('submit_offer', { p_product_id: o.productId, p_name: o.name, p_phone: o.phone, p_amount: o.amount }); },
     async submitInquiry(q) { await rpc('submit_inquiry', { p: q }); },
+    lookupOrders: (email, ref) => rpc('lookup_orders', { p_email: email, p_ref: ref }),
     // PayPal: prices come from the saved order on the server, never from the browser
     paypal: (action, orderId) => raw('POST', '/functions/v1/paypal', { action, orderId }),
 

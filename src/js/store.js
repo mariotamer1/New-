@@ -249,6 +249,7 @@ export const store = {
   getOrder: (id) => backend.getOrder(id),
   submitOffer: (x) => backend.submitOffer(x),
   submitInquiry: (x) => backend.submitInquiry(x),
+  lookupOrders: (email, ref) => (backend.lookupOrders ? backend.lookupOrders(email, ref) : Promise.resolve([])),
   get canPayPal() { return !!(backend && backend.paypal && !backend.offline && ENV.cfg.paypalClientId); },
   paypal: (action, orderId) => backend.paypal(action, orderId),
   account: {

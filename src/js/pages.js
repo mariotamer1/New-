@@ -682,7 +682,18 @@ export function account() {
             <div class="field"><label for="ac-pw">Password</label><input id="ac-pw" name="password" type="password" autocomplete="${tab === 'register' ? 'new-password' : 'current-password'}" required minlength="8"></div>
             <p class="form-error" data-err hidden></p>
             <button class="btn btn-primary btn-lg" type="submit">${tab === 'register' ? 'Create account' : 'Sign in'}</button>
-          </form>`;
+          </form>
+          <section class="info-card lookup" style="margin-top:32px;max-width:520px">
+            <h2>Can’t sign in? Find your order</h2>
+            <p class="muted" style="font-size:14px">No password needed. Enter the email you used at checkout and your order number or phone number.</p>
+            <form class="form" novalidate data-lookup>
+              <div class="field"><label for="lk-email">Email</label><input id="lk-email" name="email" type="email" autocomplete="email" required></div>
+              <div class="field"><label for="lk-ref">Order number or phone number</label><input id="lk-ref" name="ref" inputmode="numeric" autocomplete="off" placeholder="e.g. 1005 or (425) 555-0123" required></div>
+              <p class="form-error" data-err hidden></p>
+              <button class="btn btn-lg" type="submit">Find my order</button>
+            </form>
+            <div data-lookup-results></div>
+          </section>`;
       };
       box.addEventListener('click', async (e) => {
         const t = e.target.closest('[data-tab]'); if (t) draw(t.dataset.tab);
@@ -690,6 +701,17 @@ export function account() {
       });
       box.addEventListener('submit', async (e) => {
         e.preventDefault(); const f = e.target; const d = Object.fromEntries(new FormData(f)); const err = $('[data-err]', f);
+        if (f.matches('[data-lookup]')) {
+          const out = $('[data-lookup-results]', box); const digits = String(d.ref || '').replace(/\D/g, '');
+          if (!/^\S+@\S+\.\S+$/.test(d.email) || digits.length < 4) { err.textContent = 'Enter your email and your order number or phone number.'; err.hidden = false; return; }
+          err.hidden = true; const btn = $('button[type="submit"]', f); btn.disabled = true; btn.textContent = 'Searching…';
+          try {
+            const list = await store.lookupOrders(d.email.trim(), d.ref);
+            out.innerHTML = list.length ? `<ul class="lookup-list">${list.map((o) => `<li><a href="${href('/order/' + o.id)}"><b class="mono">#${o.number}</b><span>${new Date(o.createdAt).toLocaleDateString()} · <span class="status s-${o.status}">${esc(o.status)}</span> · ${money(o.total)}</span></a>${trackingHTML(o)}</li>`).join('')}</ul>`
+              : `<p class="form-error" style="margin-top:12px">We couldn’t find an order with those details. Check the email and number, or call or text ${esc(store.settings().phone)}.</p>`;
+          } catch { out.innerHTML = '<p class="form-error" style="margin-top:12px">Something went wrong. Please try again.</p>'; }
+          btn.disabled = false; btn.textContent = 'Find my order'; return;
+        }
         if (!/^\S+@\S+\.\S+$/.test(d.email) || String(d.password).length < 8 || (f.dataset.acctForm === 'register' && !String(d.name).trim())) { err.textContent = 'Enter your name, a valid email and a password of at least 8 characters.'; err.hidden = false; return; }
         try { if (f.dataset.acctForm === 'register') await store.account.register(d); else await store.account.login(d); toast('Signed in'); draw(); }
         catch (ex) { err.textContent = ex.message; err.hidden = false; }
