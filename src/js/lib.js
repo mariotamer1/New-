@@ -23,6 +23,13 @@ export const slugify = (s) => String(s || '').toLowerCase().normalize('NFKD').re
 export const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
 export const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 export const fmtDate = (iso, time) => { try { return new Date(iso).toLocaleString('en-US', time ? { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' } : { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return ''; } };
+// Package tracking: carrier list and each carrier's public tracking page
+export const CARRIERS = [['fedex', 'FedEx'], ['ups', 'UPS'], ['usps', 'USPS']];
+export const carrierName = (c) => (CARRIERS.find(([v]) => v === c) || [, c || ''])[1];
+export function trackUrl(carrier, number) {
+  const n = encodeURIComponent(String(number || '').replace(/\s+/g, ''));
+  return ({ fedex: `https://www.fedex.com/fedextrack/?trknbr=${n}`, ups: `https://www.ups.com/track?tracknum=${n}`, usps: `https://tools.usps.com/go/TrackConfirmAction?tLabels=${n}` })[carrier] || '';
+}
 export const telHref = (s) => 'tel:' + String(s || '').replace(/[^\d+]/g, '');
 export const round2 = (n) => Math.round(Number(n) * 100) / 100;
 export const clamp = (n, a, b) => Math.min(b, Math.max(a, n));

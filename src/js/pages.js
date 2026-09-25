@@ -1,7 +1,14 @@
 // Storefront pages. Each page returns { title, description, html, mount, jsonld, image }.
-import { $, $$, esc, money, pctOff, href, img, imgTag, icon, barcode, telHref, ls, round2, ENV } from './lib.js';
+import { $, $$, esc, money, pctOff, href, img, imgTag, icon, barcode, telHref, ls, round2, ENV, carrierName, trackUrl } from './lib.js';
 import { store, cart } from './store.js';
 import { cardHTML, priceHTML, mountCarousels, searchProducts, toast, addToCart } from './ui.js';
+
+// Tracking box shown to customers once an order has a tracking number.
+function trackingHTML(o) {
+  const t = o.tracking; if (!t || !t.number) return '';
+  const url = trackUrl(t.carrier, t.number);
+  return `<div class="track-box">${icon('truck', 'icon-sm')}<div><b>Shipped with ${esc(carrierName(t.carrier))}</b><span class="muted" style="font-size:13px">Tracking number</span>${url ? `<a class="mono" href="${esc(url)}" target="_blank" rel="noopener">${esc(t.number)}</a>` : `<span class="mono">${esc(t.number)}</span>`}${url ? `<a class="track-link" href="${esc(url)}" target="_blank" rel="noopener">Click here to track your package ${icon('arrow', 'icon-sm')}</a>` : ''}</div></div>`;
+}
 
 // Whole-dollar prices drop the cents so tile tags fit on small screens.
 const tileMoney = (n) => (Number(n) % 1 ? money(n) : money(n).replace(/\.00$/, ''));
@@ -643,6 +650,7 @@ export function order({ params }) {
           <div><dt>Payment</dt><dd>${o.payment === 'free' ? 'Free — no payment' : o.payment === 'paypal' ? (o.paidAt ? 'Paid · PayPal' : 'PayPal (not completed)') : o.payment === 'pickup' ? 'Pay at pickup' : 'Secure payment link'}</dd></div>
           <div><dt>Total</dt><dd class="tabnum">${money(o.total)}</dd></div>
         </dl>
+        ${trackingHTML(o)}
         ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up at</b><span>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)} — we’ll text you when it’s ready.</span></div>` : `<div class="pickup-box"><b>${icon('truck', 'icon-sm')} Shipping to</b><span>${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}, ${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}</span></div>`}
         <div class="summary" style="position:static"><h2>Items</h2><ul class="sum-items" style="max-height:none">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
         <div class="sum-totals"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>${pickup ? 'Local pickup' : 'Shipping'}</span><span class="tabnum">${pickup ? 'Free' : money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div></div>
@@ -664,7 +672,7 @@ export function account() {
         if (me) {
           box.innerHTML = `<div style="display:grid;gap:20px"><div class="info-card"><h2>${esc(me.name || 'Welcome back')}</h2><p class="muted">${esc(me.email)}${me.phone ? ' · ' + esc(me.phone) : ''}</p><div><button class="btn btn-sm" type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button></div></div>
           <h2 class="display" style="font-size:26px">Order history</h2>
-          ${me.orders.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Delivery</th><th>Total</th></tr></thead><tbody>${me.orders.map((o) => `<tr><td><a href="${href('/order/' + o.id)}" class="mono"><b>#${o.number}</b></a></td><td>${new Date(o.createdAt).toLocaleDateString()}</td><td><span class="status s-${o.status}">${esc(o.status)}</span></td><td>${o.fulfillment === 'pickup' ? 'Pickup' : 'Shipping'}</td><td class="tabnum">${money(o.total)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">No orders yet.</p>'}</div>`;
+          ${me.orders.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Delivery</th><th>Total</th></tr></thead><tbody>${me.orders.map((o) => `<tr><td><a href="${href('/order/' + o.id)}" class="mono"><b>#${o.number}</b></a></td><td>${new Date(o.createdAt).toLocaleDateString()}</td><td><span class="status s-${o.status}">${esc(o.status)}</span></td><td>${o.fulfillment === 'pickup' ? 'Pickup' : 'Shipping'}</td><td class="tabnum">${money(o.total)}</td></tr>${o.tracking && o.tracking.number ? `<tr class="track-row"><td colspan="5">${trackingHTML(o)}</td></tr>` : ''}`).join('')}</tbody></table></div>` : '<p class="muted">No orders yet.</p>'}</div>`;
           return;
         }
         box.innerHTML = `<div class="tabs" role="tablist"><button type="button" role="tab" aria-selected="${tab === 'login'}" data-tab="login">Sign in</button><button type="button" role="tab" aria-selected="${tab === 'register'}" data-tab="register">Create account</button></div>

@@ -876,3 +876,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .pickup-when .btn-link { margin-left: auto; background: none; border: 0; padding: 0; font: 700 13px var(--font-body); text-decoration: underline; cursor: pointer; color: var(--ink); }
 .od-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .adm-confirm div { flex-wrap: wrap; }
+
+.track-box { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--ink); padding: 12px 14px; margin: 12px 0; background: #fff; }
+.track-box > div { display: grid; gap: 4px; }
+.track-box a.mono { text-decoration: underline; text-underline-offset: 3px; font-weight: 700; word-break: break-all; }
+.track-box .track-link { font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.track-row td { padding-top: 0; }
+.track-dlg { max-width: 420px; }
+.track-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.btn-exit { background: var(--err); border-color: var(--err); color: #fff; }
+.btn-exit:hover { background: #fff; color: var(--err); }

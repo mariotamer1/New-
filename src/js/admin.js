@@ -1,5 +1,5 @@
 // ML Group admin dashboard. Mounted by main.js at /admin with the shared store instance.
-import { $, $$, esc, money, pctOff, href, img, imgTag, icon, logo, telHref, fmtDate, round2, slugify, ENV } from './lib.js';
+import { $, $$, esc, money, pctOff, href, img, imgTag, icon, logo, telHref, fmtDate, round2, slugify, ENV, CARRIERS, carrierName, trackUrl } from './lib.js';
 import { toast } from './ui.js';
 
 const TABS = [
@@ -331,6 +331,33 @@ function mount(main, { store, navigate, query }) {
   const refundsOf = (o) => (o.paypalRefunds || []).filter((r) => !['FAILED', 'CANCELLED'].includes(r.status));
   const refundLeft = (o) => (o.payment === 'paypal' && o.paidAt && o.paypalCaptureId ? round2(o.total - refundsOf(o).reduce((t, r) => t + Number(r.amount), 0)) : 0);
   const canRefund = (o) => refundLeft(o) > 0;
+  // Tracking popup: carrier + tracking number (optional). Opens after marking an order Shipped.
+  function openTracking(id) {
+    const o = data.orders.find((x) => x.id === id); if (!o) return;
+    let dlg = document.getElementById('track-dlg');
+    if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'track-dlg'; dlg.className = 'modal track-dlg'; dlg.setAttribute('aria-labelledby', 'tk-title'); document.body.appendChild(dlg); }
+    const t = o.tracking || {};
+    dlg.innerHTML = `<div class="modal-head"><h2 id="tk-title">Tracking package</h2></div>
+      <form class="modal-body form" data-track-form="${o.id}" novalidate>
+        <p class="muted" style="font-size:14px">Order #${o.number} · ${esc(o.customer.name)}. Optional — the customer sees this on their order.</p>
+        <div class="field"><label for="tk-carrier">Carrier</label><select id="tk-carrier" name="carrier">${CARRIERS.map(([v, l]) => `<option value="${v}" ${t.carrier === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="field"><label class="sr-only" for="tk-number">Tracking number</label><input id="tk-number" name="number" placeholder="Tracking number" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" value="${esc(t.number || '')}"></div>
+        <div class="track-actions"><button class="btn btn-primary" type="submit">Save</button><button class="btn btn-exit" type="button" data-track-exit>Exit</button></div>
+      </form>`;
+    const form = dlg.querySelector('form');
+    dlg.onclick = (e) => { if (e.target === dlg || e.target.closest('[data-track-exit]')) dlg.close(); };
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const carrier = form.carrier.value, number = form.number.value.trim().replace(/\s+/g, '').toUpperCase();
+      const btn = form.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        await A.setTracking(o.id, number ? { carrier, number, at: new Date().toISOString() } : null);
+        dlg.close(); toast(number ? 'Tracking saved' : 'Saved'); await loadAll();
+        if (tab === 'orders') { const open = $('#order-dlg') && $('#order-dlg').open; orders(); if (open) openOrder(o.id); }
+      } catch (ex) { btn.disabled = false; btn.textContent = 'Save'; toast(ex.message || 'Could not save tracking'); }
+    };
+    dlg.showModal();
+  }
   function openOrder(id) {
     const o = data.orders.find((x) => x.id === id); if (!o) return;
     if (!$('#order-dlg')) { tab = 'orders'; orders(); }
@@ -342,6 +369,7 @@ function mount(main, { store, navigate, query }) {
         <div class="info-card"><h2>Customer</h2><p><b>${esc(o.customer.name)}</b></p><p><a href="${telHref(o.customer.phone)}">${esc(o.customer.phone)}</a> · <a href="mailto:${esc(o.customer.email)}">${esc(o.customer.email)}</a></p><p class="muted">${addr}</p>${o.notes ? `<p><b>Notes:</b> ${esc(o.notes)}</p>` : ''}</div>
         <ul class="sum-items" style="max-height:none;border:1px solid var(--line)">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}${i.shipping ? ' · ship ' + money(i.shipping) : ''}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
         <div class="sum-totals" style="padding:0"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>Shipping</span><span class="tabnum">${money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div>
+        ${o.fulfillment !== 'pickup' || o.tracking ? `<div class="info-card"><h2>Tracking package</h2>${o.tracking && o.tracking.number ? `<p>${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></p>` : '<p class="muted">No tracking number yet.</p>'}<p><button class="btn btn-sm" type="button" data-track="${o.id}">${icon('truck', 'icon-sm')} ${o.tracking && o.tracking.number ? 'Edit tracking' : 'Add tracking'}</button></p></div>` : ''}
         <div class="field"><label for="od-status">Status</label><select id="od-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         ${refundsOf(o).length ? `<div class="adm-note">${refundsOf(o).map((r) => `<p><b>Refunded ${money(r.amount)}</b> through PayPal on ${fmtDate(r.at, true)}${r.status !== 'COMPLETED' ? ` (${esc(String(r.status).toLowerCase())})` : ''}.</p>`).join('')}${refundsOf(o).length > 1 || canRefund(o) ? `<p class="muted">Refunded so far: ${money(round2(o.total - refundLeft(o)))} of ${money(o.total)}</p>` : ''}</div>` : ''}
         ${o.status !== 'cancelled' || canRefund(o) ? `<div class="od-actions">${o.status !== 'cancelled' ? `<button class="btn adm-danger" type="button" data-od-ask="refund">Cancel order</button>` : ''}${canRefund(o) ? `<button class="btn adm-danger" type="button" data-od-ask="refund">Refund customer</button><button class="btn" type="button" data-od-ask="partial">Partial refund</button>` : ''}</div>
@@ -492,6 +520,8 @@ function mount(main, { store, navigate, query }) {
       }
       return;
     }
+    const tk = t.closest('[data-track]');
+    if (tk) { openTracking(tk.dataset.track); return; }
     const co = t.closest('[data-cancel-order]');
     if (co) { await A.updateOrder(co.dataset.cancelOrder, { status: 'cancelled', restock: true }); refreshStore(); toast('Order cancelled and items restocked'); const d = t.closest('dialog'); if (d) d.close(); await loadAll(); orders(); return; }
     const ap = t.closest('[data-accept-price]');
@@ -531,7 +561,7 @@ function mount(main, { store, navigate, query }) {
     if (t.matches('[data-sel-all]')) { $$('[data-sel]').forEach((c) => { c.checked = t.checked; t.checked ? selected.add(c.dataset.sel) : selected.delete(c.dataset.sel); }); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
     if (t.matches('[data-pub]')) { await A.patchProduct(t.dataset.pub, { published: t.checked }); refreshStore(); t.nextElementSibling.textContent = t.checked ? 'Published' : 'Hidden'; toast(t.checked ? 'Published' : 'Hidden from store'); }
     if (t.matches('[data-of]')) { orderFilter = t.value; orders(); }
-    if (t.matches('[data-order-status]')) { await A.updateOrder(t.dataset.orderStatus, { status: t.value }); toast('Order status updated'); await loadAll(); }
+    if (t.matches('[data-order-status]')) { const id = t.dataset.orderStatus; await A.updateOrder(id, { status: t.value }); toast('Order status updated'); await loadAll(); if (t.value === 'shipped') openTracking(id); }
     if (t.matches('[data-offer-status]')) { await A.updateOffer(t.dataset.offerStatus, { status: t.value }); toast('Offer updated'); await loadAll(); }
     if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests') requests(); }
     if (t.matches('[data-import]') && t.files[0]) { try { await A.importData(await t.files[0].text()); refreshStore(); toast('Backup imported'); render(); } catch (ex) { toast(ex.message, 'err'); } }
