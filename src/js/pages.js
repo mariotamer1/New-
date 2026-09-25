@@ -107,7 +107,7 @@ export function home() {
 
 // ---------------------------------------------------------------- catalog
 const VIEWS = [['grid4', '4-column grid', 'grid4'], ['grid2', '2-column grid', 'grid2'], ['list', 'List view', 'list'], ['scroll', 'Horizontal scrolling', 'rows']];
-const SORTS = [['deals', 'Featured'], ['price-asc', 'Price: Low to High'], ['price-desc', 'Price: High to Low'], ['new', 'Newest']];
+const SORTS = [['featured', 'Featured'], ['discount', 'Discount: Highest to Lowest'], ['price-asc', 'Price: Low to High'], ['price-desc', 'Price: High to Low'], ['new', 'Newest']];
 const RANGES = [['', 'Any price'], ['0-25', 'Under $25'], ['25-100', '$25 – $100'], ['100-500', '$100 – $500'], ['500-', '$500 & up']];
 
 export function catalog({ query, params = {} }) {
@@ -116,7 +116,7 @@ export function catalog({ query, params = {} }) {
   const state = {
     q: query.get('q') || '', cat: cat ? cat.slug : '', deals: query.get('deals') === '1',
     min: query.get('min') || '', max: query.get('max') || '',
-    sort: query.get('sort') || 'deals', view: query.get('view') || ls.get('ml-view', 'grid4'), shown: 24,
+    sort: ({ deals: 'discount' })[query.get('sort')] || query.get('sort') || 'featured', view: query.get('view') || ls.get('ml-view', 'grid4'), shown: 24,
   };
   const title = cat ? cat.name : state.q ? `Search: ${state.q}` : 'All Products';
   const lead = cat ? `Discounted ${cat.name.toLowerCase()} — new and like-new stock at below-retail prices.` : 'Everything in stock right now. Filter by category or price.';
@@ -163,8 +163,8 @@ export function catalog({ query, params = {} }) {
         const mn = parseFloat(state.min), mx = parseFloat(state.max);
         if (!isNaN(mn)) list = list.filter((p) => p.price >= mn);
         if (!isNaN(mx)) list = list.filter((p) => p.price <= mx);
-        const by = { deals: (a, b) => (pctOff(b) - pctOff(a)), 'price-asc': (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, new: (a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) };
-        if (!(state.q && state.sort === 'deals')) list.sort(by[state.sort] || by.deals);
+        const by = { featured: () => 0, deals: (a, b) => (pctOff(b) - pctOff(a)), discount: (a, b) => (pctOff(b) - pctOff(a)) || (a.price - b.price), 'price-asc': (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, new: (a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) };
+        if (!(state.q && state.sort === 'featured')) list.sort(by[state.sort] || by.featured);
         return list;
       };
       const syncURL = () => {
@@ -173,7 +173,7 @@ export function catalog({ query, params = {} }) {
         if (state.deals) q.set('deals', '1');
         if (state.min) q.set('min', state.min);
         if (state.max) q.set('max', state.max);
-        if (state.sort !== 'deals') q.set('sort', state.sort);
+        if (state.sort !== 'featured') q.set('sort', state.sort);
         const base = state.cat ? '/categories/' + state.cat : '/products';
         navigateReplace(base + (q.toString() ? '?' + q : ''));
       };
