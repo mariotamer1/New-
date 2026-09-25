@@ -290,7 +290,7 @@ function mount(main, { store, navigate, query }) {
       const upc = String(draft.upc || '').replace(/\D/g, '');
       const problems = [];
       if (!draft.title.trim()) problems.push(['ed-title', 'Add a title.']);
-      if (!(price > 0)) problems.push(['ed-price', 'Enter a sale price greater than $0.']);
+      if (String(draft.price ?? '').trim() === '' || !(price >= 0)) problems.push(['ed-price', 'Enter a sale price ($0 or more).']);
       if (!(inv >= 0)) problems.push(['ed-inv', 'Inventory must be 0 or more.']);
       if (!(ship >= 0)) problems.push(['ed-ship', 'Shipping must be 0 or more.']);
       if (upc && (upc.length < 8 || upc.length > 14)) problems.push(['ed-upc', 'UPC should be 8–14 digits.']);
@@ -338,7 +338,7 @@ function mount(main, { store, navigate, query }) {
     const addr = o.address ? `${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}<br>${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}` : 'Local pickup';
     dlg.innerHTML = `<div class="modal-head"><h2 id="od-title">Order #${o.number}</h2><button class="icon-btn" type="button" aria-label="Close" data-close-dlg>${icon('close')}</button></div>
       <div class="modal-body">
-        <dl class="kv"><div><dt>Placed</dt><dd>${fmtDate(o.createdAt, true)}</dd></div><div><dt>Delivery</dt><dd>${o.fulfillment === 'pickup' ? 'Local pickup' : 'Shipping'}</dd></div><div><dt>Payment</dt><dd>${o.payment === 'paypal' ? (o.paidAt ? `<b>PAID</b> · PayPal${o.paypalCaptureId ? `<small class="mono">${esc(o.paypalCaptureId)}</small>` : ''}` : 'PayPal — not paid') : o.payment === 'pickup' ? 'Pay at pickup' : 'Send payment link'}</dd></div><div><dt>Total</dt><dd class="tabnum">${money(o.total)}</dd></div></dl>
+        <dl class="kv"><div><dt>Placed</dt><dd>${fmtDate(o.createdAt, true)}</dd></div><div><dt>Delivery</dt><dd>${o.fulfillment === 'pickup' ? 'Local pickup' : 'Shipping'}</dd></div><div><dt>Payment</dt><dd>${o.payment === 'paypal' ? (o.paidAt ? `<b>PAID</b> · PayPal${o.paypalCaptureId ? `<small class="mono">${esc(o.paypalCaptureId)}</small>` : ''}` : 'PayPal — not paid') : o.payment === 'free' ? 'Free — no payment' : o.payment === 'pickup' ? 'Pay at pickup' : 'Send payment link'}</dd></div><div><dt>Total</dt><dd class="tabnum">${money(o.total)}</dd></div></dl>
         <div class="info-card"><h2>Customer</h2><p><b>${esc(o.customer.name)}</b></p><p><a href="${telHref(o.customer.phone)}">${esc(o.customer.phone)}</a> · <a href="mailto:${esc(o.customer.email)}">${esc(o.customer.email)}</a></p><p class="muted">${addr}</p>${o.notes ? `<p><b>Notes:</b> ${esc(o.notes)}</p>` : ''}</div>
         <ul class="sum-items" style="max-height:none;border:1px solid var(--line)">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}${i.shipping ? ' · ship ' + money(i.shipping) : ''}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
         <div class="sum-totals" style="padding:0"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>Shipping</span><span class="tabnum">${money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div>

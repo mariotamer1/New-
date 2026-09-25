@@ -472,7 +472,9 @@ export function checkout() {
         const sub = cart.subtotal();
         if (!pickup && draft.payment === 'pickup') draft.payment = 'link';
         if (draft.payment === 'paypal' && !store.canPayPal) draft.payment = 'link';
-        const payPal = draft.payment === 'paypal';
+        // A $0 order skips the payment step entirely.
+        const free = round2(sub + (pickup ? 0 : shipTotal)) === 0;
+        const payPal = !free && draft.payment === 'paypal';
         box.innerHTML = `<form class="checkout" novalidate data-co-form>
           <div>
             <section class="co-section"><h2><span class="n">1</span> Contact</h2><div class="co-body">
@@ -493,12 +495,13 @@ export function checkout() {
               <div class="field"><label for="co-zip">ZIP</label><input id="co-zip" name="zip" autocomplete="postal-code" inputmode="numeric" required value="${esc(draft.zip || '')}"></div></div>`}
             </div></section>
             <section class="co-section"><h2><span class="n">3</span> Payment</h2><div class="co-body">
+              ${free ? `<input type="hidden" name="payment" value="free"><p class="pickup-box"><b>${icon('check', 'icon-sm')} No payment needed</b><span>Your order total is $0.00 — just place your order.</span></p>` : `
               <div class="radio-cards" role="radiogroup" aria-label="Payment method">
                 ${store.canPayPal ? `<label class="radio-card"><input type="radio" name="payment" value="paypal" ${payPal ? 'checked' : ''}><div><b>PayPal, Venmo or card</b><span>Pay now securely with PayPal, Venmo, or any debit or credit card — no PayPal account needed.</span></div>${icon('lock')}</label>` : ''}
                 <label class="radio-card"><input type="radio" name="payment" value="link" ${draft.payment === 'link' ? 'checked' : ''}><div><b>Pay by secure card link</b><span>After we confirm your items, we text and email a secure payment link. Nothing is charged until you pay.</span></div>${icon('link')}</label>
                 ${pickup ? `<label class="radio-card"><input type="radio" name="payment" value="pickup" ${draft.payment === 'pickup' ? 'checked' : ''}><div><b>Pay at pickup</b><span>Cash or card when you collect your order.</span></div>${icon('cash')}</label>` : ''}
                 ${pickup && draft.payment === 'pickup' ? `<div class="pickup-when" data-pk-when>${draft.pickupWhen ? `${icon('calendar', 'icon-sm')}<span>Pickup: <b>${esc(draft.pickupWhen)}</b></span><button class="btn-link" type="button" data-pk-open>Change</button>` : `<button class="btn" type="button" data-pk-open>${icon('calendar', 'icon-sm')} Choose date &amp; time</button>`}</div>` : ''}
-              </div>
+              </div>`}
               <div class="field"><label for="co-notes">Order notes <span class="opt">(optional)</span></label><textarea id="co-notes" name="notes" style="min-height:80px">${esc(draft.notes || '')}</textarea></div>
             </div></section>
             <section class="co-section"><h2><span class="n">4</span> Account <span class="muted" style="font:600 12px var(--font-body);letter-spacing:.08em">(OPTIONAL)</span></h2><div class="co-body">
@@ -633,11 +636,11 @@ export function order({ params }) {
       const pickup = o.fulfillment === 'pickup';
       box.innerHTML = `<div class="confirm">
         <div class="confirm-head"><span class="check">${icon('check')}</span><p class="eyebrow">Order #${o.number}</p><h1>Thank you, ${esc(o.customer.name.split(' ')[0])}!</h1>
-        <p class="muted" style="max-width:60ch">We received your order and emailed a receipt to <b>${esc(o.customer.email)}</b>. ${o.payment === 'paypal' ? (o.paidAt ? 'Your payment was received — thank you!' : 'Your payment is being confirmed.') : o.payment === 'pickup' ? 'You’ll pay when you pick up.' : 'We’ll text a secure payment link to ' + esc(o.customer.phone) + ' once your items are confirmed.'}</p></div>
+        <p class="muted" style="max-width:60ch">We received your order and emailed a receipt to <b>${esc(o.customer.email)}</b>. ${o.payment === 'free' ? 'No payment was needed for this order.' : o.payment === 'paypal' ? (o.paidAt ? 'Your payment was received — thank you!' : 'Your payment is being confirmed.') : o.payment === 'pickup' ? 'You’ll pay when you pick up.' : 'We’ll text a secure payment link to ' + esc(o.customer.phone) + ' once your items are confirmed.'}</p></div>
         <dl class="kv">
           <div><dt>Order number</dt><dd class="mono">#${o.number}</dd></div>
           <div><dt>Delivery</dt><dd>${pickup ? 'Local pickup (free)' : 'Shipping'}</dd></div>
-          <div><dt>Payment</dt><dd>${o.payment === 'paypal' ? (o.paidAt ? 'Paid · PayPal' : 'PayPal (not completed)') : o.payment === 'pickup' ? 'Pay at pickup' : 'Secure payment link'}</dd></div>
+          <div><dt>Payment</dt><dd>${o.payment === 'free' ? 'Free — no payment' : o.payment === 'paypal' ? (o.paidAt ? 'Paid · PayPal' : 'PayPal (not completed)') : o.payment === 'pickup' ? 'Pay at pickup' : 'Secure payment link'}</dd></div>
           <div><dt>Total</dt><dd class="tabnum">${money(o.total)}</dd></div>
         </dl>
         ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up at</b><span>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)} — we’ll text you when it’s ready.</span></div>` : `<div class="pickup-box"><b>${icon('truck', 'icon-sm')} Shipping to</b><span>${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}, ${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}</span></div>`}
