@@ -76,21 +76,6 @@ export function home() {
         <div class="cat-grid six">${cats.map((c) => `<a class="cat-tile" href="${href('/categories/' + c.slug)}"><div class="ct-img">${imgTag(catImg(c), { alt: '', sizes: '(min-width:1200px) 16vw, 50vw' })}</div><div class="ct-body"><div><h3>${esc(c.name)}</h3><span class="ct-count">${counts[c.id] || 0} items</span></div>${icon('arrow')}</div></a>`).join('')}</div>
       </div>
     </section>
-    <section class="band ws-band on-ink" aria-labelledby="ws-h">
-      <div class="wrap">
-        <div style="display:grid;gap:18px">
-          <p class="eyebrow">For resellers, stores &amp; businesses</p>
-          <h2 id="ws-h">Buy by the case. Save by the pallet.</h2>
-          <p>ML Group works with buyers who need larger quantities — mixed lots, case packs and full pallets at wholesale pricing.</p>
-          <div class="hero-cta"><a class="btn btn-invert btn-lg" href="${href('/wholesale')}">Wholesale pricing</a><a class="btn btn-ghost-ink btn-lg" href="${telHref(s.phone)}">${icon('phone', 'icon-sm')} ${esc(s.phone)}</a></div>
-        </div>
-        <ul class="ws-points">
-          <li>${icon('layers')}<div><b>Volume discounts</b><span>Tiered pricing starting at 10 units.</span></div></li>
-          <li>${icon('box')}<div><b>Mixed lots &amp; pallets</b><span>Electronics, home, tools and general merchandise.</span></div></li>
-          <li>${icon('truck')}<div><b>Freight or dock pickup</b><span>We load your truck or arrange LTL shipping.</span></div></li>
-        </ul>
-      </div>
-    </section>
     <section class="section" aria-labelledby="pickup-h">
       <div class="wrap">
         <div class="section-head"><div><h2 id="pickup-h">Local pickup, made easy</h2><p>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} · ${esc(s.pickupHours)}</p></div></div>
