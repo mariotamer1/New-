@@ -334,8 +334,8 @@
         <div class="section-head"><div><h2 id="pickup-h">Local pickup, made easy</h2><p>${e.address1?c(e.address1)+", ":""}${c(e.city)}, ${c(e.state)} \xB7 ${c(e.pickupHours)}</p></div></div>
         <ol class="steps">
           <li><h3>Order online</h3><p>Choose \u201CLocal pickup\u201D at checkout \u2014 it\u2019s always free.</p></li>
-          <li><h3>Get a text</h3><p>We\u2019ll text you when your order is ready, usually within one business day.</p></li>
-          <li><h3>Pick it up</h3><p>Show your order number. We\u2019ll help load large items.</p></li>
+          <li><h3>Get a text</h3><p>Communicate to set up a time to meet up.</p></li>
+          <li><h3>Pick it up</h3><p>We will help load large items and anything you need.</p></li>
         </ol>
       </div>
     </section>`,mount:u=>Q(u)}}var Ot=[["grid4","4-column grid","grid4"],["grid2","2-column grid","grid2"],["list","List view","list"],["scroll","Horizontal scrolling","rows"]],Dt=[["featured","Featured"],["discount","Discount: Highest to Lowest"],["price-asc","Price: Low to High"],["price-desc","Price: High to Low"],["new","Newest"]],It=[["","Any price"],["0-25","Under $25"],["25-100","$25 \u2013 $100"],["100-500","$100 \u2013 $500"],["500-","$500 & up"]];function xe({query:e,params:t={}}){let s=t.cat||e.get("category")||"",i=s?w.category(s):null,a={q:e.get("q")||"",cat:i?i.slug:"",deals:e.get("deals")==="1",min:e.get("min")||"",max:e.get("max")||"",sort:{deals:"discount"}[e.get("sort")]||e.get("sort")||"featured",view:e.get("view")||P.get("ml-view","grid4"),shown:24},n=i?i.name:a.q?`Search: ${a.q}`:"All Products",r=i?`Discounted ${i.name.toLowerCase()} \u2014 new and like-new stock at below-retail prices.`:"Everything in stock right now. Filter by category or price.";return{title:n,description:i?`Shop discounted ${i.name.toLowerCase()} at ML Group. Big savings, fast shipping and free local pickup.`:"Shop all discounted products at ML Group \u2014 electronics, home & kitchen, tools, appliances, toys and more.",path:i?"/categories/"+i.slug:"/products",html:`

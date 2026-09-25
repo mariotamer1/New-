@@ -81,8 +81,8 @@ export function home() {
         <div class="section-head"><div><h2 id="pickup-h">Local pickup, made easy</h2><p>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} · ${esc(s.pickupHours)}</p></div></div>
         <ol class="steps">
           <li><h3>Order online</h3><p>Choose “Local pickup” at checkout — it’s always free.</p></li>
-          <li><h3>Get a text</h3><p>We’ll text you when your order is ready, usually within one business day.</p></li>
-          <li><h3>Pick it up</h3><p>Show your order number. We’ll help load large items.</p></li>
+          <li><h3>Get a text</h3><p>Communicate to set up a time to meet up.</p></li>
+          <li><h3>Pick it up</h3><p>We will help load large items and anything you need.</p></li>
         </ol>
       </div>
     </section>`,
