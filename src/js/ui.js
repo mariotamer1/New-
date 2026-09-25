@@ -156,6 +156,7 @@ export function cardHTML(p, { eager = false, sizes } = {}) {
   return `<article class="card" data-pid="${p.id}">
     <div class="card-media" data-carousel>
       <div class="track">${slides}</div>
+      ${off ? `<span class="badge">-${off}%</span>` : ''}
       ${ims.length > 1 ? `<button class="car-btn prev" type="button" aria-label="Previous photo" data-car="-1">${icon('left', 'icon-sm')}</button><button class="car-btn next" type="button" aria-label="Next photo" data-car="1">${icon('right', 'icon-sm')}</button><div class="dots">${ims.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}
     </div>
     <div class="card-body">
