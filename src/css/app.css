@@ -313,12 +313,13 @@ mark { background: none; color: inherit; font-weight: 800; text-decoration: unde
 /* list view */
 .grid.list { grid-template-columns: 1fr; gap: 12px; }
 .grid.list .card { flex-direction: row; }
-.grid.list .card-media { width: 132px; flex: none; border-bottom: 0; border-right: 1px solid var(--line); aspect-ratio: 1; align-self: flex-start; }
+.grid.list .card-media { width: 132px; flex: none; border-bottom: 0; border-right: 1px solid var(--line); aspect-ratio: auto; align-self: stretch; min-height: 132px; }
+.grid.list .track { position: absolute; inset: 0; }
 .grid.list .card-body { padding: 12px 14px; }
 .grid.list .card-actions { grid-template-columns: repeat(2, minmax(0, 170px)); }
 .grid.list .dots, .grid.list .car-btn { display: none; }
-@media (min-width: 720px) { .grid.list .card-media { width: 220px; } .grid.list .card-title { font-size: 17px; } .grid.list .card-body { padding: 18px 22px; } }
-@media (max-width: 479px) { .grid.list .card-actions { grid-template-columns: 1fr; } .grid.list .card-media { width: 112px; } }
+@media (min-width: 720px) { .grid.list .card-media { width: 320px; min-height: 280px; } .grid.list .card-title { font-size: 17px; } .grid.list .card-body { padding: 18px 22px; } }
+@media (max-width: 719px) { .grid.list .card-media { width: 50%; min-height: 250px; } .grid.list .card-body { padding: 10px 12px; gap: 4px; } .grid.list .card-actions { grid-template-columns: 1fr; gap: 6px; } .grid.list .card-actions .btn { min-height: 36px; } }
 
 /* horizontal shelves */
 .shelves { display: grid; gap: 34px; }
