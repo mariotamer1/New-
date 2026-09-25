@@ -322,11 +322,12 @@ mark { background: none; color: inherit; font-weight: 800; text-decoration: unde
 @media (max-width: 719px) { .grid.list .card-media { width: 50%; min-height: 250px; } .grid.list .card-body { padding: 10px 12px; gap: 4px; } .grid.list .card-actions { grid-template-columns: 1fr; gap: 6px; } .grid.list .card-actions .btn { min-height: 36px; } }
 
 /* horizontal shelves */
-.shelves { display: grid; gap: 34px; }
+.shelves { display: grid; grid-template-columns: minmax(0, 1fr); gap: 34px; }
+.shelves > section { min-width: 0; }
 .shelf-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .shelf-head h3 { font: 800 20px var(--font-display); font-stretch: 112%; text-transform: uppercase; }
 .shelf-head a { font-weight: 700; font-size: 14px; }
-.shelf { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(200px, 44%); gap: 12px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 12px; scrollbar-width: thin; }
+.shelf { display: grid; grid-auto-flow: column; grid-auto-columns: 64%; max-width: 100%; overscroll-behavior-x: contain; gap: 12px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 12px; scrollbar-width: thin; }
 .shelf > * { scroll-snap-align: start; }
 @media (min-width: 720px) { .shelf { grid-auto-columns: 260px; gap: 16px; } }
 
