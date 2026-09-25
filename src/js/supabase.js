@@ -27,7 +27,7 @@ const toProduct = (p) => {
   return o;
 };
 const fromOffer = (r) => ({ id: r.id, productId: r.product_id, productTitle: r.product_title, productSlug: r.product_slug, productImage: r.product_image, listPrice: Number(r.list_price), name: r.name, phone: r.phone, amount: Number(r.amount), status: r.status, createdAt: r.created_at });
-const fromOrder = (r) => ({ id: r.id, number: r.number, createdAt: r.created_at, status: r.status, fulfillment: r.fulfillment, payment: r.payment, customer: r.customer, address: r.address, notes: r.notes || '', items: r.items, subtotal: Number(r.subtotal), shippingTotal: Number(r.shipping_total), total: Number(r.total), customerId: r.customer_id, paidAt: r.paid_at || null, paypalCaptureId: (r.paypal && r.paypal.captureId) || null, paypalRefund: (r.paypal && r.paypal.refund) || null });
+const fromOrder = (r) => ({ id: r.id, number: r.number, createdAt: r.created_at, status: r.status, fulfillment: r.fulfillment, payment: r.payment, customer: r.customer, address: r.address, notes: r.notes || '', items: r.items, subtotal: Number(r.subtotal), shippingTotal: Number(r.shipping_total), total: Number(r.total), customerId: r.customer_id, paidAt: r.paid_at || null, paypalCaptureId: (r.paypal && r.paypal.captureId) || null, paypalRefunds: r.paypal ? (r.paypal.refunds || (r.paypal.refund ? [r.paypal.refund] : [])) : [] });
 const fromInquiry = (r) => ({ id: r.id, type: r.type, name: r.name, email: r.email, phone: r.phone, company: r.company, message: r.message, status: r.status, createdAt: r.created_at });
 
 export function createSupabaseBackend(cfg) {
@@ -186,7 +186,7 @@ export function createSupabaseBackend(cfg) {
         const p = cache.products.find((x) => x.id === id); if (p) p.inventory = n; return p;
       },
       async orders() { return (await rest('GET', 'orders?select=*&order=created_at.desc')).map(fromOrder); },
-      refundOrder: (id) => raw('POST', '/functions/v1/paypal', { action: 'refund', orderId: id }),
+      refundOrder: (id, amount) => raw('POST', '/functions/v1/paypal', { action: 'refund', orderId: id, amount: amount == null ? undefined : amount }),
       async updateOrder(id, patch) {
         if (patch.status === 'cancelled' && patch.restock) { await rpc('admin_cancel_order', { p_id: id, p_restock: true }); await loadCatalog(); return; }
         await rest('PATCH', `orders?id=eq.${id}`, { status: patch.status });

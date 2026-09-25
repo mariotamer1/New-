@@ -3,7 +3,7 @@
 //   { action: 'create',  orderId }  -> creates a PayPal order for that store order
 //   { action: 'capture', orderId }  -> captures it and marks the store order paid
 //   { action: 'cancel',  orderId }  -> buyer closed PayPal: restock and cancel if still unpaid
-//   { action: 'refund',  orderId }  -> admin only: refunds the full PayPal payment
+//   { action: 'refund',  orderId, amount? } -> admin only: refunds the amount given, or all that is left
 //   { action: 'ping' }              -> checks the PayPal credentials
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -59,7 +59,7 @@ async function isAdmin(req: Request) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
-    const { action, orderId } = await req.json();
+    const { action, orderId, amount } = await req.json();
     if (action === 'ping') { await token(); return json({ ok: true, env: (await paypalCreds()).base }); }
     const o = await getOrder(orderId);
     if (o.payment !== 'paypal') throw new Error('This order is not a PayPal order.');
@@ -98,13 +98,27 @@ Deno.serve(async (req) => {
     if (action === 'refund') {
       if (!(await isAdmin(req))) return json({ error: 'Not allowed' }, 403);
       if (!o.paid_at || !o.paypal?.captureId) throw new Error('This order was not paid through PayPal, so there is nothing to refund automatically.');
-      if (o.paypal.refund && o.paypal.refund.status !== 'FAILED' && o.paypal.refund.status !== 'CANCELLED') return json({ ok: true, refund: o.paypal.refund, already: true });
-      // Same request id on retries, so a double tap can never refund twice.
-      const r = await pp(`/v2/payments/captures/${o.paypal.captureId}/refund`, 'POST', { note_to_payer: `Refund for ML Group order #${o.number}` }, { 'PayPal-Request-Id': `refund-${o.id}` });
+      // Full or partial refunds; several partial refunds can add up to the amount paid.
+      const refunds: { id: string; status: string; amount: string; at: string }[] = o.paypal.refunds || (o.paypal.refund ? [o.paypal.refund] : []);
+      const cents = (v: unknown) => Math.round(Number(v) * 100);
+      const paidCents = cents(o.paypal.amount || o.total);
+      const doneCents = refunds.filter((r) => !['FAILED', 'CANCELLED'].includes(r.status)).reduce((t, r) => t + cents(r.amount), 0);
+      const leftCents = paidCents - doneCents;
+      const wantCents = amount == null || amount === '' ? leftCents : cents(amount);
+      if (leftCents <= 0) throw new Error('This order has already been fully refunded.');
+      if (!Number.isFinite(wantCents) || wantCents <= 0) throw new Error('Enter a refund amount greater than $0.');
+      if (wantCents > leftCents) throw new Error(`You can refund at most $${(leftCents / 100).toFixed(2)} on this order.`);
+      const value = (wantCents / 100).toFixed(2);
+      // Same request id on a double tap, so the same refund can never be sent twice.
+      const r = await pp(`/v2/payments/captures/${o.paypal.captureId}/refund`, 'POST',
+        { amount: { currency_code: 'USD', value }, note_to_payer: `Refund for ML Group order #${o.number}` },
+        { 'PayPal-Request-Id': `refund-${o.id}-${refunds.length}-${wantCents}` });
       if (!r.ok) throw new Error(r.j?.details?.[0]?.description || r.j.message || 'PayPal could not refund this payment.');
-      const refund = { id: r.j.id, status: r.j.status, amount: r.j.amount?.value || String(o.paypal.amount || o.total), at: new Date().toISOString() };
-      await db(`orders?id=eq.${o.id}`, { method: 'PATCH', body: JSON.stringify({ paypal: { ...o.paypal, refund } }) });
-      return json({ ok: true, refund });
+      const refund = { id: r.j.id, status: r.j.status, amount: r.j.amount?.value || value, at: new Date().toISOString() };
+      const list = refunds.some((x) => x.id === refund.id) ? refunds : [...refunds, refund];
+      const { refund: _old, ...rest } = o.paypal;
+      await db(`orders?id=eq.${o.id}`, { method: 'PATCH', body: JSON.stringify({ paypal: { ...rest, refunds: list } }) });
+      return json({ ok: true, refund, refundedTotal: ((doneCents + wantCents) / 100).toFixed(2) });
     }
 
     if (action === 'cancel') {

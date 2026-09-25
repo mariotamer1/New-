@@ -327,7 +327,10 @@ function mount(main, { store, navigate, query }) {
       </tbody></table></div>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Orders');
   }
-  const canRefund = (o) => o.payment === 'paypal' && !!o.paidAt && !!o.paypalCaptureId && !(o.paypalRefund && !['FAILED', 'CANCELLED'].includes(o.paypalRefund.status));
+  // PayPal refunds: full or partial; several partial refunds can add up to what the customer paid.
+  const refundsOf = (o) => (o.paypalRefunds || []).filter((r) => !['FAILED', 'CANCELLED'].includes(r.status));
+  const refundLeft = (o) => (o.payment === 'paypal' && o.paidAt && o.paypalCaptureId ? round2(o.total - refundsOf(o).reduce((t, r) => t + Number(r.amount), 0)) : 0);
+  const canRefund = (o) => refundLeft(o) > 0;
   function openOrder(id) {
     const o = data.orders.find((x) => x.id === id); if (!o) return;
     if (!$('#order-dlg')) { tab = 'orders'; orders(); }
@@ -340,11 +343,14 @@ function mount(main, { store, navigate, query }) {
         <ul class="sum-items" style="max-height:none;border:1px solid var(--line)">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}${i.shipping ? ' · ship ' + money(i.shipping) : ''}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
         <div class="sum-totals" style="padding:0"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>Shipping</span><span class="tabnum">${money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div>
         <div class="field"><label for="od-status">Status</label><select id="od-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-        ${o.paypalRefund ? `<p class="adm-note"><b>Refunded ${money(o.paypalRefund.amount)}</b> to the customer through PayPal on ${fmtDate(o.paypalRefund.at, true)}${o.paypalRefund.status !== 'COMPLETED' ? ` (${esc(String(o.paypalRefund.status).toLowerCase())})` : ''}.</p>` : ''}
-        ${o.status !== 'cancelled' || canRefund(o) ? `<div class="od-actions">${o.status !== 'cancelled' ? `<button class="btn adm-danger" type="button" data-od-ask="${o.id}">Cancel order</button>` : ''}${canRefund(o) ? `<button class="btn adm-danger" type="button" data-od-ask="${o.id}">Refund customer</button>` : ''}</div>
-        <div class="adm-confirm" data-od-confirm hidden>${canRefund(o)
-          ? `<p><b>Would you like to refund the customer?</b> ${money(o.total)} goes back to their card or PayPal automatically.${o.status !== 'cancelled' ? ' The order is cancelled and items go back in stock.' : ''}</p><div><button class="btn btn-sm adm-danger" type="button" data-od-refund="${o.id}">Yes, refund ${money(o.total)}</button>${o.status !== 'cancelled' ? `<button class="btn btn-sm" type="button" data-cancel-order="${o.id}">No, just cancel</button>` : ''}<button class="btn btn-sm" type="button" data-od-back>Go back</button></div>`
-          : `<p><b>Cancel order #${o.number}?</b> Items go back in stock.${o.payment === 'paypal' ? '' : ' This order wasn’t paid online, so if they already paid you (cash, card link), refund them the same way.'}</p><div><button class="btn btn-sm adm-danger" type="button" data-cancel-order="${o.id}">Yes, cancel order</button><button class="btn btn-sm" type="button" data-od-back>Go back</button></div>`}</div>` : ''}
+        ${refundsOf(o).length ? `<div class="adm-note">${refundsOf(o).map((r) => `<p><b>Refunded ${money(r.amount)}</b> through PayPal on ${fmtDate(r.at, true)}${r.status !== 'COMPLETED' ? ` (${esc(String(r.status).toLowerCase())})` : ''}.</p>`).join('')}${refundsOf(o).length > 1 || canRefund(o) ? `<p class="muted">Refunded so far: ${money(round2(o.total - refundLeft(o)))} of ${money(o.total)}</p>` : ''}</div>` : ''}
+        ${o.status !== 'cancelled' || canRefund(o) ? `<div class="od-actions">${o.status !== 'cancelled' ? `<button class="btn adm-danger" type="button" data-od-ask="refund">Cancel order</button>` : ''}${canRefund(o) ? `<button class="btn adm-danger" type="button" data-od-ask="refund">Refund customer</button><button class="btn" type="button" data-od-ask="partial">Partial refund</button>` : ''}</div>
+        <div class="adm-confirm" data-od-confirm="refund" hidden>${canRefund(o)
+          ? `<p><b>Would you like to refund the customer?</b> ${money(refundLeft(o))} goes back to their card or PayPal automatically.${o.status !== 'cancelled' ? ' The order is cancelled and items go back in stock.' : ''}</p><div><button class="btn btn-sm adm-danger" type="button" data-od-refund="${o.id}">Yes, refund ${money(refundLeft(o))}</button>${o.status !== 'cancelled' ? `<button class="btn btn-sm" type="button" data-cancel-order="${o.id}">No, just cancel</button>` : ''}<button class="btn btn-sm" type="button" data-od-back>Go back</button></div>`
+          : `<p><b>Cancel order #${o.number}?</b> Items go back in stock.${o.payment === 'paypal' ? '' : ' This order wasn’t paid online, so if they already paid you (cash, card link), refund them the same way.'}</p><div><button class="btn btn-sm adm-danger" type="button" data-cancel-order="${o.id}">Yes, cancel order</button><button class="btn btn-sm" type="button" data-od-back>Go back</button></div>`}</div>
+        ${canRefund(o) ? `<div class="adm-confirm" data-od-confirm="partial" hidden><p><b>Partial refund</b> Enter how much to send back to the customer. Up to ${money(refundLeft(o))}. The order stays open and nothing is restocked.</p>
+          <div class="field"><label for="od-partial">Refund amount ($)</label><input id="od-partial" type="number" inputmode="decimal" min="0.01" max="${refundLeft(o)}" step="0.01" placeholder="0.00" data-od-amount></div>
+          <div><button class="btn btn-sm adm-danger" type="button" data-od-partial="${o.id}">Refund this amount</button><button class="btn btn-sm" type="button" data-od-back>Go back</button></div></div>` : ''}` : ''}
       </div>`;
     dlg.showModal();
   }
@@ -458,19 +464,30 @@ function mount(main, { store, navigate, query }) {
     const oo = t.closest('[data-open-order]');
     if (oo) { openOrder(oo.dataset.openOrder); return; }
     if (t.closest('[data-close-dlg]') || t.matches('dialog.modal')) { const d = t.closest('dialog'); if (d) d.close(); return; }
-    if (t.closest('[data-od-ask]')) { const c = $('[data-od-confirm]'); c.hidden = false; c.scrollIntoView({ block: 'nearest' }); return; }
-    if (t.closest('[data-od-back]')) { $('[data-od-confirm]').hidden = true; return; }
-    const rf = t.closest('[data-od-refund]');
+    const ask = t.closest('[data-od-ask]');
+    if (ask) { $$('[data-od-confirm]').forEach((c) => { c.hidden = c.dataset.odConfirm !== ask.dataset.odAsk; }); const c = $(`[data-od-confirm="${ask.dataset.odAsk}"]`); c.scrollIntoView({ block: 'nearest' }); const inp = $('[data-od-amount]', c); if (inp) inp.focus(); return; }
+    if (t.closest('[data-od-back]')) { $$('[data-od-confirm]').forEach((c) => { c.hidden = true; }); return; }
+    const rf = t.closest('[data-od-refund], [data-od-partial]');
     if (rf) {
-      const id = rf.dataset.odRefund; const o = data.orders.find((x) => x.id === id);
-      $$('[data-od-confirm] button').forEach((b) => { b.disabled = true; }); rf.textContent = 'Refunding…';
+      const partial = rf.hasAttribute('data-od-partial');
+      const id = rf.dataset.odRefund || rf.dataset.odPartial; const o = data.orders.find((x) => x.id === id);
+      const left = o ? refundLeft(o) : 0;
+      let amount = left;
+      if (partial) {
+        const inp = $('[data-od-amount]');
+        amount = round2(Number(inp.value));
+        if (!(amount > 0) || amount > left) { inp.setAttribute('aria-invalid', 'true'); inp.focus(); toast(`Enter an amount from $0.01 to ${money(left)}`); return; }
+        inp.setAttribute('aria-invalid', 'false');
+      }
+      const box = rf.closest('[data-od-confirm]'); const label = rf.textContent;
+      $$('button', box).forEach((b) => { b.disabled = true; }); rf.textContent = 'Refunding…';
       try {
-        await A.refundOrder(id);
-        if (o && o.status !== 'cancelled') await A.updateOrder(id, { status: 'cancelled', restock: true });
-        refreshStore(); toast(`Refunded ${money(o ? o.total : 0)} to the customer`);
+        await A.refundOrder(id, partial ? amount.toFixed(2) : null);
+        if (!partial && o && o.status !== 'cancelled') await A.updateOrder(id, { status: 'cancelled', restock: true });
+        refreshStore(); toast(`Refunded ${money(amount)} to the customer`);
         await loadAll(); orders(); openOrder(id);
       } catch (ex) {
-        $$('[data-od-confirm] button').forEach((b) => { b.disabled = false; }); rf.textContent = 'Try refund again';
+        $$('button', box).forEach((b) => { b.disabled = false; }); rf.textContent = label;
         toast(ex.message || 'The refund did not go through.');
       }
       return;
