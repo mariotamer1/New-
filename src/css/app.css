@@ -886,3 +886,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .track-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
 .btn-exit { background: var(--err); border-color: var(--err); color: #fff; }
 .btn-exit:hover { background: #fff; color: var(--err); }
+.adm-track { display: block; margin-top: 6px; font-size: 12.5px; line-height: 1.4; word-break: break-all; }
+.adm-track a { text-decoration: underline; font-weight: 700; }
+@media (max-width: 719px) { .tbl td:has(.adm-track), .tbl td:has([data-track]) { flex-wrap: wrap; } .tbl td .adm-track, .tbl td small:has([data-track]) { flex-basis: 100%; text-align: right; } }
