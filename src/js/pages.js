@@ -657,6 +657,7 @@ export function order({ params }) {
           dlg.dataset.done = '1';
           if (r && r.status === 'shipped') show(shippedMsg);
           else if (r && r.refundError) show(`<h2>Order cancelled</h2><p>We cancelled your order. Your refund of <b>${money(o.total)}</b> needs one more step on our end — we’ll send it to your original payment method shortly. Questions? Call or text ${esc(s.phone)}.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
+          else if (!o.paidAt) show(`<span class="check">${icon('check')}</span><h2>Order cancelled</h2><p>Your order has been canceled.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
           else show(`<span class="check">${icon('check')}</span><h2>Order cancelled</h2><p>We have canceled your order and refunded you the full amount <b>${money(o.total)}</b> and will arrive back to your original payment method in a few days.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
           await store.reload();
         } catch (ex) {
@@ -667,7 +668,7 @@ export function order({ params }) {
       box.onclick = (e) => {
         if (!e.target.closest('[data-cancel-ask]')) return;
         if (shipped) { show(shippedMsg); return; }
-        show(`<h2>Cancel order #${o.number}?</h2><p>Are you sure you want to cancel your order and receive a full refund?</p><div class="cx-actions"><button class="btn cx-yes" type="button" data-cx-yes>Yes</button><button class="btn btn-primary" type="button" data-cx-close>No, Go back</button></div>`);
+        show(`<h2>Cancel order #${o.number}?</h2><p>${o.paidAt ? 'Are you sure you want to cancel your order and receive a full refund?' : 'Are you sure you want to cancel your order?'}</p><div class="cx-actions"><button class="btn cx-yes" type="button" data-cx-yes>Yes</button><button class="btn btn-primary" type="button" data-cx-close>No, Go back</button></div>`);
       };
     },
   };
