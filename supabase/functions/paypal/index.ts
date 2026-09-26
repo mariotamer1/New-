@@ -4,6 +4,7 @@
 //   { action: 'capture', orderId }  -> captures it and marks the store order paid
 //   { action: 'cancel',  orderId }  -> buyer closed PayPal: restock and cancel if still unpaid
 //   { action: 'refund',  orderId, amount? } -> admin only: refunds the amount given, or all that is left
+//   { action: 'customer_cancel', orderId } -> customer cancel: only if not shipped / no tracking; full refund if paid
 //   { action: 'ping' }              -> checks the PayPal credentials
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -61,7 +62,38 @@ Deno.serve(async (req) => {
   try {
     const { action, orderId, amount } = await req.json();
     if (action === 'ping') { await token(); return json({ ok: true, env: (await paypalCreds()).base }); }
-    const o = await getOrder(orderId);
+    let o = await getOrder(orderId);
+
+    if (action === 'customer_cancel') {
+      // The shipped / tracking check and the cancel happen together inside the database (row lock),
+      // so a refund can never run for an order that is shipped or has a tracking number.
+      const result = await db('rpc/customer_cancel_guarded', { method: 'POST', body: JSON.stringify({ p_id: o.id }) });
+      if (result === 'shipped') return json({ status: 'shipped' });
+      o = await getOrder(orderId);
+      let refunded = 0;
+      if (result === 'cancelled' && o.payment === 'paypal' && o.paid_at && o.paypal?.captureId) {
+        const refunds: { id: string; status: string; amount: string; at: string }[] = o.paypal.refunds || (o.paypal.refund ? [o.paypal.refund] : []);
+        const cents = (v: unknown) => Math.round(Number(v) * 100);
+        const done = refunds.filter((r) => !['FAILED', 'CANCELLED'].includes(r.status)).reduce((t, r) => t + cents(r.amount), 0);
+        const left = cents(o.paypal.amount || o.total) - done;
+        if (left > 0) {
+          const value = (left / 100).toFixed(2);
+          const r = await pp(`/v2/payments/captures/${o.paypal.captureId}/refund`, 'POST',
+            { amount: { currency_code: 'USD', value }, note_to_payer: `Refund for cancelled ML Group order #${o.number}` },
+            { 'PayPal-Request-Id': `cust-cancel-${o.id}` });
+          if (!r.ok) {
+            await db(`orders?id=eq.${o.id}`, { method: 'PATCH', body: JSON.stringify({ notes: `${o.notes || ''}\nCUSTOMER CANCELLED — AUTOMATIC REFUND FAILED, refund manually.`.trim() }) });
+            return json({ status: 'cancelled', refundError: true, total: Number(o.total).toFixed(2) });
+          }
+          const refund = { id: r.j.id, status: r.j.status, amount: r.j.amount?.value || value, at: new Date().toISOString() };
+          const { refund: _old, ...rest } = o.paypal;
+          await db(`orders?id=eq.${o.id}`, { method: 'PATCH', body: JSON.stringify({ paypal: { ...rest, refunds: [...refunds, refund] } }) });
+          refunded = left / 100;
+        }
+      }
+      return json({ status: result === 'already' ? 'already' : 'cancelled', paid: !!o.paid_at, refunded: refunded.toFixed(2), total: Number(o.total).toFixed(2) });
+    }
+
     if (o.payment !== 'paypal') throw new Error('This order is not a PayPal order.');
 
     if (action === 'create') {

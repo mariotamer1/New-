@@ -627,7 +627,8 @@ export function order({ params }) {
       if (!o) { box.innerHTML = `<div class="empty" style="margin-block:40px"><h2>Order not found</h2><p class="muted">If you just placed an order, check your email or call ${esc(s.phone)}.</p><a class="btn btn-primary" href="${href('/')}">Back to home</a></div>`; return; }
       const pickup = o.fulfillment === 'pickup';
       const cancelled = o.status === 'cancelled';
-      const canCancel = !cancelled && !['shipped', 'completed'].includes(o.status) && !o.paidAt;
+      // Shipped = marked Shipped/Completed or has a tracking number. The server enforces the same rule.
+      const shipped = ['shipped', 'completed'].includes(o.status) || !!(o.tracking && o.tracking.number);
       box.innerHTML = `<div class="confirm">
         <div class="confirm-head"><span class="check">${icon('check')}</span><p class="eyebrow">Order #${o.number}</p><h1>Thank you, ${esc(o.customer.name.split(' ')[0])}!</h1>
         <p class="muted" style="max-width:60ch">We received your order and emailed a receipt to <b>${esc(o.customer.email)}</b>. ${o.payment === 'free' ? 'No payment was needed for this order.' : o.payment === 'paypal' ? (o.paidAt ? 'Your payment was received — thank you!' : 'Your payment is being confirmed.') : o.payment === 'pickup' ? 'You’ll pay when you pick up.' : 'We’ll text a secure payment link to ' + esc(o.customer.phone) + ' once your items are confirmed.'}</p></div>
@@ -642,18 +643,31 @@ export function order({ params }) {
         <div class="summary" style="position:static"><h2>Items</h2><ul class="sum-items" style="max-height:none">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
         <div class="sum-totals"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>${pickup ? 'Local pickup' : 'Shipping'}</span><span class="tabnum">${pickup ? 'Free' : money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div></div>
         ${cancelled ? `<p class="order-cancelled">${icon('close', 'icon-sm')} This order has been cancelled.</p>` : ''}
-        <div class="hero-cta">${canCancel ? `<button class="btn btn-primary" type="button" data-cancel-ask>Cancel order</button>` : cancelled ? `<a class="btn btn-primary" href="${href('/products')}">Browse Deals</a>` : ''}<a class="btn" href="${telHref(s.phone)}">${icon('phone', 'icon-sm')} Questions? ${esc(s.phone)}</a></div>
-        ${canCancel ? `<div class="cancel-confirm" data-cancel-box hidden><p><b>Cancel order #${o.number}?</b> This can’t be undone.</p><p class="form-error" data-cancel-err hidden></p><div class="hero-cta"><button class="btn btn-exit" type="button" data-cancel-yes>Yes, cancel order</button><button class="btn" type="button" data-cancel-no>Keep my order</button></div></div>` : ''}
+        <div class="hero-cta">${cancelled ? `<a class="btn btn-primary" href="${href('/products')}">Browse Deals</a>` : `<button class="btn btn-primary" type="button" data-cancel-ask>Cancel order</button>`}<a class="btn" href="${telHref(s.phone)}">${icon('phone', 'icon-sm')} Questions? ${esc(s.phone)}</a></div>
       </div>`;
-      box.onclick = async (e) => {
-        if (e.target.closest('[data-cancel-ask]')) { const c = $('[data-cancel-box]', box); c.hidden = false; c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
-        if (e.target.closest('[data-cancel-no]')) { $('[data-cancel-box]', box).hidden = true; return; }
-        const yes = e.target.closest('[data-cancel-yes]');
-        if (yes) {
-          yes.disabled = true; yes.textContent = 'Cancelling…';
-          try { await store.cancelOrder(o.id); await store.reload(); toast('Your order was cancelled'); this.mount(root); }
-          catch (ex) { const err = $('[data-cancel-err]', box); err.textContent = ex.message || 'We could not cancel this order. Please call or text us.'; err.hidden = false; yes.disabled = false; yes.textContent = 'Yes, cancel order'; }
+      const dlg = document.getElementById('cancel-dlg') || Object.assign(document.body.appendChild(document.createElement('dialog')), { id: 'cancel-dlg', className: 'modal cancel-dlg' });
+      const show = (html) => { dlg.innerHTML = `<div class="modal-body cancel-body">${html}</div>`; if (!dlg.open) dlg.showModal(); };
+      dlg.onclick = async (e) => {
+        if (e.target === dlg || e.target.closest('[data-cx-close]')) { dlg.close(); if (dlg.dataset.done) { delete dlg.dataset.done; this.mount(root); } return; }
+        const yes = e.target.closest('[data-cx-yes]');
+        if (!yes) return;
+        dlg.querySelectorAll('button').forEach((b) => { b.disabled = true; }); yes.textContent = 'Cancelling…';
+        try {
+          const r = await store.cancelOrder(o.id);
+          dlg.dataset.done = '1';
+          if (r && r.status === 'shipped') show(shippedMsg);
+          else if (r && r.refundError) show(`<h2>Order cancelled</h2><p>We cancelled your order. Your refund of <b>${money(o.total)}</b> needs one more step on our end — we’ll send it to your original payment method shortly. Questions? Call or text ${esc(s.phone)}.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
+          else show(`<span class="check">${icon('check')}</span><h2>Order cancelled</h2><p>We have canceled your order and refunded you the full amount <b>${money(o.total)}</b> and will arrive back to your original payment method in a few days.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
+          await store.reload();
+        } catch (ex) {
+          show(`<h2>We couldn’t cancel this order</h2><p>${esc(ex.message || 'Please try again.')} You can also call or text ${esc(s.phone)}.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Go back</button></div>`);
         }
+      };
+      const shippedMsg = `<h2>Your order has shipped</h2><p>We understand you’d like to cancel your order, but we already shipped it out to you. Once it arrives, you can simply send it back to us for a full refund.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Continue</button></div>`;
+      box.onclick = (e) => {
+        if (!e.target.closest('[data-cancel-ask]')) return;
+        if (shipped) { show(shippedMsg); return; }
+        show(`<h2>Cancel order #${o.number}?</h2><p>Are you sure you want to cancel your order and receive a full refund?</p><div class="cx-actions"><button class="btn cx-yes" type="button" data-cx-yes>Yes</button><button class="btn btn-primary" type="button" data-cx-close>No, Go back</button></div>`);
       };
     },
   };
