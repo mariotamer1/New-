@@ -894,3 +894,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .lookup-list li > a { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; text-decoration: none; flex-wrap: wrap; }
 .lookup-list li > a:hover b { text-decoration: underline; }
 .lookup-list .track-box { margin: 10px 0 0; }
+.cancel-confirm { border: 1px solid var(--err); padding: 14px 16px; display: grid; gap: 8px; background: #fff; }
+.cancel-confirm .hero-cta { margin: 0; }
+.order-cancelled { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--err); border: 1px solid var(--err); padding: 10px 14px; }

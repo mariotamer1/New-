@@ -622,10 +622,12 @@ export function order({ params }) {
     html: `<div class="wrap" data-order><p style="padding:48px 0" class="muted">Loading your order…</p></div>`,
     async mount(root) {
       const box = $('[data-order]', root);
-      const o = await store.getOrder(params.id);
+      let o = await store.getOrder(params.id);
       const s = store.settings();
       if (!o) { box.innerHTML = `<div class="empty" style="margin-block:40px"><h2>Order not found</h2><p class="muted">If you just placed an order, check your email or call ${esc(s.phone)}.</p><a class="btn btn-primary" href="${href('/')}">Back to home</a></div>`; return; }
       const pickup = o.fulfillment === 'pickup';
+      const cancelled = o.status === 'cancelled';
+      const canCancel = !cancelled && !['shipped', 'completed'].includes(o.status) && !o.paidAt;
       box.innerHTML = `<div class="confirm">
         <div class="confirm-head"><span class="check">${icon('check')}</span><p class="eyebrow">Order #${o.number}</p><h1>Thank you, ${esc(o.customer.name.split(' ')[0])}!</h1>
         <p class="muted" style="max-width:60ch">We received your order and emailed a receipt to <b>${esc(o.customer.email)}</b>. ${o.payment === 'free' ? 'No payment was needed for this order.' : o.payment === 'paypal' ? (o.paidAt ? 'Your payment was received — thank you!' : 'Your payment is being confirmed.') : o.payment === 'pickup' ? 'You’ll pay when you pick up.' : 'We’ll text a secure payment link to ' + esc(o.customer.phone) + ' once your items are confirmed.'}</p></div>
@@ -639,8 +641,20 @@ export function order({ params }) {
         ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up at</b><span>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)} — we’ll text you when it’s ready.</span></div>` : `<div class="pickup-box"><b>${icon('truck', 'icon-sm')} Shipping to</b><span>${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}, ${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}</span></div>`}
         <div class="summary" style="position:static"><h2>Items</h2><ul class="sum-items" style="max-height:none">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
         <div class="sum-totals"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>${pickup ? 'Local pickup' : 'Shipping'}</span><span class="tabnum">${pickup ? 'Free' : money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div></div>
-        <div class="hero-cta"><a class="btn btn-primary" href="${href('/products')}">Keep shopping</a><a class="btn" href="${telHref(s.phone)}">${icon('phone', 'icon-sm')} Questions? ${esc(s.phone)}</a></div>
+        ${cancelled ? `<p class="order-cancelled">${icon('close', 'icon-sm')} This order has been cancelled.</p>` : ''}
+        <div class="hero-cta">${canCancel ? `<button class="btn btn-primary" type="button" data-cancel-ask>Cancel order</button>` : cancelled ? `<a class="btn btn-primary" href="${href('/products')}">Browse Deals</a>` : ''}<a class="btn" href="${telHref(s.phone)}">${icon('phone', 'icon-sm')} Questions? ${esc(s.phone)}</a></div>
+        ${canCancel ? `<div class="cancel-confirm" data-cancel-box hidden><p><b>Cancel order #${o.number}?</b> This can’t be undone.</p><p class="form-error" data-cancel-err hidden></p><div class="hero-cta"><button class="btn btn-exit" type="button" data-cancel-yes>Yes, cancel order</button><button class="btn" type="button" data-cancel-no>Keep my order</button></div></div>` : ''}
       </div>`;
+      box.onclick = async (e) => {
+        if (e.target.closest('[data-cancel-ask]')) { const c = $('[data-cancel-box]', box); c.hidden = false; c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+        if (e.target.closest('[data-cancel-no]')) { $('[data-cancel-box]', box).hidden = true; return; }
+        const yes = e.target.closest('[data-cancel-yes]');
+        if (yes) {
+          yes.disabled = true; yes.textContent = 'Cancelling…';
+          try { await store.cancelOrder(o.id); await store.reload(); toast('Your order was cancelled'); this.mount(root); }
+          catch (ex) { const err = $('[data-cancel-err]', box); err.textContent = ex.message || 'We could not cancel this order. Please call or text us.'; err.hidden = false; yes.disabled = false; yes.textContent = 'Yes, cancel order'; }
+        }
+      };
     },
   };
 }
