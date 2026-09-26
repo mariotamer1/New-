@@ -417,7 +417,7 @@ mark { background: none; color: inherit; font-weight: 800; text-decoration: unde
 .g-main { position: relative; aspect-ratio: 1; border: 1px solid var(--line); background: #fff; overflow: hidden; }
 .g-main .car-btn { opacity: 1; width: 44px; height: 44px; margin-top: -22px; }
 .g-main .track img { object-fit: contain; background: #fff; }
-.g-count { position: absolute; right: 10px; bottom: 10px; z-index: 2; background: #fff; border: 1px solid var(--line); padding: 3px 8px; font: 500 12px var(--font-mono); }
+.g-count { position: absolute; left: 10px; bottom: 10px; z-index: 2; background: #fff; border: 1px solid var(--line); padding: 3px 8px; font: 500 12px var(--font-mono); }
 .g-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 84px)); gap: 8px; }
 .g-thumbs button { padding: 0; border: 1px solid var(--hair); background: #fff; aspect-ratio: 1; }
 .g-thumbs button[aria-current="true"] { border: 2px solid var(--ink); }
@@ -905,3 +905,17 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .cx-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 .cx-actions:has(> :only-child) { grid-template-columns: 1fr; }
 .cx-yes { background: #fff; color: var(--ink); border: 1.5px solid var(--ink); }
+
+/* like (heart) button on product photos */
+.like-btn { position: absolute; right: 12px; bottom: 12px; z-index: 3; width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--ink); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.like-btn .icon { width: 21px; height: 21px; stroke: #fff; stroke-width: 2; fill: none; transition: fill .15s; }
+.like-btn.on .icon { fill: #fff; }
+.like-btn.pop .icon { animation: like-pop .45s var(--ease); }
+@keyframes like-pop { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.like-count:not(:empty) { margin-left: 6px; background: var(--ink); color: #fff; font: 700 11px/1 var(--font-body); padding: 3px 6px; border-radius: 10px; }
+.liked-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.liked-item { position: relative; display: flex; }
+.liked-item > .card { flex: 1; }
+.liked-x { position: absolute; top: 6px; right: 6px; z-index: 4; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.liked-x:hover { background: var(--ink); color: #fff; }
+.empty-heart .icon { width: 40px; height: 40px; }

@@ -1,6 +1,6 @@
 // Shared storefront UI: header, footer, cards, carousels, search, cart drawer, offer dialog, toasts, meta.
 import { $, $$, esc, money, pctOff, href, img, imgTag, icon, logo, telHref, debounce, ENV } from './lib.js';
-import { store, cart } from './store.js';
+import { store, cart, likes } from './store.js';
 
 // ---------------------------------------------------------------- meta / SEO
 export function setMeta({ title, description, path = '/', image, jsonld, noindex } = {}) {
@@ -89,6 +89,7 @@ export function menuHTML() {
       <ul class="menu-list">
         <li><a href="${href('/')}">Home</a></li>
         <li><a href="${href('/products')}">Products ${icon('right', 'icon-sm')}</a></li>
+        <li><a href="${href('/liked')}">${icon('heart', 'icon-sm')} Liked items <span class="like-count" data-like-count></span></a></li>
         <li><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-cats">Categories ${icon('down')}</button>
           <ul class="menu-sub" id="menu-cats" hidden>${cats.map((c) => `<li><a href="${href('/categories/' + c.slug)}">${esc(c.name)}</a></li>`).join('')}<li><a href="${href('/categories')}">All categories</a></li></ul></li>
         <li><a href="${href('/wholesale')}">Wholesale ${icon('right', 'icon-sm')}</a></li>
@@ -428,7 +429,21 @@ export function openOffer(id) {
 }
 
 // ---------------------------------------------------------------- global wiring
+function paintLikes() {
+  const n = likes.count();
+  $$('[data-like-count]').forEach((el) => { el.textContent = n ? String(n) : ''; });
+  $$('[data-like]').forEach((b) => { const on = likes.has(b.dataset.like); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.setAttribute('aria-label', on ? 'Remove from liked items' : 'Add to liked items'); });
+}
 export function mountChrome(navigate) {
+  paintLikes();
+  window.addEventListener('likes:changed', paintLikes);
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-like]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    const on = await likes.toggle(b.dataset.like);
+    b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    toast(on ? 'Saved to Liked items' : 'Removed from Liked items');
+  }, true);
   $$('[data-search]').forEach((f) => mountSearch(f, navigate));
   mountCart();
   // categories dropdown

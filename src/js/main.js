@@ -15,6 +15,7 @@ const ROUTES = [
   [/^\/checkout\/?$/, () => P.checkout()],
   [/^\/order\/([^/?#]+)\/?$/, (m) => P.order({ params: { id: decodeURIComponent(m[1]) } })],
   [/^\/account\/?$/, () => P.account()],
+  [/^\/liked\/?$/, () => P.liked()],
   [/^\/shipping-policy\/?$/, () => P.policy({ kind: 'shipping' })],
   [/^\/refund-policy\/?$/, () => P.policy({ kind: 'refund' })],
   [/^\/admin(?:\/.*)?$/, 'admin'],

@@ -148,6 +148,10 @@ export function createSupabaseBackend(cfg) {
     async register(d) { ls.set(CUST_KEY, await rpc('customer_register', { p_email: d.email, p_password: d.password, p_name: d.name, p_phone: d.phone || '' })); },
     async login(d) { ls.set(CUST_KEY, await rpc('customer_login', { p_email: d.email, p_password: d.password })); },
     async logout() { const t = ls.get(CUST_KEY, null); if (t) await rpc('customer_logout', { p_token: t }).catch(() => {}); ls.del(CUST_KEY); },
+    // Liked products for a signed-in customer (saved to their account)
+    get signedIn() { return !!ls.get(CUST_KEY, null); },
+    likesGet: () => rpc('customer_likes_get', { p_token: ls.get(CUST_KEY, null) }),
+    likesSet: (productId, liked) => rpc('customer_likes_set', { p_token: ls.get(CUST_KEY, null), p_product_id: productId, p_liked: liked }),
     async me() { const t = ls.get(CUST_KEY, null); if (!t) return null; const r = await rpc('customer_me', { p_token: t }).catch(() => null); if (!r) ls.del(CUST_KEY); return r; },
 
     admin: {

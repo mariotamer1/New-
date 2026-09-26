@@ -131,7 +131,7 @@ page('/about', { title: 'About', desc: 'ML Group is a retail and wholesale selle
 page('/contact', { title: 'Contact', desc: 'Contact ML Group — phone, email, and local pickup information.' });
 page('/shipping-policy', { title: 'Shipping & Pickup', desc: 'ML Group shipping prices, delivery times and free local pickup details.' });
 page('/refund-policy', { title: 'Refund Policy', desc: 'ML Group refund and return policy.' });
-for (const r of ['/checkout', '/account', '/admin', '/order']) page(r, { title: r.slice(1).replace(/^\w/, (m) => m.toUpperCase()), noindex: true });
+for (const r of ['/checkout', '/account', '/admin', '/order', '/liked']) page(r, { title: r === '/liked' ? 'Liked items' : r.slice(1).replace(/^\w/, (m) => m.toUpperCase()), noindex: true });
 
 // 404 fallback: boots the app for any unknown URL (new products added in the admin, order pages)
 const f404 = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8')

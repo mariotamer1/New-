@@ -1,6 +1,6 @@
 // Storefront pages. Each page returns { title, description, html, mount, jsonld, image }.
 import { $, $$, esc, money, pctOff, href, img, imgTag, icon, barcode, telHref, ls, round2, ENV, carrierName, trackUrl } from './lib.js';
-import { store, cart } from './store.js';
+import { store, cart, likes } from './store.js';
 import { cardHTML, priceHTML, mountCarousels, searchProducts, toast, addToCart } from './ui.js';
 
 // Tracking box shown to customers once an order has a tracking number.
@@ -242,6 +242,7 @@ export function product({ params }) {
           <div class="g-main" data-carousel>
             <div class="track">${ims.map((im, i) => `<div>${imgTag(im, { alt: i ? `${p.title} – photo ${i + 1}` : p.title, eager: i === 0, sizes: '(min-width:900px) 50vw, 100vw', w: 960 })}</div>`).join('')}</div>
             ${off ? `<span class="badge">-${off}%</span>` : ''}
+            <button class="like-btn ${likes.has(p.id) ? 'on' : ''}" type="button" data-like="${p.id}" aria-pressed="${likes.has(p.id)}" aria-label="${likes.has(p.id) ? 'Remove from liked items' : 'Add to liked items'}">${icon('heart')}</button>
             ${ims.length > 1 ? `<button class="car-btn prev" type="button" aria-label="Previous photo" data-car="-1">${icon('left')}</button><button class="car-btn next" type="button" aria-label="Next photo" data-car="1">${icon('right')}</button><span class="g-count" aria-hidden="true">1 / ${ims.length}</span>` : ''}
           </div>
           ${ims.length > 1 ? `<div class="g-thumbs">${ims.map((im, i) => `<button type="button" aria-label="Show photo ${i + 1}" aria-current="${i === 0}">${imgTag(im, { alt: '', sizes: '84px' })}</button>`).join('')}</div>` : ''}
@@ -675,6 +676,34 @@ export function order({ params }) {
 }
 
 // ---------------------------------------------------------------- account
+// ---------------------------------------------------------------- liked items
+export function liked() {
+  return {
+    title: 'Liked items', noindex: true,
+    html: `<div class="page-head"><div class="wrap"><h1>Liked items</h1><p>Tap the heart on any product to save it here.</p></div></div><div class="wrap" data-liked style="padding-block:24px 64px"></div>`,
+    mount(root) {
+      const box = $('[data-liked]', root);
+      const draw = () => {
+        const items = likes.ids().map((id) => store.productById(id)).filter((p) => p && p.published);
+        const signedIn = !!(store.account && ls.get('ml-cust-token', null));
+        box.innerHTML = items.length
+          ? `<div class="liked-bar"><span class="muted">${items.length} liked item${items.length === 1 ? '' : 's'}${signedIn ? '' : ' · <a href="' + href('/account') + '">Sign in</a> to keep them'}</span><button class="btn btn-sm" type="button" data-like-clear>Delete all</button></div>
+             <div class="grid cols-4 liked-grid">${items.map((p) => `<div class="liked-item">${cardHTML(p)}<button class="liked-x" type="button" data-like-x="${p.id}" aria-label="Remove ${esc(p.title)} from liked items">${icon('close', 'icon-sm')}</button></div>`).join('')}</div>`
+          : `<div class="empty" style="margin-block:24px"><span class="empty-heart">${icon('heart')}</span><h2>No liked items yet</h2><p class="muted">Tap the heart on a product’s photo to save it here.${signedIn ? '' : ' Sign in to keep your liked items after you leave.'}</p><a class="btn btn-primary" href="${href('/products')}">Browse Deals</a></div>`;
+        mountCarousels(box);
+      };
+      draw();
+      box.addEventListener('click', async (e) => {
+        const x = e.target.closest('[data-like-x]'); if (x) { e.preventDefault(); await likes.remove(x.dataset.likeX); return; }
+        if (e.target.closest('[data-like-clear]')) { await likes.clear(); toast('Liked items cleared'); }
+      });
+      const on = () => draw();
+      window.addEventListener('likes:changed', on);
+      return () => window.removeEventListener('likes:changed', on);
+    },
+  };
+}
+
 export function account() {
   return {
     title: 'My account', noindex: true,

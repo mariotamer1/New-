@@ -234,6 +234,7 @@ export const store = {
       await backend.init();
     }
     this.refresh();
+    likes.init();
   },
   get offline() { return !!(backend && backend.offline); },
   refresh() { cache = backend.catalog(); },
@@ -254,9 +255,9 @@ export const store = {
   get canPayPal() { return !!(backend && backend.paypal && !backend.offline && ENV.cfg.paypalClientId); },
   paypal: (action, orderId) => backend.paypal(action, orderId),
   account: {
-    register: (x) => backend.register(x),
-    login: (x) => backend.login(x),
-    logout: () => backend.logout(),
+    register: (x) => backend.register(x).then(() => likes.onSignIn()),
+    login: (x) => backend.login(x).then(() => likes.onSignIn()),
+    logout: () => backend.logout().then(() => likes.onSignOut()),
     me: () => backend.me(),
   },
   get admin() { return backend.admin; },
@@ -264,6 +265,43 @@ export const store = {
 
 // ---------------------------------------------------------------- cart
 const CART_KEY = 'ml-cart';
+// ---------------------------------------------------------------- liked products
+// Guests: kept only for this visit (sessionStorage, private to this browser tab).
+// Signed-in customers: saved to their own account on the server; nobody else can see them.
+const LIKES_KEY = 'ml-likes';
+let likeIds = ss.get(LIKES_KEY, []);
+const likesChanged = () => { ss.set(LIKES_KEY, likeIds); window.dispatchEvent(new CustomEvent('likes:changed')); };
+const serverLikes = () => !!(backend && backend.likesGet && backend.signedIn && !backend.offline);
+export const likes = {
+  ids: () => likeIds.slice(),
+  has: (id) => likeIds.includes(id),
+  count: () => likeIds.length,
+  async toggle(id) {
+    const on = !likeIds.includes(id);
+    likeIds = on ? [id, ...likeIds] : likeIds.filter((x) => x !== id);
+    likesChanged();
+    if (serverLikes()) { try { likeIds = await backend.likesSet(id, on); likesChanged(); } catch {} }
+    return on;
+  },
+  async remove(id) { if (likeIds.includes(id)) await this.toggle(id); },
+  async clear() {
+    likeIds = []; likesChanged();
+    if (serverLikes()) { try { likeIds = await backend.likesSet(null, false); likesChanged(); } catch {} }
+  },
+  // Load the account's saved likes and add anything liked earlier in this visit.
+  async onSignIn() {
+    if (!serverLikes()) return;
+    try {
+      const guest = likeIds.slice();
+      let saved = await backend.likesGet();
+      for (const id of guest) if (!saved.includes(id)) saved = await backend.likesSet(id, true);
+      likeIds = saved; likesChanged();
+    } catch {}
+  },
+  onSignOut() { likeIds = []; likesChanged(); },
+  async init() { if (serverLikes()) { try { likeIds = await backend.likesGet(); likesChanged(); } catch {} } },
+};
+
 export const cart = {
   lines() { return ls.get(CART_KEY, []).filter((l) => l && l.id && l.qty > 0); },
   save(lines) { ls.set(CART_KEY, lines); window.dispatchEvent(new CustomEvent('cart:change')); },
