@@ -187,13 +187,13 @@
       <ul class="menu-list">
         <li><a href="${k("/")}">Home</a></li>
         <li><a href="${k("/products")}">Products ${b("right","icon-sm")}</a></li>
-        <li><a href="${k("/liked")}">${b("heart","icon-sm")} Liked items <span class="like-count" data-like-count></span></a></li>
         <li><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-cats">Categories ${b("down")}</button>
           <ul class="menu-sub" id="menu-cats" hidden>${t.map(a=>`<li><a href="${k("/categories/"+a.slug)}">${c(a.name)}</a></li>`).join("")}<li><a href="${k("/categories")}">All categories</a></li></ul></li>
         <li><a href="${k("/wholesale")}">Wholesale ${b("right","icon-sm")}</a></li>
         <li><a href="${k("/about")}">About ${b("right","icon-sm")}</a></li>
         <li><a href="${k("/contact")}">Contact ${b("right","icon-sm")}</a></li>
         <li><a href="${k("/account")}">My account ${b("right","icon-sm")}</a></li>
+        <li><a href="${k("/liked")}">Liked items ${b("right","icon-sm")}</a></li>
       </ul>
       <div class="menu-contact">
         <span class="eyebrow">Call or text</span>

@@ -89,13 +89,13 @@ export function menuHTML() {
       <ul class="menu-list">
         <li><a href="${href('/')}">Home</a></li>
         <li><a href="${href('/products')}">Products ${icon('right', 'icon-sm')}</a></li>
-        <li><a href="${href('/liked')}">${icon('heart', 'icon-sm')} Liked items <span class="like-count" data-like-count></span></a></li>
         <li><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu-cats">Categories ${icon('down')}</button>
           <ul class="menu-sub" id="menu-cats" hidden>${cats.map((c) => `<li><a href="${href('/categories/' + c.slug)}">${esc(c.name)}</a></li>`).join('')}<li><a href="${href('/categories')}">All categories</a></li></ul></li>
         <li><a href="${href('/wholesale')}">Wholesale ${icon('right', 'icon-sm')}</a></li>
         <li><a href="${href('/about')}">About ${icon('right', 'icon-sm')}</a></li>
         <li><a href="${href('/contact')}">Contact ${icon('right', 'icon-sm')}</a></li>
         <li><a href="${href('/account')}">My account ${icon('right', 'icon-sm')}</a></li>
+        <li><a href="${href('/liked')}">Liked items ${icon('right', 'icon-sm')}</a></li>
       </ul>
       <div class="menu-contact">
         <span class="eyebrow">Call or text</span>
