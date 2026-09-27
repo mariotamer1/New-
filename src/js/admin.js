@@ -166,10 +166,8 @@ function mount(main, { store, navigate, query }) {
           <section class="adm-card"><div class="adm-card-head"><h2>Details</h2></div><div class="adm-card-body form">
             <div class="field"><label for="ed-title">Title</label><input id="ed-title" name="title" required maxlength="140" value="${esc(d.title)}" placeholder="e.g. 55&quot; 4K Smart TV – Open Box"></div>
             <div class="field"><label for="ed-desc">Description</label><textarea id="ed-desc" name="description" rows="8" placeholder="What it is, condition notes, what’s included. Start lines with • for bullet points.">${esc(d.description)}</textarea></div>
-            <div class="form-row two">
-              <div class="field"><label for="ed-brand">Brand <span class="opt">(optional)</span></label><input id="ed-brand" name="brand" value="${esc(d.brand || '')}"></div>
-              <div class="field"><label for="ed-upc">UPC <span class="opt">(optional)</span></label><input id="ed-upc" name="upc" inputmode="numeric" maxlength="14" value="${esc(d.upc || '')}"><span class="hint">8–14 digits from the barcode.</span></div>
-            </div>
+            <input type="hidden" id="ed-brand" name="brand" value="${esc(d.brand || '')}">
+            <div class="field"><label for="ed-upc">UPC <span class="opt">(optional)</span></label><input id="ed-upc" name="upc" inputmode="numeric" maxlength="14" value="${esc(d.upc || '')}"><span class="hint">8–14 digits from the barcode.</span></div>
           </div></section>
           <section class="adm-card"><div class="adm-card-head"><h2>Photos</h2><span class="muted" style="font-size:13px">First photo is the cover. Drag to reorder.</span></div><div class="adm-card-body">
             <div class="adm-photos" data-photos>${photosHTML(d)}</div>
@@ -178,28 +176,20 @@ function mount(main, { store, navigate, query }) {
           </div></section>
         </div>
         <div class="adm-ed-side">
-          <section class="adm-card"><div class="adm-card-head"><h2>Visibility</h2></div><div class="adm-card-body form">
-            <label class="switch big"><input type="checkbox" name="published" ${d.published ? 'checked' : ''}><span>Published on the store</span></label>
-            <p class="hint">Items with 0 in stock are hidden automatically.</p>
-          </div></section>
+          <input type="checkbox" name="published" hidden ${d.published ? 'checked' : ''}>
           <section class="adm-card"><div class="adm-card-head"><h2>Pricing</h2></div><div class="adm-card-body form">
             <div class="field"><label for="ed-orig">Original / retail price</label><div class="money-input"><span>$</span><input id="ed-orig" name="originalPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(d.originalPrice ?? '')}"></div></div>
-            <div class="form-row two">
-              <div class="field"><label for="ed-pct">Discount %</label><input id="ed-pct" name="pct" type="number" inputmode="numeric" min="0" max="95" step="1" value="${pct}"></div>
-              <div class="field"><label for="ed-price">Sale price</label><div class="money-input"><span>$</span><input id="ed-price" name="price" type="number" inputmode="decimal" min="0" step="0.01" required value="${esc(d.price ?? '')}"></div></div>
-            </div>
-            <p class="hint" data-price-hint>Enter a discount % to calculate the sale price automatically.</p>
+            <input type="hidden" id="ed-pct" name="pct" value="${pct}">
+            <div class="field"><label for="ed-price">Sale price</label><div class="money-input"><span>$</span><input id="ed-price" name="price" type="number" inputmode="decimal" min="0" step="0.01" required value="${esc(d.price ?? '')}"></div></div>
             <div class="field"><label for="ed-ship">Shipping price</label><div class="money-input"><span>$</span><input id="ed-ship" name="shipping" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(d.shipping ?? 0)}"></div><span class="hint">Local pickup is always free.</span></div>
             <label class="check-row"><input type="checkbox" name="noShipping" ${d.noShipping ? 'checked' : ''}> <span><b>Not available for shipping</b><br><span class="hint">The store will only show “Available for pick up”.</span></span></label>
           </div></section>
           <section class="adm-card"><div class="adm-card-head"><h2>Inventory</h2></div><div class="adm-card-body form">
             <div class="field"><label for="ed-inv">Quantity in stock</label><div class="qty" style="height:46px"><button type="button" aria-label="Decrease" data-ed-inv="-1">${icon('minus', 'icon-sm')}</button><input id="ed-inv" name="inventory" type="number" inputmode="numeric" min="0" step="1" value="${esc(d.inventory)}" style="width:80px"><button type="button" aria-label="Increase" data-ed-inv="1">${icon('plus', 'icon-sm')}</button></div></div>
           </div></section>
-          <section class="adm-card"><div class="adm-card-head"><h2>Organize</h2></div><div class="adm-card-body form">
-            <div class="field"><label for="ed-cat">Category</label><select id="ed-cat" name="categoryId">${store.categories().map((c) => `<option value="${c.id}" ${d.categoryId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}<option value="" ${!d.categoryId ? 'selected' : ''}>Uncategorized</option></select></div>
-            <div class="field"><label for="ed-cond">Condition</label><select id="ed-cond" name="condition">${CONDITIONS.map((c) => `<option ${d.condition === c ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
-            <div class="field"><label for="ed-slug">Web address</label><input id="ed-slug" name="slug" value="${esc(d.slug)}" placeholder="auto from title"><span class="hint">/products/<b data-slug-preview>${esc(d.slug || slugify(d.title) || 'product-name')}</b></span></div>
-          </div></section>
+          <input type="hidden" name="categoryId" value="${esc(d.categoryId || '')}">
+          <input type="hidden" name="condition" value="${esc(d.condition || 'New')}">
+          <input type="hidden" name="slug" value="${esc(d.slug || '')}">
           <p class="form-error" data-err hidden></p>
           <div class="adm-ed-actions">
             <button class="btn btn-primary btn-lg" type="submit">${isNew ? 'Create product' : 'Save changes'}</button>
@@ -240,7 +230,7 @@ function mount(main, { store, navigate, query }) {
       if (n === 'pct' && orig > 0 && pctv >= 0) f('price').value = round2(orig * (1 - pctv / 100)).toFixed(2);
       if (n === 'price' && orig > 0 && price >= 0) f('pct').value = price < orig ? Math.round((1 - price / orig) * 100) : '';
       if (n === 'originalPrice' && orig > 0 && pctv > 0) f('price').value = round2(orig * (1 - pctv / 100)).toFixed(2);
-      if (n === 'title' || n === 'slug') $('[data-slug-preview]').textContent = slugify(f('slug').value || f('title').value) || 'product-name';
+      if (n === 'title' || n === 'slug') { const sp = $('[data-slug-preview]'); if (sp) sp.textContent = slugify(f('slug').value || f('title').value) || 'product-name'; }
       syncDraft();
     });
     form.addEventListener('change', syncDraft);
