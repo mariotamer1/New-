@@ -7,9 +7,7 @@ const TABS = [
   ['products', 'Products', 'tag'],
   ['orders', 'Orders', 'box'],
   ['offers', 'Offers', 'cash'],
-  ['requests', 'Requests', 'calendar'],
   ['messages', 'Messages', 'msg'],
-  ['categories', 'Categories', 'layers'],
   ['settings', 'Settings', 'gear'],
 ];
 const CONDITIONS = ['New', 'Open Box', 'Like New', 'Refurbished', 'Used – Good', 'Used – Fair', 'Scratch & Dent'];
@@ -55,7 +53,7 @@ function mount(main, { store, navigate, query }) {
   // ------------------------------------------------------------ shell
   function shell(body, title, actions = '') {
     const nNew = (k, st = 'new') => data[k].filter((x) => x.status === st).length;
-    const badge = { orders: nNew('orders'), offers: nNew('offers'), requests: data.inquiries.filter((m) => m.type === 'pickup' && m.status === 'new').length, messages: data.inquiries.filter((m) => m.type !== 'pickup' && m.status === 'new').length };
+    const badge = { orders: nNew('orders') + data.inquiries.filter((m) => m.type === 'pickup' && m.status === 'new').length, offers: nNew('offers'), requests: data.inquiries.filter((m) => m.type === 'pickup' && m.status === 'new').length, messages: data.inquiries.filter((m) => m.type !== 'pickup' && m.status === 'new').length };
     return `<div class="admin">
       <aside class="adm-side on-ink">
         <a class="logo" href="${href('/')}" aria-label="View store">${logo()}</a>
@@ -76,7 +74,7 @@ function mount(main, { store, navigate, query }) {
     await loadAll();
     setURL();
     if (tab === 'products' && editId) return renderEditor();
-    const views = { overview, products, orders, offers, requests, messages, categories, settings };
+    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings };
     (views[tab] || overview)();
   }
 
@@ -315,6 +313,8 @@ function mount(main, { store, navigate, query }) {
         <td><label class="sr-only" for="os-${o.id}">Status</label><select id="os-${o.id}" class="adm-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${o.tracking && o.tracking.number ? `<small class="adm-track">${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></small>` : o.status === 'shipped' ? `<small><button class="link" type="button" data-track="${o.id}">+ Add tracking</button></small>` : ''}</td>
         <td><button class="btn btn-sm" type="button" data-open-order="${o.id}">View</button></td></tr>`).join('')}
       </tbody></table></div>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
+      <h2 class="adm-sub" id="pickup-requests">Pickup requests</h2>
+      ${requestsHTML()}
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Orders');
   }
   // PayPal refunds: full or partial; several partial refunds can add up to what the customer paid.
@@ -389,14 +389,14 @@ function mount(main, { store, navigate, query }) {
 
   // ------------------------------------------------------------ messages
   // ------------------------------------------------------------ pickup requests
-  function requests() {
+  function requestsHTML() {
     const list = data.inquiries.filter((m) => m.type === 'pickup');
     const parse = (m) => {
       const item = ((m.message || '').match(/Pickup request:\s*(.+)/) || [])[1] || 'Pickup request';
       const when = ((m.message || '').match(/When:\s*(.+)/) || [])[1] || '';
       return { item: item.trim(), when: when.trim() };
     };
-    main.innerHTML = shell(list.length ? `<div class="adm-reqs">${list.map((m) => { const r = parse(m); const tel = String(m.phone || '').replace(/[^\d+]/g, ''); return `<details class="adm-req ${m.status === 'new' ? 'unread' : ''}">
+    return list.length ? `<div class="adm-reqs">${list.map((m) => { const r = parse(m); const tel = String(m.phone || '').replace(/[^\d+]/g, ''); return `<details class="adm-req ${m.status === 'new' ? 'unread' : ''}">
       <summary><span class="adm-req-title"><b>${esc(r.item)}</b><small>${icon('calendar', 'icon-sm')} ${esc(r.when || fmtDate(m.createdAt, true))}</small></span>${m.status === 'new' ? '<span class="status s-new">New</span>' : `<span class="status s-${m.status}">${m.status === 'read' ? 'Confirmed' : 'Done'}</span>`}${icon('down')}</summary>
       <div class="adm-req-body">
         <dl class="kv"><div><dt>Name</dt><dd>${esc(m.name)}</dd></div><div><dt>Phone</dt><dd><a href="${telHref(m.phone)}">${esc(m.phone)}</a></dd></div><div><dt>Pickup time</dt><dd>${esc(r.when || '—')}</dd></div><div><dt>Requested</dt><dd>${fmtDate(m.createdAt, true)}</dd></div></dl>
@@ -406,7 +406,7 @@ function mount(main, { store, navigate, query }) {
           <label class="sr-only" for="rq-${m.id}">Status</label><select id="rq-${m.id}" class="adm-status" data-msg-status="${m.id}"><option value="new" ${m.status === 'new' ? 'selected' : ''}>New</option><option value="read" ${m.status === 'read' ? 'selected' : ''}>Confirmed</option><option value="archived" ${m.status === 'archived' ? 'selected' : ''}>Done</option></select>
           <button class="btn btn-sm" type="button" data-msg-del="${m.id}" data-back="requests">${icon('trash', 'icon-sm')} Delete</button>
         </div>
-      </div></details>`; }).join('')}</div>` : '<div class="empty"><h2>No pickup requests yet</h2><p class="muted">When a customer taps “Choose a date &amp; time” on a product, their request shows up here.</p></div>', 'Requests');
+      </div></details>`; }).join('')}</div>` : '<div class="empty"><h2>No pickup requests yet</h2><p class="muted">When a customer taps “Choose a date &amp; time” on a product, their request shows up here.</p></div>';
   }
 
   function messages() {
@@ -557,7 +557,7 @@ function mount(main, { store, navigate, query }) {
     const od = t.closest('[data-offer-del]');
     if (od) { if (!od.dataset.sure) { od.dataset.sure = '1'; od.textContent = 'Tap again to delete'; return; } await A.deleteOffer(od.dataset.offerDel); await loadAll(); offers(); toast('Offer deleted'); return; }
     const md = t.closest('[data-msg-del]');
-    if (md) { await A.deleteInquiry(md.dataset.msgDel); await loadAll(); (md.dataset.back === 'requests' ? requests : messages)(); toast('Deleted'); return; }
+    if (md) { await A.deleteInquiry(md.dataset.msgDel); await loadAll(); (md.dataset.back === 'requests' ? orders : messages)(); toast('Deleted'); return; }
     if (t.closest('[data-export]')) { const json = await A.exportData(); const blob = new Blob([json], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `mlgroup-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove(); toast('Backup downloaded'); return; }
     if (t.closest('[data-reset]')) { $('[data-reset-confirm]').hidden = false; return; }
     if (t.closest('[data-reset-no]')) { $('[data-reset-confirm]').hidden = true; return; }
@@ -572,7 +572,7 @@ function mount(main, { store, navigate, query }) {
     if (t.matches('[data-of]')) { orderFilter = t.value; orders(); }
     if (t.matches('[data-order-status]')) { const id = t.dataset.orderStatus; await A.updateOrder(id, { status: t.value }); toast('Order status updated'); await loadAll(); const dlg = $('#order-dlg'); if (dlg && dlg.open) { orders(); openOrder(id); } if (t.value === 'shipped') openTracking(id); }
     if (t.matches('[data-offer-status]')) { await A.updateOffer(t.dataset.offerStatus, { status: t.value }); toast('Offer updated'); await loadAll(); }
-    if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests') requests(); }
+    if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests' || tab === 'orders') orders(); }
     if (t.matches('[data-import]') && t.files[0]) { try { await A.importData(await t.files[0].text()); refreshStore(); toast('Backup imported'); render(); } catch (ex) { toast(ex.message, 'err'); } }
   };
   const onInput = (e) => { if (e.target.matches('[data-pf-q]')) { prodFilter.q = e.target.value; const pos = e.target.selectionStart; products(); const i = $('[data-pf-q]'); i.focus(); i.setSelectionRange(pos, pos); } };
