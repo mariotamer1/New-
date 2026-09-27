@@ -251,7 +251,7 @@
           <input type="hidden" name="slug" value="${o(t.slug||"")}">
           <p class="form-error" data-err hidden></p>
           <div class="adm-ed-actions">
-            <button class="btn btn-primary btn-lg" type="submit">${s?"List":"Save changes"}</button>
+            <button class="btn btn-primary btn-lg" type="submit">${s?"List product":"Save changes"}</button>
             <button class="btn btn-lg" type="button" data-cancel-edit>Cancel</button>
             ${s?"":`<button class="btn btn-lg adm-danger" type="button" data-delete-product>${f("trash","icon-sm")} Delete</button>`}
           </div>

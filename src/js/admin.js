@@ -192,7 +192,7 @@ function mount(main, { store, navigate, query }) {
           <input type="hidden" name="slug" value="${esc(d.slug || '')}">
           <p class="form-error" data-err hidden></p>
           <div class="adm-ed-actions">
-            <button class="btn btn-primary btn-lg" type="submit">${isNew ? 'List' : 'Save changes'}</button>
+            <button class="btn btn-primary btn-lg" type="submit">${isNew ? 'List product' : 'Save changes'}</button>
             <button class="btn btn-lg" type="button" data-cancel-edit>Cancel</button>
             ${isNew ? '' : `<button class="btn btn-lg adm-danger" type="button" data-delete-product>${icon('trash', 'icon-sm')} Delete</button>`}
           </div>
