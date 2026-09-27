@@ -208,7 +208,7 @@ function mount(main, { store, navigate, query }) {
           </div>
           <div class="adm-confirm" data-confirm hidden><p><b>Delete this product?</b> This can’t be undone.</p><div><button class="btn btn-sm adm-danger" type="button" data-confirm-delete>Delete</button><button class="btn btn-sm" type="button" data-confirm-cancel>Keep it</button></div></div>
         </div>
-      </form>`, isNew ? 'New product' : 'Edit product', `<button class="btn" type="button" data-cancel-edit>${icon('left', 'icon-sm')} All products</button>`);
+      </form>`, `<button class="adm-back" type="button" data-cancel-edit>${icon('left')} Back</button>`, `<button class="adm-scan" type="button" data-scan aria-label="Scan barcode for UPC"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 8v8M9 8v8M11.5 8v8M13 8v8M15.5 8v8M17.5 8v8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>SCAN</span></button>`);
     wireEditor();
   }
 
@@ -518,6 +518,25 @@ function mount(main, { store, navigate, query }) {
         $$('button', box).forEach((b) => { b.disabled = false; }); rf.textContent = label;
         toast(ex.message || 'The refund did not go through.');
       }
+      return;
+    }
+    if (t.closest('[data-scan]')) {
+      const btn = t.closest('[data-scan]');
+      btn.disabled = true;
+      try {
+        if (!window.MLScanner) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = ENV.root + 'assets/scanner.js' + (ENV.cfg.v ? '?v=' + ENV.cfg.v : ''); s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+        window.MLScanner.open({
+          onResult: (code) => {
+            const inp = $('#ed-upc'); if (!inp) return;
+            inp.value = code; inp.dispatchEvent(new Event('input', { bubbles: true }));
+            inp.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            inp.classList.add('flash'); setTimeout(() => inp.classList.remove('flash'), 1200);
+            toast(`UPC ${code} added`);
+          },
+          onError: (msg) => toast(msg),
+        });
+      } catch { toast('The scanner could not load. Check your connection and try again.'); }
+      btn.disabled = false;
       return;
     }
     const tk = t.closest('[data-track]');

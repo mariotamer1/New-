@@ -22,9 +22,10 @@ fs.mkdirSync(DIST, { recursive: true });
 
 // ---------------------------------------------------------------- bundles
 const common = { bundle: true, minify: true, format: 'iife', target: 'es2020', loader: { '.json': 'json' }, legalComments: 'none' };
-const [appRes, adminRes] = await Promise.all([
+const [appRes, adminRes, scanRes] = await Promise.all([
   build({ ...common, entryPoints: [path.join(SRC, 'js/main.js')], write: false }),
   build({ ...common, entryPoints: [path.join(SRC, 'js/admin.js')], write: false }),
+  build({ ...common, entryPoints: [path.join(SRC, 'js/scanner.js')], write: false }),
 ]);
 const appJS = appRes.outputFiles[0].text;
 const adminJS = adminRes.outputFiles[0].text;
@@ -33,6 +34,7 @@ const appCSS = cssRes.outputFiles[0].text;
 const VER = (await import('node:crypto')).createHash('sha1').update(appJS + adminJS + appCSS).digest('hex').slice(0, 10);
 fs.writeFileSync(path.join(SITE, 'assets/app.js'), appJS);
 fs.writeFileSync(path.join(SITE, 'assets/admin.js'), adminJS);
+fs.writeFileSync(path.join(SITE, 'assets/scanner.js'), scanRes.outputFiles[0].text);
 fs.writeFileSync(path.join(SITE, 'assets/app.css'), appCSS);
 
 // seed data for page metadata
