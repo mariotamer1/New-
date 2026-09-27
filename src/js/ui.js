@@ -101,6 +101,7 @@ export function menuHTML() {
         <span class="eyebrow">Call or text</span>
         <a href="${telHref(s.phone)}">${esc(s.phone)}</a>
         <span class="muted">${icon('store', 'icon-sm')} Local pickup: ${esc(s.city)}, ${esc(s.state)}</span>
+        <a class="menu-admin" href="${href('/admin')}">${icon('lock', 'icon-sm')} Admin</a>
       </div>
     </div>
   </aside>`;

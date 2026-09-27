@@ -940,3 +940,5 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .scan-flash { right: 16px; }
 .scan-flash.on { background: #fff; color: #111; }
 .scan-flash.on [data-slash] { display: none; }
+.menu-admin { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; color: var(--mute); text-decoration: none; }
+.menu-admin:hover { color: var(--ink); text-decoration: underline; }

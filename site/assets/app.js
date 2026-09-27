@@ -199,6 +199,7 @@
         <span class="eyebrow">Call or text</span>
         <a href="${j(e.phone)}">${c(e.phone)}</a>
         <span class="muted">${b("store","icon-sm")} Local pickup: ${c(e.city)}, ${c(e.state)}</span>
+        <a class="menu-admin" href="${k("/admin")}">${b("lock","icon-sm")} Admin</a>
       </div>
     </div>
   </aside>`}function Je(){let e=w.settings(),t=new Date().getFullYear();return`
