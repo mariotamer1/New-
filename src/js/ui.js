@@ -435,7 +435,45 @@ function paintLikes() {
   $$('[data-like-count]').forEach((el) => { el.textContent = n ? String(n) : ''; });
   $$('[data-like]').forEach((b) => { const on = likes.has(b.dataset.like); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.setAttribute('aria-label', on ? 'Remove from liked items' : 'Add to liked items'); });
 }
+// Full-screen photo viewer: tap a product-page photo to open it; swipe between photos; X closes.
+function openViewer(track, start) {
+  const srcs = [...track.querySelectorAll('img')].map((im) => {
+    const set = (im.getAttribute('srcset') || '').split(',').map((x) => x.trim().split(/\s+/)[0]).filter(Boolean);
+    return { src: set[set.length - 1] || im.getAttribute('src'), alt: im.alt || '' };
+  });
+  if (!srcs.length) return;
+  const v = document.createElement('div');
+  v.className = 'viewer'; v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true'); v.setAttribute('aria-label', 'Photo viewer');
+  v.innerHTML = `<div class="viewer-track">${srcs.map((s) => `<div class="viewer-slide"><img src="${esc(s.src)}" alt="${esc(s.alt)}" decoding="async"></div>`).join('')}</div>
+    <button class="viewer-close" type="button" aria-label="Close photo">${icon('close')}</button>
+    ${srcs.length > 1 ? `<button class="viewer-nav prev" type="button" aria-label="Previous photo" data-vn="-1">${icon('left')}</button><button class="viewer-nav next" type="button" aria-label="Next photo" data-vn="1">${icon('right')}</button><span class="viewer-count">${start + 1} / ${srcs.length}</span>` : ''}`;
+  document.body.appendChild(v);
+  document.documentElement.classList.add('viewer-open');
+  const vt = v.querySelector('.viewer-track');
+  vt.scrollLeft = start * vt.clientWidth;
+  const cnt = v.querySelector('.viewer-count');
+  vt.addEventListener('scroll', () => { if (cnt) cnt.textContent = `${Math.round(vt.scrollLeft / vt.clientWidth) + 1} / ${srcs.length}`; }, { passive: true });
+  const close = () => {
+    const i = Math.round(vt.scrollLeft / vt.clientWidth);
+    v.remove(); document.documentElement.classList.remove('viewer-open'); document.removeEventListener('keydown', key);
+    track.scrollTo({ left: i * track.clientWidth, behavior: 'instant' });
+  };
+  const key = (e) => {
+    if (e.key === 'Escape') close();
+    if (e.key === 'ArrowRight') vt.scrollBy({ left: vt.clientWidth, behavior: 'smooth' });
+    if (e.key === 'ArrowLeft') vt.scrollBy({ left: -vt.clientWidth, behavior: 'smooth' });
+  };
+  document.addEventListener('keydown', key);
+  v.querySelector('.viewer-close').onclick = close;
+  v.querySelectorAll('[data-vn]').forEach((b) => { b.onclick = () => vt.scrollBy({ left: Number(b.dataset.vn) * vt.clientWidth, behavior: 'smooth' }); });
+  v.querySelector('.viewer-close').focus();
+}
 export function mountChrome(navigate) {
+  document.addEventListener('click', (e) => {
+    const im = e.target.closest('.g-main .track img'); if (!im) return;
+    const track = im.closest('.track');
+    openViewer(track, [...track.querySelectorAll('img')].indexOf(im));
+  });
   paintLikes();
   window.addEventListener('likes:changed', paintLikes);
   document.addEventListener('click', async (e) => {
