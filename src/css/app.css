@@ -685,6 +685,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .adm-list button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 16px; border: 0; background: none; text-align: left; font-size: 14px; }
 .adm-list button:hover { background: var(--paper-2); }
 .adm-list button > span:first-child { flex: 1; min-width: 0; }
+.adm-ord-img { width: 52px; height: 52px; flex: none; object-fit: cover; border: 1px solid var(--hair); background: var(--paper-2); }
 .adm-list small, .tbl small, .adm-prod small { display: block; color: var(--mute); font-size: 12.5px; margin-top: 2px; }
 .adm-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .adm-search { flex: 1; min-width: 220px; max-width: 420px; border: 1px solid var(--line); height: 40px; }
