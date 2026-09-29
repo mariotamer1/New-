@@ -530,7 +530,7 @@
             <div class="sum-totals">
               <div class="row"><span>Subtotal</span><span class="tabnum">${P(u)}</span></div>
               <div class="row"><span>${M?"Local pickup":"Shipping"}</span><span class="tabnum">${M?"Free":P(o)}</span></div>
-              <div class="row total"><span>Total</span><span class="tabnum">${P(u+(M?0:o))}</span></div>
+              ${M&&!y&&a.payment==="pickup"?`<div class="row total"><span>Total at pickup</span><span class="tabnum">${P(u)}</span></div><div class="row now"><span>Now</span><span class="tabnum">${P(0)}</span></div>`:`<div class="row total"><span>Total</span><span class="tabnum">${P(u+(M?0:o))}</span></div>`}
               <p class="form-error" data-err hidden></p>
               ${g?'<div class="pp-wrap" data-pp><p class="muted" data-pp-loading style="font-size:13px">Loading PayPal\u2026</p></div>':`<button class="btn btn-primary btn-lg btn-block" type="submit" style="margin-top:8px">${b("lock","icon-sm")} Place order</button>`}
               <p class="form-note">By placing your order you agree to our <a href="${k("/refund-policy")}">refund policy</a>.</p>

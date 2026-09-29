@@ -506,7 +506,7 @@ export function checkout() {
             <div class="sum-totals">
               <div class="row"><span>Subtotal</span><span class="tabnum">${money(sub)}</span></div>
               <div class="row"><span>${pickup ? 'Local pickup' : 'Shipping'}</span><span class="tabnum">${pickup ? 'Free' : money(shipTotal)}</span></div>
-              <div class="row total"><span>Total</span><span class="tabnum">${money(sub + (pickup ? 0 : shipTotal))}</span></div>
+              ${pickup && !free && draft.payment === 'pickup' ? `<div class="row total"><span>Total at pickup</span><span class="tabnum">${money(sub)}</span></div><div class="row now"><span>Now</span><span class="tabnum">${money(0)}</span></div>` : `<div class="row total"><span>Total</span><span class="tabnum">${money(sub + (pickup ? 0 : shipTotal))}</span></div>`}
               <p class="form-error" data-err hidden></p>
               ${payPal ? `<div class="pp-wrap" data-pp><p class="muted" data-pp-loading style="font-size:13px">Loading PayPal…</p></div>` : `<button class="btn btn-primary btn-lg btn-block" type="submit" style="margin-top:8px">${icon('lock', 'icon-sm')} Place order</button>`}
               <p class="form-note">By placing your order you agree to our <a href="${href('/refund-policy')}">refund policy</a>.</p>

@@ -552,6 +552,7 @@ dialog.modal[open] { animation: pop .22s var(--ease); }
 .sum-totals { padding: 14px 18px; display: grid; gap: 8px; }
 .sum-totals .row { display: flex; justify-content: space-between; font-size: 15px; }
 .sum-totals .row.total { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; font: 900 22px var(--font-display); }
+.sum-totals .row.now { font-weight: 700; }
 .pickup-box { border: 1px solid var(--line); padding: 14px; display: grid; gap: 6px; font-size: 14.5px; background: var(--paper-2); }
 .pickup-box b { font-size: 15px; }
 
