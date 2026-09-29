@@ -85,7 +85,8 @@ function createLocalBackend() {
       const items = lines.map(({ p, qty }) => ({ productId: p.id, slug: p.slug, title: p.title, image: p.images[0] || null, price: p.price, qty, shipping: pickup ? 0 : p.shipping }));
       const subtotal = round2(items.reduce((s, i) => s + i.price * i.qty, 0));
       const shippingTotal = round2(items.reduce((s, i) => s + i.shipping, 0));
-      lines.forEach(({ p, qty }) => { p.inventory -= qty; });
+      const stockHeld = !(pickup && ['pickup', 'free'].includes(input.payment));
+      if (stockHeld) lines.forEach(({ p, qty }) => { p.inventory -= qty; });
       let customerId = null;
       const email = (input.customer.email || '').trim().toLowerCase();
       if (input.createAccount && input.createAccount.password) {
@@ -106,7 +107,7 @@ function createLocalBackend() {
         fulfillment: input.fulfillment, payment: input.payment,
         customer: { name: input.customer.name, email, phone: input.customer.phone },
         address: pickup ? null : input.address, notes: input.notes || '',
-        items, subtotal, shippingTotal, total: round2(subtotal + shippingTotal), customerId,
+        items, subtotal, shippingTotal, total: round2(subtotal + shippingTotal), customerId, stockHeld,
       };
       db.orders.unshift(order);
       persist();
@@ -174,9 +175,14 @@ function createLocalBackend() {
       async adjustInventory(id, delta) { const p = find(id); if (p) p.inventory = Math.max(0, (p.inventory || 0) + delta); persist(); return p; },
       async orders() { return db.orders; },
       async setTracking(id, tracking) { const o = db.orders.find((x) => x.id === id); if (o) { o.tracking = tracking; persist(); } },
+      async confirmOrder(id) {
+        const o = db.orders.find((x) => x.id === id); if (!o || o.stockHeld !== false || o.status === 'cancelled') return;
+        o.items.forEach((i) => { const p = find(i.productId); if (p) p.inventory = Math.max(0, p.inventory - i.qty); });
+        o.stockHeld = true; if (o.status === 'new') o.status = 'processing'; persist(); return o;
+      },
       async updateOrder(id, patch) {
         const o = db.orders.find((x) => x.id === id); if (!o) return;
-        if (patch.status === 'cancelled' && o.status !== 'cancelled' && patch.restock) {
+        if (patch.status === 'cancelled' && o.status !== 'cancelled' && patch.restock && o.stockHeld !== false) {
           o.items.forEach((i) => { const p = find(i.productId); if (p) p.inventory += i.qty; });
         }
         delete patch.restock; Object.assign(o, patch); persist(); return o;
