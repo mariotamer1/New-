@@ -438,7 +438,7 @@ export function policy({ kind }) {
     <div class="wrap section" style="padding-top:28px"><div class="prose">${ship ? `
       <p>Every product page shows its exact shipping price. Shipping is charged once per item line, and local pickup is always free.</p>
       <h2>Shipping</h2><ul><li>Orders ship within 1–2 business days to the contiguous United States.</li><li>Tracking is sent by text or email as soon as your order ships.</li><li>Large items (furniture, appliances) ship by freight; we’ll call to schedule delivery.</li></ul>
-      <h2>Local pickup</h2><ul><li>Location: ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}.</li><li>Hours: ${esc(s.pickupHours)}.</li><li>We’ll text you when your order is ready — usually within one business day. ${esc(s.pickupNote)}</li><li>Orders are held for 7 days.</li></ul>` : `
+      <h2>Local pickup</h2><ul><li>Location: ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}.</li><li>Hours: ${esc(s.pickupHours)}.</li><li>Your order is ready anytime — just message us to set up a time. ${esc(s.pickupNote)}</li><li>Orders are held for 7 days.</li></ul>` : `
       <p>We want you to be happy with your deal. If something isn’t right, contact us within <b>3 days</b> of delivery or pickup.</p>
       <h2>Returns</h2><ul><li>New items (only) can be returned and fully refunded if the product is unused/same condition as received as new, or defective/doesn’t work/broken. Within 3 days after delivery or pick up.</li></ul>
       <h2>Refunds</h2><ul><li>Refunds go back to your original payment method within 5 business days of receiving the return.</li><li>Original shipping is non-refundable unless we made an error.</li><li>Items not as described or damaged in shipping are refunded in full, including shipping.</li></ul>
@@ -454,7 +454,7 @@ export function checkout() {
     html: `<div class="page-head"><div class="wrap"><h1>Checkout</h1><p>No account needed. Choose shipping or free local pickup.</p></div></div><div class="wrap" data-co></div>`,
     mount(root, { navigate }) {
       const box = $('[data-co]', root);
-      const draft = { fulfillment: 'shipping', payment: store.canPayPal ? 'paypal' : 'link', ...ls.get('ml-co', {}) };
+      const draft = { fulfillment: 'shipping', payment: 'paypal', ...ls.get('ml-co', {}) };
       const draw = () => {
         const items = cart.items();
         if (!items.length) { box.innerHTML = `<div class="empty" style="margin-block:32px 64px"><h2>Your cart is empty</h2><p class="muted">Add something from today’s deals to check out.</p><a class="btn btn-primary" href="${href('/products')}">Browse Deals</a></div>`; return; }
@@ -463,8 +463,7 @@ export function checkout() {
         const pickup = draft.fulfillment === 'pickup';
         const shipTotal = round2(items.reduce((t, i) => t + i.product.shipping, 0));
         const sub = cart.subtotal();
-        if (!pickup && draft.payment === 'pickup') draft.payment = 'link';
-        if (draft.payment === 'paypal' && !store.canPayPal) draft.payment = 'link';
+        if ((!pickup && draft.payment === 'pickup') || draft.payment === 'link') draft.payment = 'paypal';
         // A $0 order skips the payment step entirely.
         const free = round2(sub + (pickup ? 0 : shipTotal)) === 0;
         const payPal = !free && draft.payment === 'paypal';
@@ -478,7 +477,7 @@ export function checkout() {
             <section class="co-section"><h2><span class="n">2</span> Delivery</h2><div class="co-body">
               <div class="radio-cards" role="radiogroup" aria-label="Delivery method">
                 ${pickupOnly.length ? `<p class="pickup-box"><b>${icon('store', 'icon-sm')} Pick up only</b><span>${pickupOnly.map((i) => esc(i.product.title)).join(', ')} ${pickupOnly.length > 1 ? 'are' : 'is'} not available for shipping, so this order is for local pickup.</span></p>` : `<label class="radio-card"><input type="radio" name="fulfillment" value="shipping" ${!pickup ? 'checked' : ''}><div><b>Ship to me</b><span>Ships in 1–2 business days</span></div><span class="rc-price tabnum">${money(shipTotal)}</span></label>`}
-                <label class="radio-card"><input type="radio" name="fulfillment" value="pickup" ${pickup ? 'checked' : ''}><div><b>Local pickup</b><span>${esc(s.city)}, ${esc(s.state)} · ready in about 1 business day</span></div><span class="rc-price">Free</span></label>
+                <label class="radio-card"><input type="radio" name="fulfillment" value="pickup" ${pickup ? 'checked' : ''}><div><b>Local pickup</b><span>${esc(s.city)}, ${esc(s.state)} · ready anytime</span></div><span class="rc-price">Free</span></label>
               </div>
               ${pickup ? `<div class="pickup-box"><b>${icon('store', 'icon-sm')} Pickup location</b><span>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}</span><span>${esc(s.pickupHours)}</span><span class="muted">${esc(s.pickupNote)}</span></div>` : `
               <div class="field"><label for="co-a1">Street address</label><input id="co-a1" name="line1" autocomplete="address-line1" required value="${esc(draft.line1 || '')}"></div>
@@ -491,7 +490,6 @@ export function checkout() {
               ${free ? `<input type="hidden" name="payment" value="free"><p class="pickup-box"><b>${icon('check', 'icon-sm')} No payment needed</b><span>Your order total is $0.00 — just place your order.</span></p>` : `
               <div class="radio-cards" role="radiogroup" aria-label="Payment method">
                 ${store.canPayPal ? `<label class="radio-card"><input type="radio" name="payment" value="paypal" ${payPal ? 'checked' : ''}><div><b>PayPal, Venmo or card</b><span>Pay now securely with PayPal, Venmo, or any debit or credit card — no PayPal account needed.</span></div>${icon('lock')}</label>` : ''}
-                <label class="radio-card"><input type="radio" name="payment" value="link" ${draft.payment === 'link' ? 'checked' : ''}><div><b>Pay by secure card link</b><span>After we confirm your items, we text and email a secure payment link. Nothing is charged until you pay.</span></div>${icon('link')}</label>
                 ${pickup ? `<label class="radio-card"><input type="radio" name="payment" value="pickup" ${draft.payment === 'pickup' ? 'checked' : ''}><div><b>Pay at pickup</b><span>Cash or card when you collect your order.</span></div>${icon('cash')}</label>` : ''}
                 ${pickup && draft.payment === 'pickup' ? `<div class="pickup-when" data-pk-when>${draft.pickupWhen ? `${icon('calendar', 'icon-sm')}<span>Pickup: <b>${esc(draft.pickupWhen)}</b></span><button class="btn-link" type="button" data-pk-open>Change</button>` : `<button class="btn" type="button" data-pk-open>${icon('calendar', 'icon-sm')} Choose date &amp; time</button>`}</div>` : ''}
               </div>`}
