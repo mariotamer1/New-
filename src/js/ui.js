@@ -221,9 +221,18 @@ function hl(text, terms) {
   terms.filter((t) => t.length > 1).forEach((t) => { out = out.replace(new RegExp('(' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig'), '<mark>$1</mark>'); });
   return out;
 }
+// A query that is only digits (spaces/dashes allowed) is treated as a UPC: leading zeros and
+// partial numbers match, so "088381869133", "88381 86913" and "869133" all find the same item.
+const upcDigits = (s) => String(s || '').replace(/\D/g, '').replace(/^0+/, '');
+export const upcQuery = (q) => (/^[\d\s-]+$/.test(String(q).trim()) && upcDigits(q).length >= 4 ? upcDigits(q) : '');
 export function searchProducts(q, limit = 99) {
   const terms = norm(q).split(/\s+/).filter(Boolean);
   if (!terms.length) return [];
+  const uq = upcQuery(q);
+  if (uq) {
+    return store.products().map((p) => ({ p, u: upcDigits(p.upc) })).filter((r) => r.u && r.u.includes(uq))
+      .sort((a, b) => (b.u === uq) - (a.u === uq) || (b.u.startsWith(uq)) - (a.u.startsWith(uq))).slice(0, limit).map((r) => r.p);
+  }
   const cats = Object.fromEntries(store.categories().map((c) => [c.id, c.name]));
   const res = [];
   for (const p of store.products()) {
@@ -260,8 +269,9 @@ function mountSearch(form, navigate) {
     clear.hidden = !q;
     if (!q) { close(); return; }
     const terms = norm(q).split(/\s+/).filter(Boolean);
-    const cats = store.categories().filter((c) => terms.every((t) => norm(c.name).includes(t)));
-    const brands = [...new Set(store.products().map((p) => p.brand).filter(Boolean))].filter((b) => terms.every((t) => norm(b).includes(t))).slice(0, 4);
+    const uq = upcQuery(q);
+    const cats = uq ? [] : store.categories().filter((c) => terms.every((t) => norm(c.name).includes(t)));
+    const brands = uq ? [] : [...new Set(store.products().map((p) => p.brand).filter(Boolean))].filter((b) => terms.every((t) => norm(b).includes(t))).slice(0, 4);
     const prods = searchProducts(q, 6);
     const id = input.id;
     let n = 0;
@@ -269,7 +279,7 @@ function mountSearch(form, navigate) {
     if (cats.length) html += `<div class="sp-group"><p class="sp-label">Categories</p><div class="sp-chips">${cats.map((c) => `<a class="chip" role="option" id="${id}-o${n++}" href="${href('/categories/' + c.slug)}">${hl(c.name, terms)}</a>`).join('')}</div></div>`;
     if (brands.length) html += `<div class="sp-group"><p class="sp-label">Brands</p><div class="sp-chips">${brands.map((b) => `<a class="chip" role="option" id="${id}-o${n++}" href="${href('/products?q=' + encodeURIComponent(b))}">${hl(b, terms)}</a>`).join('')}</div></div>`;
     if (prods.length) {
-      html += `<div class="sp-group"><p class="sp-label">Products</p>${prods.map((p) => `<a class="sp-item" role="option" id="${id}-o${n++}" href="${href('/products/' + p.slug)}">${imgTag(p.images[0], { alt: '', sizes: '48px', w: 48 })}<span><span class="sp-name">${hl(p.title, terms)}</span><span class="sp-meta">${esc(p.brand || '')} · ${esc(p.condition)}${/^\d{4,}$/.test(q) ? ` · UPC ${hl(p.upc, terms)}` : ''}</span></span><span class="sp-price tabnum">${money(p.price)}${pctOff(p) ? `<s>${money(p.originalPrice)}</s>` : ''}</span></a>`).join('')}</div>`;
+      html += `<div class="sp-group"><p class="sp-label">Products</p>${prods.map((p) => `<a class="sp-item" role="option" id="${id}-o${n++}" href="${href('/products/' + p.slug)}">${imgTag(p.images[0], { alt: '', sizes: '48px', w: 48 })}<span><span class="sp-name">${hl(p.title, terms)}</span><span class="sp-meta">${esc(p.brand || '')} · ${esc(p.condition)}${upcQuery(q) ? ` · UPC ${esc(p.upc)}` : ''}</span></span><span class="sp-price tabnum">${money(p.price)}${pctOff(p) ? `<s>${money(p.originalPrice)}</s>` : ''}</span></a>`).join('')}</div>`;
     }
     if (!html) html = `<p class="sp-empty">No matches for “${esc(q)}”. Try a brand, category or UPC.</p>`;
     else html += `<a class="sp-all" role="option" id="${id}-o${n++}" href="${href('/products?q=' + encodeURIComponent(q))}">See all results for “${esc(q)}” →</a>`;
