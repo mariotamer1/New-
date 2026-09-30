@@ -404,7 +404,7 @@ export function openOffer(id) {
       <div class="offer-item">${imgTag(p.images[0], { alt: '', sizes: '64px' })}<div><b>${esc(p.title)}</b><span>Listed at <b class="tabnum" style="display:inline">${money(p.price)}</b> · ${esc(p.condition)}</span></div></div>
       <div class="field"><label for="of-name">Name</label><input id="of-name" name="name" autocomplete="name" required maxlength="80"></div>
       <div class="field"><label for="of-phone">Phone number</label><input id="of-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="(555) 555-5555" maxlength="24"></div>
-      <div class="field"><label for="of-amount">Your offer</label><div class="money-input"><span>$</span><input id="of-amount" name="amount" type="number" inputmode="decimal" min="1" step="0.01" required placeholder="${Math.round(p.price * 0.85)}"></div><span class="hint">We usually reply by text within one business day.</span></div>
+      <div class="field"><label for="of-amount">Your offer</label><div class="money-input"><span>$</span><input id="of-amount" name="amount" type="number" inputmode="decimal" min="1" step="0.01" required placeholder="${Math.round(p.price * 0.85)}"></div><span class="hint">Our team responds to offers within 2–3 hours, you can expect a text from us. Thank you!</span></div>
       <div class="hp" aria-hidden="true"><label for="of-web">Website</label><input id="of-web" name="website" tabindex="-1" autocomplete="off"></div>
       <p class="form-error" data-err hidden></p>
       <button class="btn btn-primary btn-lg btn-block" type="submit">Submit offer</button>
