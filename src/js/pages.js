@@ -309,8 +309,8 @@ function inquiryForm(type) {
   return `<form class="form" novalidate data-inquiry="${type}">
     <div class="form-row two"><div class="field"><label for="iq-name">Name</label><input id="iq-name" name="name" autocomplete="name" required></div>
     <div class="field"><label for="iq-phone">Phone</label><input id="iq-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required></div></div>
-    <div class="form-row two"><div class="field"><label for="iq-email">Email</label><input id="iq-email" name="email" type="email" autocomplete="email" required></div>
-    ${ws ? '<div class="field"><label for="iq-company">Company <span class="opt">(optional)</span></label><input id="iq-company" name="company" autocomplete="organization"></div>' : '<div class="field"><label for="iq-topic">Topic</label><select id="iq-topic" name="company"><option>Question about an item</option><option>Order help</option><option>Local pickup</option><option>Returns</option><option>Something else</option></select></div>'}</div>
+    ${ws ? `<div class="form-row two"><div class="field"><label for="iq-email">Email</label><input id="iq-email" name="email" type="email" autocomplete="email" required></div>
+    ${ws ? '<div class="field"><label for="iq-company">Company <span class="opt">(optional)</span></label><input id="iq-company" name="company" autocomplete="organization"></div>' : '<div class="field"><label for="iq-topic">Topic</label><select id="iq-topic" name="company"><option>Question about an item</option><option>Order help</option><option>Local pickup</option><option>Returns</option><option>Something else</option></select></div>'}</div>` : ''}
     ${ws ? '<div class="field"><label for="iq-qty">What are you looking for?</label><select id="iq-qty" name="interest"><option>Mixed lots</option><option>Case packs of one item</option><option>Full pallets</option><option>Truckloads</option><option>Not sure yet</option></select></div>' : ''}
     <div class="field"><label for="iq-msg">${ws ? 'Categories, quantities and budget' : 'Message'}</label><textarea id="iq-msg" name="message" required maxlength="2000"></textarea></div>
     <div class="hp" aria-hidden="true"><label for="iq-web">Website</label><input id="iq-web" name="website" tabindex="-1" autocomplete="off"></div>
@@ -324,13 +324,13 @@ function mountInquiry(root) {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(form));
     const err = $('[data-err]', form);
-    const checks = [['iq-name', !String(f.name).trim()], ['iq-phone', String(f.phone).replace(/\D/g, '').length < 10], ['iq-email', !/^\S+@\S+\.\S+$/.test(f.email)], ['iq-msg', !String(f.message).trim()]];
-    checks.forEach(([id, bad]) => $('#' + id).setAttribute('aria-invalid', bad ? 'true' : 'false'));
+    const checks = [['iq-name', !String(f.name).trim()], ['iq-phone', String(f.phone).replace(/\D/g, '').length < 10], ['iq-email', 'email' in f && !/^\S+@\S+\.\S+$/.test(f.email)], ['iq-msg', !String(f.message).trim()]];
+    checks.forEach(([id, bad]) => $('#' + id) && $('#' + id).setAttribute('aria-invalid', bad ? 'true' : 'false'));
     const first = checks.find(([, bad]) => bad);
-    if (first) { err.textContent = 'Please fill in your name, a 10-digit phone number, a valid email and a message.'; err.hidden = false; $('#' + first[0]).focus(); return; }
+    if (first) { err.textContent = form.dataset.inquiry === 'wholesale' ? 'Please fill in your name, a 10-digit phone number, a valid email and a message.' : 'Please fill in your name, a 10-digit phone number and a message.'; err.hidden = false; $('#' + first[0]).focus(); return; }
     const btn = $('button[type="submit"]', form); btn.disabled = true;
     try {
-      if (!f.website) await store.submitInquiry({ type: form.dataset.inquiry, name: f.name.trim(), phone: f.phone.trim(), email: f.email.trim(), company: (f.company || '').trim(), message: (f.interest ? `[${f.interest}] ` : '') + f.message.trim() });
+      if (!f.website) await store.submitInquiry({ type: form.dataset.inquiry, name: f.name.trim(), phone: f.phone.trim(), email: (f.email || '').trim(), company: (f.company || '').trim(), message: (f.interest ? `[${f.interest}] ` : '') + f.message.trim() });
       form.innerHTML = `<div class="success"><span class="check">${icon('check')}</span><h3>Message sent</h3><p>Thanks, ${esc(f.name.split(' ')[0])}. We’ll get back to you within one business day.</p></div>`;
     } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; }
   });
@@ -415,13 +415,6 @@ export function contact() {
           <li>${icon('phone')}<div><b>Call or text</b><a href="${telHref(s.phone)}">${esc(s.phone)}</a></div></li>
           <li>${icon('mail')}<div><b>Email</b><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></div></li>
         </ul></div>
-        <div class="info-card"><h2>Local pickup</h2><ul class="info-list">
-          <li>${icon('pin')}<div><b>${esc(s.address1 || `${s.city}, ${s.state}`)}</b><span>${s.address1 ? `${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}` : 'Exact address sent with your pickup confirmation'}</span></div></li>
-          <li>${icon('clock')}<div><b>Pickup hours</b><span>${esc(s.pickupHours)}</span></div></li>
-          <li>${icon('store')}<div><b>How it works</b><span>Choose “Local pickup” at checkout. We text you when it’s ready. ${esc(s.pickupNote)}</span></div></li>
-        </ul>
-        <a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.address1 ? s.address1 + ', ' : ''}${s.city}, ${s.state} ${s.zip}`)}" target="_blank" rel="noopener">${icon('pin', 'icon-sm')} Get directions</a></div>
-      </div>
       <div class="info-card"><h2>Send a message</h2>${inquiryForm('contact')}</div>
     </div>`,
     mount: mountInquiry,
