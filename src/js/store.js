@@ -109,6 +109,8 @@ function createLocalBackend() {
         address: pickup ? null : input.address, notes: input.notes || '',
         items, subtotal, shippingTotal, total: round2(subtotal + shippingTotal), customerId, stockHeld,
       };
+      const acct = customerId && db.customers.find((x) => x.id === customerId);
+      if (acct) { acct.name = order.customer.name || acct.name; acct.phone = order.customer.phone || acct.phone; if (!pickup && order.address) acct.address = order.address; }
       db.orders.unshift(order);
       persist();
       return order;
@@ -145,7 +147,7 @@ function createLocalBackend() {
       const id = ls.get('ml-customer', null);
       const c = id && db.customers.find((x) => x.id === id);
       if (!c) return null;
-      return { email: c.email, name: c.name, phone: c.phone, orders: db.orders.filter((o) => o.customerId === c.id) };
+      return { email: c.email, name: c.name, phone: c.phone, address: c.address || null, orders: db.orders.filter((o) => o.customerId === c.id) };
     },
 
     // admin

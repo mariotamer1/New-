@@ -455,6 +455,18 @@ export function checkout() {
     mount(root, { navigate }) {
       const box = $('[data-co]', root);
       const draft = { fulfillment: 'shipping', payment: 'paypal', ...ls.get('ml-co', {}) };
+      // Signed-in customers: fill any empty fields from their saved account details.
+      store.account.me().then((me) => {
+        if (!me) return;
+        const a = me.address || {};
+        const saved = { name: me.name, email: me.email, phone: me.phone, line1: a.line1, line2: a.line2, city: a.city, state: a.state, zip: a.zip };
+        let changed = false;
+        for (const [k, v] of Object.entries(saved)) if (v && !draft[k]) { draft[k] = v; changed = true; }
+        if (!changed) return;
+        const f = $('[data-co-form]', root);
+        if (f) for (const [k, v] of Object.entries(saved)) { const el = f.elements[k]; if (el && v && !el.value) el.value = v; }
+        else drawAll();
+      }).catch(() => {});
       const draw = () => {
         const items = cart.items();
         if (!items.length) { box.innerHTML = `<div class="empty" style="margin-block:32px 64px"><h2>Your cart is empty</h2><p class="muted">Add something from today’s deals to check out.</p><a class="btn btn-primary" href="${href('/products')}">Browse Deals</a></div>`; return; }
@@ -711,7 +723,7 @@ export function account() {
       const draw = async (tab = 'login') => {
         const me = await store.account.me();
         if (me) {
-          box.innerHTML = `<div style="display:grid;gap:20px"><div class="info-card"><h2>${esc(me.name || 'Welcome back')}</h2><p class="muted">${esc(me.email)}${me.phone ? ' · ' + esc(me.phone) : ''}</p><div><button class="btn btn-sm" type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button></div></div>
+          box.innerHTML = `<div style="display:grid;gap:20px"><div class="info-card"><h2>${esc(me.name || 'Welcome back')}</h2><p class="muted">${esc(me.email)}${me.phone ? ' · ' + esc(me.phone) : ''}</p>${me.address && me.address.line1 ? `<p class="muted">${icon('truck', 'icon-sm')} ${esc(me.address.line1)}${me.address.line2 ? ', ' + esc(me.address.line2) : ''}, ${esc(me.address.city)}, ${esc(me.address.state)} ${esc(me.address.zip)}</p>` : ''}<div><button class="btn btn-sm" type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button></div></div>
           <h2 class="display" style="font-size:26px">Order history</h2>
           ${me.orders.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Delivery</th><th>Total</th></tr></thead><tbody>${me.orders.map((o) => `<tr><td><a href="${href('/order/' + o.id)}" class="mono"><b>#${o.number}</b></a></td><td>${new Date(o.createdAt).toLocaleDateString()}</td><td><span class="status s-${o.status}">${esc(o.status)}</span></td><td>${o.fulfillment === 'pickup' ? 'Pickup' : 'Shipping'}</td><td class="tabnum">${money(o.total)}</td></tr>${o.tracking && o.tracking.number ? `<tr class="track-row"><td colspan="5">${trackingHTML(o)}</td></tr>` : ''}`).join('')}</tbody></table></div>` : '<p class="muted">No orders yet.</p>'}</div>`;
           return;

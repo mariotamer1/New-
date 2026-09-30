@@ -132,7 +132,7 @@ export function createSupabaseBackend(cfg) {
     async placeOrder(input) {
       const o = await rpc('place_order', { p: { ...input, createAccount: undefined, customerToken: ls.get(CUST_KEY, null) } });
       if (input.createAccount && input.createAccount.password) {
-        try { ls.set(CUST_KEY, await rpc('customer_register', { p_email: input.customer.email, p_password: input.createAccount.password, p_name: input.customer.name, p_phone: input.customer.phone })); } catch {}
+        try { ls.set(CUST_KEY, await rpc('customer_register', { p_email: input.customer.email, p_password: input.createAccount.password, p_name: input.customer.name, p_phone: input.customer.phone })); await rpc('customer_claim_order', { p_token: ls.get(CUST_KEY, null), p_order: o.id }); } catch {}
       }
       if (o.stockHeld !== false) o.items.forEach((i) => { const p = cache.products.find((x) => x.id === i.productId); if (p) p.inventory -= i.qty; });
       return o;
