@@ -1,0 +1,18 @@
+{
+ "cleanUrls": false,
+ "trailingSlash": false,
+ "rewrites": [
+  {
+   "source": "/products/:slug",
+   "destination": "/index.html"
+  },
+  {
+   "source": "/order/:id",
+   "destination": "/index.html"
+  },
+  {
+   "source": "/categories/:slug",
+   "destination": "/index.html"
+  }
+ ]
+}

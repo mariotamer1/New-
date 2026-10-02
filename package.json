@@ -1,0 +1,1 @@
+{"name":"ml-group-store","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs"},"devDependencies":{"@zxing/browser":"^0.2.1","@zxing/library":"^0.23.0","esbuild":"0.28.2"}}
