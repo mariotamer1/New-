@@ -48,10 +48,10 @@ fs.rmSync(seedFile);
 fs.cpSync(path.join(SRC, 'img'), path.join(SITE, 'img'), { recursive: true, filter: (f) => !f.endsWith('manifest.json') });
 const LOGO_D = 'M0 0H35L48 13V48H0Z M36.4 9a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0Z M6 41V20H11.6L15 30.4L18.4 20H24V41H19.3V29.6L16.9 36.6H13.1L10.7 29.6V41Z M27 20H32.2V36H41V41H27Z';
 const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 56 56"><style>path{fill:#0b0b0c}@media (prefers-color-scheme:dark){path{fill:#fff}}</style><path fill-rule="evenodd" d="${LOGO_D}"/></svg>`;
-fs.writeFileSync(path.join(SITE, 'favicon.svg'), favicon);
+fs.writeFileSync(path.join(SITE, 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><image width="192" height="192" href="data:image/png;base64,${fs.readFileSync(path.join(SRC, 'img/brand/favicon-192.png')).toString('base64')}"/></svg>`);
 fs.writeFileSync(path.join(SITE, 'logo.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#0b0b0c" fill-rule="evenodd" d="${LOGO_D}"/></svg>`);
 fs.writeFileSync(path.join(SITE, 'site.webmanifest'), JSON.stringify({ name: 'ML Group', short_name: 'ML Group', start_url: '/', display: 'standalone', background_color: '#0b0b0c', theme_color: '#0b0b0c', icons: [{ src: 'icon-512.png', sizes: '512x512', type: 'image/png' }, { src: 'apple-touch-icon.png', sizes: '180x180', type: 'image/png' }] }));
-for (const f of ['apple-touch-icon.png', 'icon-512.png', 'og-image.jpg', 'favicon-32.png', 'favicon-64.png', 'logo-mark.png', 'logo-full.png']) {
+for (const f of ['apple-touch-icon.png', 'icon-512.png', 'og-image.jpg', 'favicon-32.png', 'favicon-64.png', 'favicon-48.png', 'favicon-96.png', 'favicon-192.png', 'favicon.ico', 'logo-mark.png', 'logo-full.png']) {
   const p = path.join(SRC, 'img/brand', f);
   if (fs.existsSync(p)) fs.copyFileSync(p, path.join(SITE, f));
 }
@@ -79,8 +79,9 @@ ${url ? `<link rel="canonical" href="${esc(url)}">` : ''}
 ${url ? `<meta property="og:url" content="${esc(url)}">` : ''}
 <meta property="og:image" content="${esc(image || SITE_URL + 'og-image.jpg')}">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="${rel}favicon-64.png" type="image/png" sizes="64x64">
-<link rel="icon" href="${rel}favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="${rel}favicon.ico" sizes="48x48">
+<link rel="icon" href="${rel}favicon-192.png" type="image/png" sizes="192x192">
+<link rel="icon" href="${rel}favicon-96.png" type="image/png" sizes="96x96">
 <link rel="apple-touch-icon" href="${rel}apple-touch-icon.png">
 <link rel="manifest" href="${rel}site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -160,7 +161,7 @@ function embedImages(maxEach = 'sm') {
   return map;
 }
 const embed = embedImages();
-const favData = 'data:image/svg+xml,' + encodeURIComponent(favicon);
+const favData = 'data:image/png;base64,' + fs.readFileSync(path.join(SRC, 'img/brand/favicon-96.png')).toString('base64');
 const inlineScript = (js) => js.replace(/<\/script/gi, '<\\/script');
 const single = (cfg) => `<!doctype html>
 <html lang="en">
