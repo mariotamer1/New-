@@ -30,8 +30,7 @@ export function home() {
   cats.forEach((c) => { const p = topIn(c.id); if (p) heroPicks.push(p); });
   deals.forEach((p) => { if (heroPicks.length < 5 && !heroPicks.includes(p)) heroPicks.push(p); });
   deals.forEach((p) => { if (heroPicks.length < 15 && !heroPicks.includes(p)) heroPicks.push(p); });
-  const hero = heroPicks.slice(0, heroPicks.length >= 10 ? Math.floor(heroPicks.length / 5) * 5 : 5);
-  const pages = []; for (let i = 0; i < hero.length; i += 5) pages.push(hero.slice(i, i + 5));
+  const hero = heroPicks.slice(0, 12);
   const catCards = cats.map((c) => ({ c, p: topIn(c.id) })).filter((x) => x.p);
   const featured = deals.slice(0, 10);
   const perks = [['truck', 'Ships Nationwide', '/shipping-policy'], ['store', 'Free Local Pickup', '/shipping-policy'], ['tag', 'Top Brands', '/products'], ['box', 'Wholesale Available', '/wholesale']];
@@ -47,11 +46,10 @@ export function home() {
           <p class="hx-lede">Electronics, home goods, tools, appliances, furniture and more — all brand new from top retailers at discounted prices.</p>
           <a class="btn btn-primary btn-lg hx-cta" href="${href('/products')}">Shop All Deals ${icon('arrow', 'icon-sm')}</a>
         </div>
-        <div class="hx-car" data-hx-car aria-roledescription="carousel" aria-label="Featured products">
-          <div class="hx-track" data-hx-track>${pages.map((pg, pi) => `<div class="hx-page">${pg.map((p, i) => `<a class="hx-shot s${i}" href="${href('/products/' + p.slug)}" aria-label="${esc(p.title)}">${imgTag(p.images[0], { alt: '', eager: pi === 0, sizes: i === 0 ? '(min-width:900px) 26vw, 50vw' : '(min-width:900px) 16vw, 34vw' })}<span class="hx-tag">${pctOff(p) ? `<s class="tabnum">${money(p.originalPrice)}</s>` : ''}<b class="tabnum">${money(p.price)}</b></span></a>`).join('')}</div>`).join('')}</div>
-          <button class="hx-car-btn prev" type="button" aria-label="Previous" data-hx-go="-1">${icon('left', 'icon-sm')}</button>
-          <button class="hx-car-btn next" type="button" aria-label="Next" data-hx-go="1">${icon('right', 'icon-sm')}</button>
-          <div class="hx-dots" data-hx-dots>${pages.map((_, i) => `<button type="button" aria-label="Show set ${i + 1}" data-hx-dot="${i}"${i ? '' : ' aria-current="true"'}></button>`).join('')}</div>
+        <div class="hx-orbit" data-hx-orbit aria-roledescription="carousel" aria-label="Featured products — swipe to browse">
+          ${hero.map((p, i) => `<a class="hx-shot" data-hx-item href="${href('/products/' + p.slug)}" aria-label="${esc(p.title)}">${imgTag(p.images[0], { alt: '', eager: i < 6, sizes: '(min-width:900px) 26vw, 50vw' })}<span class="hx-tag">${pctOff(p) ? `<s class="tabnum">${money(p.originalPrice)}</s>` : ''}<b class="tabnum">${money(p.price)}</b></span></a>`).join('')}
+          <button class="hx-car-btn prev" type="button" aria-label="Previous product" data-hx-go="-1">${icon('left', 'icon-sm')}</button>
+          <button class="hx-car-btn next" type="button" aria-label="Next product" data-hx-go="1">${icon('right', 'icon-sm')}</button>
         </div>
       </div>
     </section>
@@ -91,14 +89,28 @@ export function home() {
       <ul class="wrap">${perks.map(([ic, label, to]) => `<li><a href="${href(to)}"><span class="hx-ring">${icon(ic)}</span><span>${label}</span></a></li>`).join('')}</ul>
     </section>`,
     mount(root) {
-      const car = $('[data-hx-car]', root); if (!car) return;
-      const track = $('[data-hx-track]', car), slides = [...track.children], dots = [...car.querySelectorAll('[data-hx-dot]')];
+      const orbit = $('[data-hx-orbit]', root); if (!orbit) return;
+      const items = [...orbit.querySelectorAll('[data-hx-item]')], n = items.length;
+      // Ring of slots: centre, then clockwise. Swiping left brings the top-right item to the centre.
+      const RING = ['c', 'tr', 'br', 'bl', 'tl'];
       let idx = 0;
-      const go = (i, smooth = true) => { idx = (i + slides.length) % slides.length; track.scrollTo({ left: slides[idx].offsetLeft - track.offsetLeft, behavior: smooth ? 'smooth' : 'auto' }); };
-      const mark = () => { const i = Math.round(track.scrollLeft / Math.max(1, slides[0].offsetWidth)); idx = Math.min(slides.length - 1, Math.max(0, i)); dots.forEach((d, k) => d.toggleAttribute('aria-current', k === idx)); };
-      let raf = 0; track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(mark); }, { passive: true });
-      car.addEventListener('click', (e) => { const b = e.target.closest('[data-hx-go]'); if (b) { go(idx + Number(b.dataset.hxGo)); restart(); } const d = e.target.closest('[data-hx-dot]'); if (d) { go(Number(d.dataset.hxDot)); restart(); } });
-      const restart = () => {};
+      const paint = () => items.forEach((el, i) => {
+        const k = (i - idx + n) % n;
+        el.dataset.slot = k < RING.length ? RING[k] : (k === n - 1 && n > RING.length ? 'in-l' : 'off');
+        el.tabIndex = k < RING.length ? 0 : -1;
+      });
+      const go = (d) => { idx = (idx + d + n) % n; paint(); };
+      paint();
+      orbit.addEventListener('click', (e) => { const b = e.target.closest('[data-hx-go]'); if (b) { e.preventDefault(); go(Number(b.dataset.hxGo)); } });
+      let x0 = null, y0 = 0, moved = false;
+      orbit.addEventListener('pointerdown', (e) => { x0 = e.clientX; y0 = e.clientY; moved = false; });
+      orbit.addEventListener('pointerup', (e) => {
+        if (x0 == null) return; const dx = e.clientX - x0, dy = e.clientY - y0; x0 = null;
+        if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) { moved = true; go(dx < 0 ? 1 : -1); }
+      });
+      orbit.addEventListener('pointercancel', () => { x0 = null; });
+      // A swipe should not also open the product under the finger.
+      orbit.addEventListener('click', (e) => { if (moved && e.target.closest('[data-hx-item]')) { e.preventDefault(); moved = false; } }, true);
     },
   };
 }
