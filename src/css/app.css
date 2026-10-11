@@ -1110,3 +1110,5 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .hx-orbit .hx-shot[data-slot="br"] { top: 62%; width: 34%; left: 64%; }
 .hx-orbit .hx-shot[data-slot="bl"] { top: 62%; width: 34%; left: 2%; }
 .hx-orbit .hx-shot[data-slot="c"] .hx-tag b { font-size: 18px; }
+.hx-brand-list a { text-align: left; }
+@media (max-width: 899px) { .hx-brand-list { grid-template-columns: auto auto; justify-content: start; column-gap: 28px; } }
