@@ -1132,3 +1132,11 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .ord-kv dd { font-size: 14.5px; margin: 2px 0 0; }
 .ord-status { display: grid; gap: 6px; justify-items: start; }
 .ord-body > .btn { justify-self: start; }
+.ord-st { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none; }
+.ord-st .icon { width: 13px; height: 13px; stroke-width: 2.6; }
+.ord-st.done { background: #e4e4e0; color: #6b6b67; }
+.ord-st.todo { background: #fff; color: var(--ink); border: 1.5px solid var(--ink); }
+.ord-mark { display: flex; gap: 8px; }
+.ord-mark .btn { gap: 6px; }
+.ord-mark .btn.is-on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.ord-mark .btn[data-to="completed"].is-on { background: #6b6b67; border-color: #6b6b67; }

@@ -306,14 +306,15 @@ function mount(main, { store, navigate, query }) {
       <div class="adm-toolbar"><div class="select"><label class="sr-only" for="of-f">Status</label><select id="of-f" data-of>${[['all', 'All orders'], ...ORDER_STATUS].map(([v, l]) => `<option value="${v}" ${orderFilter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div><span class="muted" style="font-size:14px">${list.length} order${list.length === 1 ? '' : 's'}</span></div>
       ${list.length ? `<div class="ord-list">${list.map((o) => {
         const first = o.items[0] || {}; const more = o.items.length - 1;
-        return `<details class="ord-row">
+        return `<details class="ord-row" data-oid="${o.id}">
           <summary>
-            <span class="ord-main"><b class="ord-name">${esc(o.customer.name)}</b><span class="ord-del ${o.fulfillment === 'pickup' ? 'is-pickup' : 'is-ship'}">${o.fulfillment === 'pickup' ? 'Pick up' : 'Shipping'}</span>${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}</span>
+            <span class="ord-main"><b class="ord-name">${esc(o.customer.name)}</b><span class="ord-del ${o.fulfillment === 'pickup' ? 'is-pickup' : 'is-ship'}">${o.fulfillment === 'pickup' ? 'Pick up' : 'Shipping'}</span>${['completed', 'shipped'].includes(o.status) ? `<span class="ord-st done" title="Done — shipped or picked up" aria-label="Done">${icon('check', 'icon-sm')}</span>` : `<span class="ord-st todo" title="Not done yet" aria-label="Not done yet">${icon('close', 'icon-sm')}</span>`}${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}</span>
             <span class="ord-item">${esc(first.title || '')}${more > 0 ? ` <small>+${more} more</small>` : ''}</span>
             <span class="ord-chev" aria-hidden="true">${icon('down', 'icon-sm')}</span>
           </summary>
           <div class="ord-body">
             <dl class="ord-kv"><div><dt>Order</dt><dd class="mono">#${o.number}</dd></div><div><dt>Date</dt><dd>${fmtDate(o.createdAt, true)}</dd></div><div><dt>Phone</dt><dd>${esc(o.customer.phone || '—')}</dd></div><div><dt>Items</dt><dd>${o.items.reduce((s, i) => s + i.qty, 0)}</dd></div><div><dt>Total</dt><dd class="tabnum"><b>${money(o.total)}</b></dd></div></dl>
+            <div class="ord-mark" role="group" aria-label="Mark order"><button type="button" class="btn btn-sm${['completed', 'shipped'].includes(o.status) ? ' is-on' : ''}" data-ord-mark="${o.id}" data-to="completed">${icon('check', 'icon-sm')} Done</button><button type="button" class="btn btn-sm${['completed', 'shipped'].includes(o.status) ? '' : ' is-on'}" data-ord-mark="${o.id}" data-to="new">${icon('close', 'icon-sm')} Not done</button></div>
             <div class="ord-status"><label class="sr-only" for="os-${o.id}">Status</label><select id="os-${o.id}" class="adm-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${needsConfirm(o) ? `<small><button class="btn btn-sm btn-primary adm-confirm-btn" type="button" data-confirm-order="${o.id}">Confirm</button></small>` : ''}${o.tracking && o.tracking.number ? `<small class="adm-track">${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></small>` : o.status === 'shipped' ? `<small><button class="link" type="button" data-track="${o.id}">+ Add tracking</button></small>` : ''}</div>
             <button class="btn btn-sm" type="button" data-open-order="${o.id}">View full order</button>
           </div>
@@ -538,6 +539,12 @@ function mount(main, { store, navigate, query }) {
     }
     const tk = t.closest('[data-track]');
     if (tk) { openTracking(tk.dataset.track); return; }
+    const mk = t.closest('[data-ord-mark]');
+    if (mk) {
+      const sel = $(`#os-${mk.dataset.ordMark}`); const to = mk.dataset.to;
+      if (sel && sel.value !== to && !(to === 'completed' && sel.value === 'shipped')) { sel.value = to; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      return;
+    }
     const cf = t.closest('[data-confirm-order]');
     if (cf) {
       const id = cf.dataset.confirmOrder; cf.disabled = true;
@@ -584,7 +591,7 @@ function mount(main, { store, navigate, query }) {
     if (t.matches('[data-sel-all]')) { $$('[data-sel]').forEach((c) => { c.checked = t.checked; t.checked ? selected.add(c.dataset.sel) : selected.delete(c.dataset.sel); }); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
     if (t.matches('[data-pub]')) { await A.patchProduct(t.dataset.pub, { published: t.checked }); refreshStore(); t.nextElementSibling.textContent = t.checked ? 'Published' : 'Hidden'; toast(t.checked ? 'Published' : 'Hidden from store'); }
     if (t.matches('[data-of]')) { orderFilter = t.value; orders(); }
-    if (t.matches('[data-order-status]')) { const id = t.dataset.orderStatus; try { await A.updateOrder(id, { status: t.value }); } catch (ex) { toast(ex.message || 'Could not update the order'); await loadAll(); if (tab === 'orders') orders(); return; } if ((data.orders.find((x) => x.id === id) || {}).stockHeld === false && t.value !== 'cancelled') refreshStore(); toast('Order status updated'); await loadAll(); const dlg = $('#order-dlg'); if (dlg && dlg.open) { orders(); openOrder(id); } if (t.value === 'shipped') openTracking(id); }
+    if (t.matches('[data-order-status]')) { const id = t.dataset.orderStatus; try { await A.updateOrder(id, { status: t.value }); } catch (ex) { toast(ex.message || 'Could not update the order'); await loadAll(); if (tab === 'orders') orders(); return; } if ((data.orders.find((x) => x.id === id) || {}).stockHeld === false && t.value !== 'cancelled') refreshStore(); toast('Order status updated'); await loadAll(); const dlg = $('#order-dlg'); if (dlg && dlg.open) { orders(); openOrder(id); } else if (tab === 'orders') { const was = [...main.querySelectorAll('.ord-row[open]')].map((d) => d.dataset.oid); orders(); was.forEach((x) => { const d = main.querySelector(`.ord-row[data-oid="${x}"]`); if (d) d.open = true; }); } if (t.value === 'shipped') openTracking(id); }
     if (t.matches('[data-offer-status]')) { await A.updateOffer(t.dataset.offerStatus, { status: t.value }); toast('Offer updated'); await loadAll(); }
     if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests' || tab === 'orders') orders(); }
     if (t.matches('[data-import]') && t.files[0]) { try { await A.importData(await t.files[0].text()); refreshStore(); toast('Backup imported'); render(); } catch (ex) { toast(ex.message, 'err'); } }
