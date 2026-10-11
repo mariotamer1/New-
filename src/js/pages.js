@@ -29,7 +29,7 @@ export function home() {
   const heroPicks = [];
   cats.forEach((c) => { const p = topIn(c.id); if (p) heroPicks.push(p); });
   deals.forEach((p) => { if (heroPicks.length < 5 && !heroPicks.includes(p)) heroPicks.push(p); });
-  const hero = heroPicks.slice(0, 5);
+  const hero = heroPicks.slice(0, 8);
   const catCards = cats.map((c) => ({ c, p: topIn(c.id) })).filter((x) => x.p);
   // Brands with the most listings, as wordmarks that link to a search.
   const brandCount = {}; live.forEach((p) => { if (p.brand) brandCount[p.brand] = (brandCount[p.brand] || 0) + 1; });
@@ -48,8 +48,11 @@ export function home() {
           <p class="hx-lede">Electronics, home goods, tools, appliances, furniture and more — all brand new from top retailers at discounted prices.</p>
           <a class="btn btn-primary btn-lg hx-cta" href="${href('/products')}">Shop All Deals ${icon('arrow', 'icon-sm')}</a>
         </div>
-        <div class="hx-scene" aria-label="Featured products">
-          ${hero.map((p, i) => `<a class="hx-shot s${i}" href="${href('/products/' + p.slug)}" aria-label="${esc(p.title)}">${imgTag(p.images[0], { alt: '', eager: true, sizes: i === 0 ? '(min-width:900px) 30vw, 60vw' : '(min-width:900px) 18vw, 36vw' })}</a>`).join('')}
+        <div class="hx-car" data-hx-car aria-roledescription="carousel" aria-label="Featured products">
+          <div class="hx-track" data-hx-track>${hero.map((p, i) => `<a class="hx-slide" href="${href('/products/' + p.slug)}" aria-label="${esc(p.title)}">${imgTag(p.images[0], { alt: '', eager: i < 2, sizes: '(min-width:900px) 48vw, 92vw' })}<span class="hx-slide-info"><span class="hx-slide-name">${esc(p.title)}</span><span class="hx-slide-price"><b class="tabnum">${money(p.price)}</b>${pctOff(p) ? `<s class="tabnum">${money(p.originalPrice)}</s>` : ''}</span></span></a>`).join('')}</div>
+          <button class="hx-car-btn prev" type="button" aria-label="Previous" data-hx-go="-1">${icon('left', 'icon-sm')}</button>
+          <button class="hx-car-btn next" type="button" aria-label="Next" data-hx-go="1">${icon('right', 'icon-sm')}</button>
+          <div class="hx-dots" data-hx-dots>${hero.map((_, i) => `<button type="button" aria-label="Show product ${i + 1}" data-hx-dot="${i}"${i ? '' : ' aria-current="true"'}></button>`).join('')}</div>
         </div>
       </div>
     </section>
@@ -88,6 +91,19 @@ export function home() {
     <section class="hx-strip" aria-label="Shopping with ML Group">
       <ul class="wrap">${perks.map(([ic, label, to]) => `<li><a href="${href(to)}"><span class="hx-ring">${icon(ic)}</span><span>${label}</span></a></li>`).join('')}</ul>
     </section>`,
+    mount(root) {
+      const car = $('[data-hx-car]', root); if (!car) return;
+      const track = $('[data-hx-track]', car), slides = [...track.children], dots = [...car.querySelectorAll('[data-hx-dot]')];
+      let idx = 0, timer = null;
+      const go = (i, smooth = true) => { idx = (i + slides.length) % slides.length; track.scrollTo({ left: slides[idx].offsetLeft - track.offsetLeft, behavior: smooth ? 'smooth' : 'auto' }); };
+      const mark = () => { const i = Math.round(track.scrollLeft / Math.max(1, slides[0].offsetWidth)); idx = Math.min(slides.length - 1, Math.max(0, i)); dots.forEach((d, k) => d.toggleAttribute('aria-current', k === idx)); };
+      let raf = 0; track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(mark); }, { passive: true });
+      car.addEventListener('click', (e) => { const b = e.target.closest('[data-hx-go]'); if (b) { go(idx + Number(b.dataset.hxGo)); restart(); } const d = e.target.closest('[data-hx-dot]'); if (d) { go(Number(d.dataset.hxDot)); restart(); } });
+      const stop = () => { clearInterval(timer); timer = null; };
+      const restart = () => { stop(); if (!matchMedia('(prefers-reduced-motion: reduce)').matches && slides.length > 1) timer = setInterval(() => { if (document.hidden || !car.isConnected) { if (!car.isConnected) stop(); return; } go(idx + 1); }, 4500); };
+      ['pointerdown', 'touchstart', 'focusin'].forEach((ev) => car.addEventListener(ev, restart, { passive: true }));
+      restart();
+    },
   };
 }
 
