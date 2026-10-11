@@ -51,7 +51,7 @@ const favicon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 56 56"><
 fs.writeFileSync(path.join(SITE, 'favicon.svg'), favicon);
 fs.writeFileSync(path.join(SITE, 'logo.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#0b0b0c" fill-rule="evenodd" d="${LOGO_D}"/></svg>`);
 fs.writeFileSync(path.join(SITE, 'site.webmanifest'), JSON.stringify({ name: 'ML Group', short_name: 'ML Group', start_url: '/', display: 'standalone', background_color: '#0b0b0c', theme_color: '#0b0b0c', icons: [{ src: 'icon-512.png', sizes: '512x512', type: 'image/png' }, { src: 'apple-touch-icon.png', sizes: '180x180', type: 'image/png' }] }));
-for (const f of ['apple-touch-icon.png', 'icon-512.png', 'og-image.jpg']) {
+for (const f of ['apple-touch-icon.png', 'icon-512.png', 'og-image.jpg', 'favicon-32.png', 'favicon-64.png', 'logo-mark.png', 'logo-full.png']) {
   const p = path.join(SRC, 'img/brand', f);
   if (fs.existsSync(p)) fs.copyFileSync(p, path.join(SITE, f));
 }
@@ -79,13 +79,14 @@ ${url ? `<link rel="canonical" href="${esc(url)}">` : ''}
 ${url ? `<meta property="og:url" content="${esc(url)}">` : ''}
 <meta property="og:image" content="${esc(image || SITE_URL + 'og-image.jpg')}">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="${rel}favicon.svg" type="image/svg+xml">
+<link rel="icon" href="${rel}favicon-64.png" type="image/png" sizes="64x64">
+<link rel="icon" href="${rel}favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="${rel}apple-touch-icon.png">
 <link rel="manifest" href="${rel}site.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${FONTS}">
 <link rel="stylesheet" href="${rel}assets/app.css?v=${VER}">
-<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'Organization', name: 'ML Group', url: SITE_URL, logo: SITE_URL + 'logo.svg' })}</script>
+<script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'Organization', name: 'ML Group', url: SITE_URL, logo: SITE_URL + 'logo-full.png' })}</script>
 ${jsonld ? `<script type="application/ld+json" id="ld-page">${JSON.stringify(jsonld).replace(/</g, '\\u003c')}</script>` : ''}
 <script>window.ML_CONFIG=${JSON.stringify({ ...cfg, v: VER })}</script>`;
 }

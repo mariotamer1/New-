@@ -109,7 +109,7 @@ export const icon = (name, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 2
 // Logo: a price tag / shipping label with "ML" knocked out.
 export const LOGO_D = 'M0 0H35L48 13V48H0Z M36.4 9a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0Z M6 41V20H11.6L15 30.4L18.4 20H24V41H19.3V29.6L16.9 36.6H13.1L10.7 29.6V41Z M27 20H32.2V36H41V41H27Z';
 export const logoSvg = (label) => `<svg viewBox="0 0 48 48" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}><path fill="currentColor" fill-rule="evenodd" d="${LOGO_D}"/></svg>`;
-export const logo = (withWord = true) => `${logoSvg()}${withWord ? '<span class="logo-word">GROUP</span>' : ''}`;
+export const logo = (withWord = true) => `<img class="logo-mark" src="${img('logo-mark.png')}" alt="" width="40" height="40">${withWord ? '<span class="logo-word">ML GROUP</span>' : ''}`;
 
 // UPC-A barcode as inline SVG
 const L_CODES = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];

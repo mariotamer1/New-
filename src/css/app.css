@@ -1112,3 +1112,5 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .hx-orbit .hx-shot[data-slot="c"] .hx-tag b { font-size: 18px; }
 .hx-brand-list a { text-align: left; }
 @media (max-width: 899px) { .hx-brand-list { grid-template-columns: auto auto; justify-content: start; column-gap: 28px; } }
+.logo-mark { width: 38px; height: 38px; border-radius: 6px; background: #fff; display: block; flex: none; }
+@media (min-width: 1100px) { .logo-mark { width: 42px; height: 42px; } }
