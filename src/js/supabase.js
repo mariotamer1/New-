@@ -194,6 +194,12 @@ export function createSupabaseBackend(cfg) {
       async orders() { return (await rest('GET', 'orders?select=*&order=created_at.desc')).map(fromOrder); },
       refundOrder: (id, amount) => raw('POST', '/functions/v1/paypal', { action: 'refund', orderId: id, amount: amount == null ? undefined : amount }),
       async setTracking(id, tracking) { await rest('PATCH', `orders?id=eq.${id}`, { tracking }); },
+      async deleteOrder(o) {
+        // An open order that took stock gives it back first.
+        if (o.stockHeld !== false && ['new', 'processing', 'ready'].includes(o.status)) for (const i of o.items) await rpc('admin_adjust_inventory', { p_id: i.productId, p_delta: i.qty }).catch(() => {});
+        await rest('DELETE', `orders?id=eq.${o.id}`);
+        await loadCatalog();
+      },
       async confirmOrder(id) { await rpc('admin_confirm_order', { p_id: id }); await loadCatalog(); },
       async updateOrder(id, patch) {
         if (patch.status === 'cancelled' && patch.restock) { await rpc('admin_cancel_order', { p_id: id, p_restock: true }); await loadCatalog(); return; }

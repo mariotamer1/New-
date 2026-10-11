@@ -177,6 +177,11 @@ function createLocalBackend() {
       async adjustInventory(id, delta) { const p = find(id); if (p) p.inventory = Math.max(0, (p.inventory || 0) + delta); persist(); return p; },
       async orders() { return db.orders; },
       async setTracking(id, tracking) { const o = db.orders.find((x) => x.id === id); if (o) { o.tracking = tracking; persist(); } },
+      async deleteOrder(o) {
+        const x = db.orders.find((y) => y.id === o.id); if (!x) return;
+        if (x.stockHeld !== false && ['new', 'processing', 'ready'].includes(x.status)) x.items.forEach((i) => { const p = find(i.productId); if (p) p.inventory += i.qty; });
+        db.orders = db.orders.filter((y) => y.id !== o.id); persist();
+      },
       async confirmOrder(id) {
         const o = db.orders.find((x) => x.id === id); if (!o || o.stockHeld !== false || o.status === 'cancelled') return;
         o.items.forEach((i) => { const p = find(i.productId); if (p) p.inventory = Math.max(0, p.inventory - i.qty); });

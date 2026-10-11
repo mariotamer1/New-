@@ -306,7 +306,7 @@ function mount(main, { store, navigate, query }) {
       <div class="adm-toolbar"><div class="select"><label class="sr-only" for="of-f">Status</label><select id="of-f" data-of>${[['all', 'All orders'], ...ORDER_STATUS].map(([v, l]) => `<option value="${v}" ${orderFilter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div><span class="muted" style="font-size:14px">${list.length} order${list.length === 1 ? '' : 's'}</span></div>
       ${list.length ? `<div class="ord-list">${list.map((o) => {
         const first = o.items[0] || {}; const more = o.items.length - 1;
-        return `<details class="ord-row" data-oid="${o.id}">
+        return `<div class="ord-swipe" data-swipe="${o.id}"><button class="ord-del-btn" type="button" data-del-order="${o.id}">${icon('trash', 'icon-sm')} Delete</button><details class="ord-row" data-oid="${o.id}">
           <summary>
             <span class="ord-main"><b class="ord-name">${esc(o.customer.name)}</b><span class="ord-del ${o.fulfillment === 'pickup' ? 'is-pickup' : 'is-ship'}">${o.fulfillment === 'pickup' ? 'Pick up' : 'Shipping'}</span>${['completed', 'shipped'].includes(o.status) ? `<span class="ord-st done" title="Done — shipped or picked up" aria-label="Done">${icon('check', 'icon-sm')}</span>` : `<span class="ord-st todo" title="Not done yet" aria-label="Not done yet">${icon('close', 'icon-sm')}</span>`}${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}</span>
             <span class="ord-item">${esc(first.title || '')}${more > 0 ? ` <small>+${more} more</small>` : ''}</span>
@@ -317,8 +317,9 @@ function mount(main, { store, navigate, query }) {
             <div class="ord-mark" role="group" aria-label="Mark order"><button type="button" class="btn btn-sm${['completed', 'shipped'].includes(o.status) ? ' is-on' : ''}" data-ord-mark="${o.id}" data-to="completed">${icon('check', 'icon-sm')} Done</button><button type="button" class="btn btn-sm${['completed', 'shipped'].includes(o.status) ? '' : ' is-on'}" data-ord-mark="${o.id}" data-to="new">${icon('close', 'icon-sm')} Not done</button></div>
             <div class="ord-status"><label class="sr-only" for="os-${o.id}">Status</label><select id="os-${o.id}" class="adm-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${needsConfirm(o) ? `<small><button class="btn btn-sm btn-primary adm-confirm-btn" type="button" data-confirm-order="${o.id}">Confirm</button></small>` : ''}${o.tracking && o.tracking.number ? `<small class="adm-track">${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></small>` : o.status === 'shipped' ? `<small><button class="link" type="button" data-track="${o.id}">+ Add tracking</button></small>` : ''}</div>
             <button class="btn btn-sm" type="button" data-open-order="${o.id}">View full order</button>
+            <button class="btn btn-sm adm-danger ord-del-inline" type="button" data-del-order="${o.id}">${icon('trash', 'icon-sm')} Delete order</button>
           </div>
-        </details>`; }).join('')}</div>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
+        </details></div>`; }).join('')}</div>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
       <h2 class="adm-sub" id="pickup-requests">Pickup requests</h2>
       ${requestsHTML()}
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Orders');
@@ -539,6 +540,15 @@ function mount(main, { store, navigate, query }) {
     }
     const tk = t.closest('[data-track]');
     if (tk) { openTracking(tk.dataset.track); return; }
+    const dl = t.closest('[data-del-order]');
+    if (dl) {
+      const o = data.orders.find((x) => x.id === dl.dataset.delOrder); if (!o) return;
+      const back = o.stockHeld !== false && ['new', 'processing', 'ready'].includes(o.status);
+      if (!confirm(`Delete order #${o.number} for ${o.customer.name}?${back ? ' The items go back in stock.' : ''} This can't be undone.`)) { closeSwipes(); return; }
+      try { await A.deleteOrder(o); refreshStore(); toast(`Order #${o.number} deleted`); await loadAll(); orders(); }
+      catch (ex) { toast(ex.message || 'Could not delete the order'); }
+      return;
+    }
     const mk = t.closest('[data-ord-mark]');
     if (mk) {
       const sel = $(`#os-${mk.dataset.ordMark}`); const to = mk.dataset.to;
@@ -622,6 +632,15 @@ function mount(main, { store, navigate, query }) {
   mo.observe(main, { childList: true, subtree: true });
   main.addEventListener('click', onClick);
   main.addEventListener('change', onChange);
+  // Swipe an order row left to reveal Delete.
+  function closeSwipes(except) { main.querySelectorAll('.ord-swipe.open').forEach((w) => { if (w !== except) w.classList.remove('open'); }); }
+  let sw = null;
+  main.addEventListener('touchstart', (e) => { const w = e.target.closest('.ord-swipe'); sw = w ? { w, x: e.touches[0].clientX, y: e.touches[0].clientY, moved: false } : null; if (!w) closeSwipes(); }, { passive: true });
+  main.addEventListener('touchmove', (e) => {
+    if (!sw) return; const dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
+    if (!sw.moved && Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy) * 1.5) { sw.moved = true; if (dx < 0) { closeSwipes(sw.w); sw.w.classList.add('open'); } else sw.w.classList.remove('open'); }
+  }, { passive: true });
+  main.addEventListener('click', (e) => { const w = e.target.closest('.ord-swipe'); if (w && w.classList.contains('open') && !e.target.closest('[data-del-order]')) { e.preventDefault(); e.stopPropagation(); w.classList.remove('open'); } }, true);
   main.addEventListener('input', onInput);
   main.addEventListener('submit', onSubmit);
   render();
