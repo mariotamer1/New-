@@ -30,7 +30,8 @@ export function home() {
   cats.forEach((c) => { const p = topIn(c.id); if (p) heroPicks.push(p); });
   deals.forEach((p) => { if (heroPicks.length < 5 && !heroPicks.includes(p)) heroPicks.push(p); });
   deals.forEach((p) => { if (heroPicks.length < 15 && !heroPicks.includes(p)) heroPicks.push(p); });
-  const hero = heroPicks.slice(0, 12);
+  live.forEach((p) => { if (!heroPicks.includes(p)) heroPicks.push(p); });
+  const hero = heroPicks; // every in-stock product, standouts first
   const catCards = cats.map((c) => ({ c, p: topIn(c.id) })).filter((x) => x.p);
   const featured = deals.slice(0, 10);
   const perks = [['truck', 'Ships Nationwide', '/shipping-policy'], ['store', 'Free Local Pickup', '/shipping-policy'], ['tag', 'Top Brands', '/products'], ['box', 'Wholesale Available', '/wholesale']];
