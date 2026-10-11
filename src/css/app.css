@@ -1025,7 +1025,7 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .hx-deal-img img { width: 100%; height: 100%; object-fit: cover; }
 .hx-deal-name { color: var(--ink); text-decoration: none; font-size: 15px; font-weight: 500; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .hx-deal-price { display: flex; align-items: baseline; gap: 8px; }
-.hx-deal-price b { color: #c8102e; font: 800 18px var(--font-body); }
+.hx-deal-price b { color: var(--ink); font: 800 18px var(--font-body); }
 .hx-deal-price s { color: var(--mute); font-size: 14px; }
 .hx-add { align-self: end; width: 100%; min-height: 40px; border-radius: 6px; gap: 8px; font-size: 14.5px; }
 .hx-strip { background: var(--ink); color: #fff; margin-top: 26px; }
@@ -1054,3 +1054,28 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .hx-brand-logos { display: block; align-self: center; }
 .hx-brand-logos img { display: block; width: 100%; max-width: 520px; height: auto; margin-inline: auto; }
 @media (min-width: 900px) { .hx-brand-logos { border-left: 1px solid #333; padding-left: 36px; } }
+/* hero: swipeable pages of the 5-item collage */
+.hx-car .hx-track { background: none; box-shadow: none; border-radius: 0; padding-bottom: 6px; }
+.hx-page { position: relative; scroll-snap-align: start; scroll-snap-stop: always; aspect-ratio: 1 / .92; min-height: 0; margin: 4px 6px 0; }
+@media (min-width: 900px) { .hx-page { aspect-ratio: auto; min-height: 420px; } }
+.hx-tag { position: absolute; left: 6px; bottom: 6px; display: inline-flex; align-items: baseline; gap: 6px; background: rgba(255,255,255,.95); border-radius: 5px; padding: 3px 7px; box-shadow: 0 2px 6px rgba(0,0,0,.18); }
+.hx-tag b { color: var(--ink); font: 800 14px var(--font-body); }
+.hx-tag s { color: var(--mute); font-size: 11.5px; }
+.hx-shot.s0 .hx-tag b { font-size: 16px; }
+.hx-car .hx-dots { position: static; margin-top: 10px; }
+.hx-car .hx-dots button { background: rgba(0,0,0,.22); }
+.hx-car .hx-dots button[aria-current] { background: var(--ink); }
+.hx-car .hx-car-btn { top: calc(50% - 14px); z-index: 8; }
+.hx-car:has(.hx-dots button:only-child) .hx-car-btn, .hx-car .hx-dots:has(button:only-child) { display: none; }
+.hx-brand-list a { white-space: nowrap; font-size: clamp(17px, 5.4vw, 26px); }
+/* collage spacing so every price tag stays visible */
+.hx-page .hx-shot.s0 { left: 25%; width: 50%; }
+.hx-page .hx-shot.s1 { left: 0; top: 14%; width: 30%; }
+.hx-page .hx-shot.s2 { right: 0; top: 8%; width: 30%; }
+.hx-page .hx-shot.s3 { left: 3%; width: 36%; }
+.hx-page .hx-shot.s4 { right: 3%; width: 36%; }
+.hx-shot.s1 .hx-tag, .hx-shot.s2 .hx-tag { top: 6px; bottom: auto; }
+.hx-shot.s2 .hx-tag { left: auto; right: 6px; }
+.hx-shot:not(.s0) .hx-tag { flex-direction: column; align-items: flex-start; gap: 0; padding: 2px 6px; line-height: 1.15; }
+.hx-shot:not(.s0) .hx-tag b { font-size: 13px; }
+.hx-shot:not(.s0) .hx-tag s { font-size: 10.5px; }
