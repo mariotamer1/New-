@@ -1098,3 +1098,10 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .hx-orbit .hx-shot[data-slot="c"] .hx-tag b { font-size: 16px; }
 .hx-orbit .hx-car-btn { z-index: 6; top: 36%; }
 @media (prefers-reduced-motion: reduce) { .hx-orbit .hx-shot { transition: none; } }
+.sort-search { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1 1 100%; }
+.sort-search .select select { width: 100%; }
+.cat-search { position: relative; }
+.cat-search .icon { position: absolute; left: 11px; top: 50%; margin-top: -8px; width: 16px; height: 16px; pointer-events: none; color: var(--mute); }
+.cat-search input { width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 0; background: #fff; padding: 0 10px 0 34px; font-size: 16px; font-weight: 500; }
+.cat-search input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+@media (min-width: 900px) { .sort-search { flex: 0 1 520px; } .cat-search input { font-size: 14px; } }

@@ -144,7 +144,7 @@ export function catalog({ query, params = {} }) {
         <div class="toolbar">
           <p class="result-count" data-count aria-live="polite"></p>
           <button class="btn btn-sm filter-btn" type="button" data-open-filters>${icon('filter', 'icon-sm')} Filters</button>
-          <div class="select"><label class="sr-only" for="sort">Sort by</label><select id="sort" data-sort>${SORTS.map(([v, l]) => `<option value="${v}" ${state.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div>
+          <div class="sort-search"><div class="select"><label class="sr-only" for="sort">Sort by</label><select id="sort" data-sort>${SORTS.map(([v, l]) => `<option value="${v}" ${state.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div><div class="cat-search">${icon('search', 'icon-sm')}<label class="sr-only" for="cat-q">Search products</label><input id="cat-q" type="search" placeholder="Search" autocomplete="off" enterkeyhint="search" value="${esc(state.q)}" data-cat-q></div></div>
           <div class="views" role="group" aria-label="View">${VIEWS.map(([v, l, ic]) => `<button type="button" aria-label="${l}" title="${l}" aria-pressed="${state.view === v}" data-view="${v}">${icon(ic)}</button>`).join('')}</div>
         </div>
         <div class="active-filters" data-active></div>
@@ -214,6 +214,12 @@ export function catalog({ query, params = {} }) {
       };
       const renderFilters = () => { $('[data-filters]', root).innerHTML = filterHTML(''); const m = $('[data-filters-m]', root); if (m) m.innerHTML = filterHTML('-m'); };
       const update = () => { renderFilters(); renderResults(); syncURL(); };
+      let qt = 0;
+      root.addEventListener('input', (e) => {
+        if (!e.target.matches('[data-cat-q]')) return;
+        clearTimeout(qt); const v = e.target.value.trim();
+        qt = setTimeout(() => { if (v === state.q) return; state.q = v; state.shown = 24; update(); }, 220);
+      });
       root.addEventListener('change', (e) => {
         const t = e.target; const n = (t.name || '').replace(/-m$/, '');
         if (n === 'cat') { state.cat = t.value; }
@@ -228,7 +234,7 @@ export function catalog({ query, params = {} }) {
         const v = e.target.closest('[data-view]');
         if (v) { state.view = v.dataset.view; ls.set('ml-view', state.view); $$('[data-view]', root).forEach((b) => b.setAttribute('aria-pressed', b === v)); renderResults(); }
         const c = e.target.closest('[data-clear-f]');
-        if (c) { const k = c.dataset.clearF; if (k === 'q' || k === 'all') state.q = ''; if (k === 'cat' || k === 'all') state.cat = ''; if (k === 'deals' || k === 'all') state.deals = false; if (k === 'price' || k === 'all') { state.min = ''; state.max = ''; } update(); }
+        if (c) { const k = c.dataset.clearF; if (k === 'q' || k === 'all') { state.q = ''; const qi = $('[data-cat-q]', root); if (qi) qi.value = ''; } if (k === 'cat' || k === 'all') state.cat = ''; if (k === 'deals' || k === 'all') state.deals = false; if (k === 'price' || k === 'all') { state.min = ''; state.max = ''; } update(); }
         if (e.target.closest('[data-more]')) { state.shown += 24; renderResults(); }
         if (e.target.closest('[data-open-filters]')) $('#filter-dialog').showModal();
         if (e.target.closest('[data-close-filters]')) $('#filter-dialog').close();
