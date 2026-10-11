@@ -1105,3 +1105,8 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .cat-search input { width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 0; background: #fff; padding: 0 10px 0 34px; font-size: 16px; font-weight: 500; }
 .cat-search input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 @media (min-width: 900px) { .sort-search { flex: 0 1 520px; } .cat-search input { font-size: 14px; } }
+/* centre product 1.3x larger, raised above the rest */
+.hx-orbit .hx-shot[data-slot="c"] { left: 17.5%; width: 65%; z-index: 5; box-shadow: 0 26px 44px -18px rgba(0,0,0,.6); }
+.hx-orbit .hx-shot[data-slot="br"] { top: 62%; width: 34%; left: 64%; }
+.hx-orbit .hx-shot[data-slot="bl"] { top: 62%; width: 34%; left: 2%; }
+.hx-orbit .hx-shot[data-slot="c"] .hx-tag b { font-size: 18px; }
