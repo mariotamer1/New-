@@ -1051,3 +1051,6 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .hx-dots button { pointer-events: auto; width: 8px; height: 8px; padding: 0; border-radius: 50%; border: 0; background: rgba(255,255,255,.5); cursor: pointer; transition: width .2s var(--ease), background .2s; }
 .hx-dots button[aria-current] { width: 22px; border-radius: 4px; background: #fff; }
 @media (min-width: 900px) { .hx-slide { aspect-ratio: 5 / 4.4; } }
+.hx-brand-logos { display: block; align-self: center; }
+.hx-brand-logos img { display: block; width: 100%; max-width: 520px; height: auto; margin-inline: auto; }
+@media (min-width: 900px) { .hx-brand-logos { border-left: 1px solid #333; padding-left: 36px; } }

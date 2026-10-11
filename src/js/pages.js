@@ -31,9 +31,6 @@ export function home() {
   deals.forEach((p) => { if (heroPicks.length < 5 && !heroPicks.includes(p)) heroPicks.push(p); });
   const hero = heroPicks.slice(0, 8);
   const catCards = cats.map((c) => ({ c, p: topIn(c.id) })).filter((x) => x.p);
-  // Brands with the most listings, as wordmarks that link to a search.
-  const brandCount = {}; live.forEach((p) => { if (p.brand) brandCount[p.brand] = (brandCount[p.brand] || 0) + 1; });
-  const brands = Object.keys(brandCount).sort((a, b) => brandCount[b] - brandCount[a] || a.localeCompare(b)).slice(0, 6);
   const featured = deals.slice(0, 10);
   const perks = [['truck', 'Ships Nationwide', '/shipping-policy'], ['store', 'Free Local Pickup', '/shipping-policy'], ['tag', 'Top Brands', '/products'], ['box', 'Wholesale Available', '/wholesale']];
   return {
@@ -65,7 +62,7 @@ export function home() {
         <div class="hx-row">${catCards.map(({ c, p }) => `<a class="hx-cat" href="${href('/categories/' + c.slug)}"><div class="hx-cat-img">${imgTag(p.images[0], { alt: '', sizes: '220px' })}</div><div class="hx-cat-name"><span>${esc(c.name)}</span>${icon('arrow', 'icon-sm')}</div></a>`).join('')}</div>
       </div>
     </section>
-    ${brands.length ? `<section class="hx-section hx-tight" aria-labelledby="hx-brands">
+    ${`<section class="hx-section hx-tight" aria-labelledby="hx-brands">
       <div class="wrap">
         <div class="hx-brands">
           <div class="hx-brands-copy">
@@ -73,10 +70,10 @@ export function home() {
             <h2 id="hx-brands">The Brands You Know. <span>The Prices You’ll Love.</span></h2>
             <a class="btn hx-btn-light" href="${href('/products')}">Shop Top Brands ${icon('arrow', 'icon-sm')}</a>
           </div>
-          <ul class="hx-brand-list">${brands.map((b) => `<li><a href="${href('/products?q=' + encodeURIComponent(b))}">${esc(b)}</a></li>`).join('')}</ul>
+          <a class="hx-brand-logos" href="${href('/products')}"><img src="${img('img/brand-logos.webp')}" alt="Samsung, Apple, DeWalt, LG, Shark and Sony" width="900" height="569" loading="lazy" decoding="async"></a>
         </div>
       </div>
-    </section>` : ''}
+    </section>`}
     <section class="hx-section" aria-labelledby="hx-deals">
       <div class="wrap">
         <div class="hx-head"><h2 id="hx-deals">Featured Deals</h2><a href="${href('/products')}">View All ${icon('arrow', 'icon-sm')}</a></div>
