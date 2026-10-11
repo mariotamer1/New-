@@ -304,11 +304,20 @@ function mount(main, { store, navigate, query }) {
     const list = data.orders.filter((o) => orderFilter === 'all' || o.status === orderFilter);
     main.innerHTML = shell(`
       <div class="adm-toolbar"><div class="select"><label class="sr-only" for="of-f">Status</label><select id="of-f" data-of>${[['all', 'All orders'], ...ORDER_STATUS].map(([v, l]) => `<option value="${v}" ${orderFilter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div><span class="muted" style="font-size:14px">${list.length} order${list.length === 1 ? '' : 's'}</span></div>
-      ${list.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>Items</th><th>Delivery</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>
-      ${list.map((o) => `<tr><td class="mono"><b>#${o.number}</b></td><td>${fmtDate(o.createdAt, true)}</td><td>${esc(o.customer.name)}<small>${esc(o.customer.phone)}</small></td><td>${o.items.reduce((s, i) => s + i.qty, 0)}</td><td>${o.fulfillment === 'pickup' ? 'Pickup' : 'Ship'}</td><td class="tabnum"><b>${money(o.total)}</b></td>
-        <td><label class="sr-only" for="os-${o.id}">Status</label><select id="os-${o.id}" class="adm-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${needsConfirm(o) ? `<small><button class="btn btn-sm btn-primary adm-confirm-btn" type="button" data-confirm-order="${o.id}">Confirm</button></small>` : ''}${o.tracking && o.tracking.number ? `<small class="adm-track">${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></small>` : o.status === 'shipped' ? `<small><button class="link" type="button" data-track="${o.id}">+ Add tracking</button></small>` : ''}</td>
-        <td><button class="btn btn-sm" type="button" data-open-order="${o.id}">View</button></td></tr>`).join('')}
-      </tbody></table></div>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
+      ${list.length ? `<div class="ord-list">${list.map((o) => {
+        const first = o.items[0] || {}; const more = o.items.length - 1;
+        return `<details class="ord-row">
+          <summary>
+            <span class="ord-main"><b class="ord-name">${esc(o.customer.name)}</b><span class="ord-del ${o.fulfillment === 'pickup' ? 'is-pickup' : 'is-ship'}">${o.fulfillment === 'pickup' ? 'Pick up' : 'Shipping'}</span>${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}</span>
+            <span class="ord-item">${esc(first.title || '')}${more > 0 ? ` <small>+${more} more</small>` : ''}</span>
+            <span class="ord-chev" aria-hidden="true">${icon('down', 'icon-sm')}</span>
+          </summary>
+          <div class="ord-body">
+            <dl class="ord-kv"><div><dt>Order</dt><dd class="mono">#${o.number}</dd></div><div><dt>Date</dt><dd>${fmtDate(o.createdAt, true)}</dd></div><div><dt>Phone</dt><dd>${esc(o.customer.phone || '—')}</dd></div><div><dt>Items</dt><dd>${o.items.reduce((s, i) => s + i.qty, 0)}</dd></div><div><dt>Total</dt><dd class="tabnum"><b>${money(o.total)}</b></dd></div></dl>
+            <div class="ord-status"><label class="sr-only" for="os-${o.id}">Status</label><select id="os-${o.id}" class="adm-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${needsConfirm(o) ? `<small><button class="btn btn-sm btn-primary adm-confirm-btn" type="button" data-confirm-order="${o.id}">Confirm</button></small>` : ''}${o.tracking && o.tracking.number ? `<small class="adm-track">${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></small>` : o.status === 'shipped' ? `<small><button class="link" type="button" data-track="${o.id}">+ Add tracking</button></small>` : ''}</div>
+            <button class="btn btn-sm" type="button" data-open-order="${o.id}">View full order</button>
+          </div>
+        </details>`; }).join('')}</div>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
       <h2 class="adm-sub" id="pickup-requests">Pickup requests</h2>
       ${requestsHTML()}
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Orders');
