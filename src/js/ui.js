@@ -61,9 +61,10 @@ export function headerHTML() {
   const ann = parts.map((x, i) => `${i ? '<span class="sep hide-sm" aria-hidden="true">·</span>' : ''}<span class="${i ? 'hide-sm' : ''}">${i === 0 ? `<b>${esc(x)}</b>` : esc(x)}</span>`).join('');
   return `
   <a class="skip-link" href="#main">Skip to content</a>
-  ${ann ? `<div class="announce"><div class="wrap">${ann}</div></div>` : ''}
+  ${ann ? `<div class="announce"><div class="wrap">${icon('truck', 'icon-sm')}${ann}</div></div>` : ''}
   <header class="site-header on-ink">
     <div class="wrap header-row">
+      <button class="icon-btn only-mobile hx-menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-sheet" data-menu>${icon('menu')}</button>
       <a class="logo" href="${href('/')}" aria-label="ML Group home">${logo()}</a>
       <nav class="main-nav" aria-label="Main"><ul>${navItems}</ul></nav>
       <div class="header-search">${searchHTML('hs')}</div>
@@ -71,7 +72,6 @@ export function headerHTML() {
         <button class="icon-btn only-mobile" type="button" aria-label="Search" aria-expanded="false" aria-controls="mobile-search" data-msearch>${icon('search')}</button>
         <a class="icon-btn" href="${href('/account')}" aria-label="Account">${icon('user')}</a>
         <button class="icon-btn" type="button" aria-label="Cart" data-open-cart>${icon('bag')}<span class="cart-count" data-cart-count hidden>0</span></button>
-        <button class="icon-btn only-mobile" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-sheet" data-menu>${icon('menu')}</button>
       </div>
     </div>
     <div class="mobile-search" id="mobile-search" hidden>${searchHTML('ms')}</div>

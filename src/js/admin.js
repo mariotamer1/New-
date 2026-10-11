@@ -83,7 +83,6 @@ function mount(main, { store, navigate, query }) {
     const P = data.products;
     const live = P.filter((p) => p.published && p.inventory > 0);
     const out = P.filter((p) => p.inventory <= 0);
-    const low = P.filter((p) => p.inventory > 0 && p.inventory <= 2).slice(0, 6);
     const since = Date.now() - 30 * 864e5;
     const rev = data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) > since).reduce((s, o) => s + o.total, 0);
     const tiles = [
@@ -96,15 +95,12 @@ function mount(main, { store, navigate, query }) {
     ];
     main.innerHTML = shell(`
       <div class="adm-tiles">${tiles.map(([l, v, s]) => `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
-      <div class="adm-cols">
+      <div class="adm-cols two">
         <section class="adm-card"><div class="adm-card-head"><h2>Recent orders</h2><button class="link" type="button" data-tab="orders">All orders</button></div>
           ${data.orders.length ? `<ul class="adm-list">${data.orders.slice(0, 6).map((o) => `<li><button type="button" data-open-order="${o.id}"><span><b class="mono">#${o.number}</b> ${esc(o.customer.name)}<small>${fmtDate(o.createdAt, true)} · ${o.items.length} item${o.items.length > 1 ? 's' : ''} · ${o.fulfillment === 'pickup' ? 'Pickup' : 'Ship'}</small></span><span class="tabnum">${money(o.total)}</span>${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}${(() => { const im = o.items[0] && o.items[0].image; return im ? `<img class="adm-ord-img" src="${esc(img(im.sm || im.lg))}" alt="${esc(o.items[0].title)}" width="52" height="52" loading="lazy">` : '<span class="adm-ord-img adm-noimg"></span>'; })()}</button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No orders yet. They appear here as soon as a customer checks out.</p>'}
         </section>
         <section class="adm-card"><div class="adm-card-head"><h2>Latest offers</h2><button class="link" type="button" data-tab="offers">All offers</button></div>
           ${data.offers.length ? `<ul class="adm-list">${data.offers.slice(0, 6).map((o) => `<li><button type="button" data-tab="offers"><span><b>${money(o.amount)}</b> for ${esc(o.productTitle)}<small>${esc(o.name)} · ${esc(o.phone)} · ${fmtDate(o.createdAt, true)}</small></span><span class="status s-${o.status}">${statusLabel(OFFER_STATUS, o.status)}</span></button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No offers yet. Offers from the “Make Offer” button land here.</p>'}
-        </section>
-        <section class="adm-card"><div class="adm-card-head"><h2>Low stock</h2><button class="link" type="button" data-tab="products">Inventory</button></div>
-          ${low.length ? `<ul class="adm-list">${low.map((p) => `<li><button type="button" data-edit="${p.id}"><span>${esc(p.title)}<small>${catName(p.categoryId)}</small></span><b class="tabnum">${p.inventory} left</b></button></li>`).join('')}</ul>` : '<p class="muted adm-empty">Nothing is running low.</p>'}
         </section>
       </div>`, 'Overview', `<button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button>`);
   }

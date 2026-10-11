@@ -21,72 +21,73 @@ const bestDeals = () => {
 
 // ---------------------------------------------------------------- home
 export function home() {
-  const s = store.settings();
-  const deals = bestDeals();
-  const pick = (slug) => store.product(slug);
-  const heroSlugs = ['portable-bluetooth-cd-boombox', 'countertop-microwave-1-1-cu-ft', 'portable-steel-toolbox-20-inch', 'velvet-accent-chair-mango', 'vintage-tin-toy-car', 'robot-vacuum-cleaner'];
-  let hero = heroSlugs.map(pick).filter(Boolean);
-  deals.forEach((p) => { if (hero.length < 6 && !hero.includes(p)) hero.push(p); });
-  hero = hero.slice(0, 6);
+  const live = store.products().filter((p) => p.inventory > 0 && p.images.length);
+  const deals = bestDeals().filter((p) => p.inventory > 0 && p.images.length);
   const cats = store.categories();
-  const counts = {}; store.products().forEach((p) => { counts[p.categoryId] = (counts[p.categoryId] || 0) + 1; });
-  const catImg = (c) => { const p = deals.find((x) => x.categoryId === c.id); return p ? p.images[0] : null; };
-  const maxOff = Math.max(0, ...store.products().map(pctOff));
+  // One standout product per category (highest price) for the hero and category cards.
+  const topIn = (catId) => live.filter((p) => p.categoryId === catId).sort((a, b) => b.price - a.price)[0];
+  const heroPicks = [];
+  cats.forEach((c) => { const p = topIn(c.id); if (p) heroPicks.push(p); });
+  deals.forEach((p) => { if (heroPicks.length < 5 && !heroPicks.includes(p)) heroPicks.push(p); });
+  const hero = heroPicks.slice(0, 5);
+  const catCards = cats.map((c) => ({ c, p: topIn(c.id) })).filter((x) => x.p);
+  // Brands with the most listings, as wordmarks that link to a search.
+  const brandCount = {}; live.forEach((p) => { if (p.brand) brandCount[p.brand] = (brandCount[p.brand] || 0) + 1; });
+  const brands = Object.keys(brandCount).sort((a, b) => brandCount[b] - brandCount[a] || a.localeCompare(b)).slice(0, 6);
+  const featured = deals.slice(0, 10);
+  const perks = [['truck', 'Ships Nationwide', '/shipping-policy'], ['store', 'Free Local Pickup', '/shipping-policy'], ['tag', 'Top Brands', '/products'], ['box', 'Wholesale Available', '/wholesale']];
   return {
     title: '',
-    description: `Big savings on electronics, home goods, tools, appliances, toys and more — up to ${maxOff}% off retail. Fast shipping, free local pickup, and wholesale pricing from ML Group.`,
+    description: 'Brand-new electronics, home goods, tools, appliances and more from top retailers at discounted prices. Ships nationwide, free local pickup, wholesale available.',
     html: `
-    <section class="hero">
-      <div class="wrap hero-grid">
-        <div class="hero-copy">
-          <p class="eyebrow">Retail &amp; wholesale · Up to ${maxOff}% off</p>
-          <h1 class="display"><span>Big savings.</span><span>Great products.</span></h1>
-          <p class="hero-lede">ML Group offers brand-new products sourced from big retailers like Walmart and Amazon, and more. Every item is new and was purchased through clearance opportunities—we simply pass the savings on to you at prices below retail.</p>
-          <div class="hero-cta">
-            <a class="btn btn-primary btn-lg" href="${href('/products')}">Browse Deals ${icon('arrow', 'icon-sm')}</a>
+    <section class="hx-hero">
+      <div class="wrap hx-hero-grid">
+        <div class="hx-copy">
+          <p class="hx-eyebrow">Brand new products<br>Retail &amp; wholesale</p>
+          <h1 class="hx-title">Something<br>for <span>everyone.</span></h1>
+          <p class="hx-lede">Electronics, home goods, tools, appliances, furniture and more — all brand new from top retailers at discounted prices.</p>
+          <a class="btn btn-primary btn-lg hx-cta" href="${href('/products')}">Shop All Deals ${icon('arrow', 'icon-sm')}</a>
+        </div>
+        <div class="hx-scene" aria-label="Featured products">
+          ${hero.map((p, i) => `<a class="hx-shot s${i}" href="${href('/products/' + p.slug)}" aria-label="${esc(p.title)}">${imgTag(p.images[0], { alt: '', eager: true, sizes: i === 0 ? '(min-width:900px) 30vw, 60vw' : '(min-width:900px) 18vw, 36vw' })}</a>`).join('')}
+        </div>
+      </div>
+    </section>
+    <section class="hx-perks" aria-label="Why shop ML Group">
+      <ul class="wrap">${perks.map(([ic, label, to]) => `<li><a href="${href(to)}">${icon(ic)}<span>${label}</span></a></li>`).join('')}</ul>
+    </section>
+    <section class="hx-section" aria-labelledby="hx-cats">
+      <div class="wrap">
+        <div class="hx-head"><h2 id="hx-cats">Shop by Category</h2><a href="${href('/categories')}">View All ${icon('arrow', 'icon-sm')}</a></div>
+        <div class="hx-row">${catCards.map(({ c, p }) => `<a class="hx-cat" href="${href('/categories/' + c.slug)}"><div class="hx-cat-img">${imgTag(p.images[0], { alt: '', sizes: '220px' })}</div><div class="hx-cat-name"><span>${esc(c.name)}</span>${icon('arrow', 'icon-sm')}</div></a>`).join('')}</div>
+      </div>
+    </section>
+    ${brands.length ? `<section class="hx-section hx-tight" aria-labelledby="hx-brands">
+      <div class="wrap">
+        <div class="hx-brands">
+          <div class="hx-brands-copy">
+            <p class="hx-eyebrow light">Top brands. Real savings.</p>
+            <h2 id="hx-brands">The Brands You Know. <span>The Prices You’ll Love.</span></h2>
+            <a class="btn hx-btn-light" href="${href('/products')}">Shop Top Brands ${icon('arrow', 'icon-sm')}</a>
           </div>
-          <div class="hero-proof"><span>${icon('truck')} Ships nationwide</span><span>${icon('store')} Free local pickup</span></div>
-        </div>
-        <div class="hero-collage" aria-label="Featured deals">
-          ${hero.map((p, i) => `<a class="hero-tile ${i === 0 ? 'big' : ''}" href="${href('/products/' + p.slug)}">
-            ${imgTag(p.images[0], { alt: p.title, eager: i < 3, sizes: i === 0 ? '(min-width:900px) 34vw, 66vw' : '(min-width:900px) 17vw, 33vw' })}
-            <span class="cat">${esc(p.title)}</span>
-            <span class="tag">${pctOff(p) ? `<b class="was-slash tabnum">${tileMoney(p.originalPrice)}</b>` : ''}<span class="tabnum">${tileMoney(p.price)}</span></span>
-          </a>`).join('')}
+          <ul class="hx-brand-list">${brands.map((b) => `<li><a href="${href('/products?q=' + encodeURIComponent(b))}">${esc(b)}</a></li>`).join('')}</ul>
         </div>
       </div>
-    </section>
-    <section class="proof-strip on-ink" aria-label="Why shop ML Group">
-      <ul class="wrap">
-        <li>${icon('percent')}<div><b>Up to ${maxOff}% off</b><span>Below retail, every day</span></div></li>
-        <li>${icon('store')}<div><b>Local pickup</b><span>Always free, always available</span></div></li>
-        <li>${icon('truck')}<div><b>Fast shipping</b><span>Flat price shown on every item</span></div></li>
-        <li>${icon('box')}<div><b>Wholesale</b><span>Case packs &amp; pallets</span></div></li>
-      </ul>
-    </section>
-    <section class="section" aria-labelledby="deals-h">
+    </section>` : ''}
+    <section class="hx-section" aria-labelledby="hx-deals">
       <div class="wrap">
-        <div class="section-head"><div><h2 id="deals-h">Shop our products</h2><p>Brand-new items below retail. When they’re gone, they’re gone.</p></div><a class="link-arrow" href="${href('/products')}">View all products ${icon('arrow', 'icon-sm')}</a></div>
-        <div class="grid cols-4">${deals.slice(0, 8).map((p) => cardHTML(p)).join('')}</div>
+        <div class="hx-head"><h2 id="hx-deals">Featured Deals</h2><a href="${href('/products')}">View All ${icon('arrow', 'icon-sm')}</a></div>
+        <div class="hx-row">${featured.map((p) => `<article class="hx-deal">
+          <a class="hx-deal-img" href="${href('/products/' + p.slug)}">${imgTag(p.images[0], { alt: p.title, sizes: '220px' })}</a>
+          <a class="hx-deal-name" href="${href('/products/' + p.slug)}">${esc(p.title)}</a>
+          <p class="hx-deal-price"><b class="tabnum">${money(p.price)}</b>${pctOff(p) ? `<s class="tabnum">${money(p.originalPrice)}</s>` : ''}</p>
+          <button class="btn btn-primary hx-add" type="button" data-add="${p.id}">${icon('bag', 'icon-sm')} Add to Cart</button>
+        </article>`).join('')}</div>
       </div>
     </section>
-    <section class="section band alt" aria-labelledby="cats-h">
-      <div class="wrap">
-        <div class="section-head"><div><h2 id="cats-h">Shop by category</h2></div><a class="link-arrow" href="${href('/categories')}">All categories ${icon('arrow', 'icon-sm')}</a></div>
-        <div class="cat-grid six">${cats.map((c) => `<a class="cat-tile" href="${href('/categories/' + c.slug)}"><div class="ct-img">${imgTag(catImg(c), { alt: '', sizes: '(min-width:1200px) 16vw, 50vw' })}</div><div class="ct-body"><div><h3>${esc(c.name)}</h3><span class="ct-count">${counts[c.id] || 0} items</span></div>${icon('arrow')}</div></a>`).join('')}</div>
-      </div>
-    </section>
-    <section class="section" aria-labelledby="pickup-h">
-      <div class="wrap">
-        <div class="section-head"><div><h2 id="pickup-h">Local pickup, made easy</h2><p>${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} · ${esc(s.pickupHours)}</p></div></div>
-        <ol class="steps">
-          <li><h3>Order online</h3><p>Choose “Local pickup” at checkout — it’s always free.</p></li>
-          <li><h3>Get a text</h3><p>Communicate to set up a time to meet up.</p></li>
-          <li><h3>Pick it up</h3><p>We will help load large items and anything you need.</p></li>
-        </ol>
-      </div>
+    <section class="hx-strip" aria-label="Shopping with ML Group">
+      <ul class="wrap">${perks.map(([ic, label, to]) => `<li><a href="${href(to)}"><span class="hx-ring">${icon(ic)}</span><span>${label}</span></a></li>`).join('')}</ul>
     </section>`,
-    mount: (root) => mountCarousels(root),
   };
 }
 
