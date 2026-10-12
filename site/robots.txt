@@ -2,4 +2,4 @@ User-agent: *
 Disallow: /admin/
 Disallow: /checkout/
 Disallow: /account/
-Sitemap: https://mariotamer.com/sitemap.xml
+Sitemap: https://tamermdz.com/sitemap.xml
