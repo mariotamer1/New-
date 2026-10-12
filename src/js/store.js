@@ -65,7 +65,7 @@ function createLocalBackend() {
       try { db = await idb.get(DB_KEY); } catch { db = null; }
       if (!db) db = ls.get(DB_KEY, null);
       if (!db || !db.products) { db = freshDB(); }
-      if (!db.adminHash) db.adminHash = await sha256('STARTUP-71224');
+      if (!db.adminHash) db.adminHash = await sha256('STARTUP711225');
       persist();
     },
     catalog() { return { products: db.products, categories: db.categories, settings: db.settings }; },
