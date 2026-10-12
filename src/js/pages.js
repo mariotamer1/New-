@@ -317,14 +317,18 @@ export function product({ params }) {
       const buy = $('.buy-row', root), sticky = $('[data-sticky]', root);
       if ('IntersectionObserver' in window && buy && sticky) {
         // Show the bar once the main buttons scroll away, and hide it again when the footer comes into view.
-        let pastBuy = false, atFooter = false;
-        const paint = () => sticky.classList.toggle('show', pastBuy && !atFooter);
+        let pastBuy = false, atFooter = false, atUpc = false;
+        const paint = () => sticky.classList.toggle('show', pastBuy && !atFooter && !atUpc);
+        // Once the UPC section has scrolled past the top, the bar goes away.
+        const upc = $('.upc', root);
+        const uo = upc ? new IntersectionObserver(([en]) => { atUpc = !en.isIntersecting && en.boundingClientRect.top < 0; paint(); }) : null;
+        if (uo) uo.observe(upc);
         const io = new IntersectionObserver(([en]) => { pastBuy = !en.isIntersecting && en.boundingClientRect.top < 0; paint(); });
         io.observe(buy);
         const foot = document.querySelector('.site-footer');
         const fo = foot ? new IntersectionObserver(([en]) => { atFooter = en.isIntersecting; paint(); }) : null;
         if (fo) fo.observe(foot);
-        return () => { io.disconnect(); if (fo) fo.disconnect(); };
+        return () => { io.disconnect(); if (fo) fo.disconnect(); if (uo) uo.disconnect(); };
       }
     },
   };
