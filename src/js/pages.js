@@ -316,9 +316,15 @@ export function product({ params }) {
       });
       const buy = $('.buy-row', root), sticky = $('[data-sticky]', root);
       if ('IntersectionObserver' in window && buy && sticky) {
-        const io = new IntersectionObserver(([en]) => sticky.classList.toggle('show', !en.isIntersecting && en.boundingClientRect.top < 0));
+        // Show the bar once the main buttons scroll away, and hide it again when the footer comes into view.
+        let pastBuy = false, atFooter = false;
+        const paint = () => sticky.classList.toggle('show', pastBuy && !atFooter);
+        const io = new IntersectionObserver(([en]) => { pastBuy = !en.isIntersecting && en.boundingClientRect.top < 0; paint(); });
         io.observe(buy);
-        return () => io.disconnect();
+        const foot = document.querySelector('.site-footer');
+        const fo = foot ? new IntersectionObserver(([en]) => { atFooter = en.isIntersecting; paint(); }) : null;
+        if (fo) fo.observe(foot);
+        return () => { io.disconnect(); if (fo) fo.disconnect(); };
       }
     },
   };
