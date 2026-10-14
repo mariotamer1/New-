@@ -477,6 +477,7 @@ export function policy({ kind }) {
       <p>We want you to be happy with your deal. If something isn’t right, contact us within <b>3 days</b> of delivery or pickup.</p>
       <h2>Returns</h2><ul><li>New items (only) can be returned and fully refunded if the product is unused/same condition as received as new, or defective/doesn’t work/broken. Within 3 days after delivery or pick up.</li></ul>
       <h2>Refunds</h2><ul><li>Refunds go back to your original payment method within 5 business days of receiving the return.</li><li>Original shipping is non-refundable unless we made an error.</li><li>Items not as described or damaged in shipping are refunded in full, including shipping.</li></ul>
+      <h2>Cancellations &amp; processing fee</h2><p>A refund may be requested at either of two times: after an order is placed but before it ships, or after the order has been delivered. All refunds are subject to a <b>4.5% card processing fee</b>, which may be deducted from the refund amount at the time the refund is issued. This applies to any customer who cancels an order or returns an item for a refund.</p><p>We kindly ask that you review your order carefully before completing your purchase.</p>
       <h2>Start a return</h2><p>Call or text ${esc(s.phone)} or email ${esc(s.email)} with your order number.</p>`}</div></div>`,
   };
 }
