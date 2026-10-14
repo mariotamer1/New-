@@ -87,8 +87,8 @@ function mount(main, { store, navigate, query }) {
     const rev = data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) > since).reduce((s, o) => s + o.total, 0);
     const tiles = [
       ['Live listings', live.length, 'Published and in stock'],
-      ['Units in stock', P.reduce((s, p) => s + Math.max(0, p.inventory), 0), `${out.length} sold out (hidden)`],
       ['New orders', data.orders.filter((o) => o.status === 'new').length, `${data.orders.length} total`],
+      ['Units in stock', P.reduce((s, p) => s + Math.max(0, p.inventory), 0), `${out.length} sold out (hidden)`],
       ['New offers', data.offers.filter((o) => o.status === 'new').length, `${data.offers.length} total`],
       ['Sales · 30 days', money(rev), 'Excludes cancelled'],
       ['Messages', data.inquiries.filter((o) => o.status === 'new').length, 'Contact + wholesale'],
