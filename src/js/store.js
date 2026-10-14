@@ -187,6 +187,13 @@ function createLocalBackend() {
         o.items.forEach((i) => { const p = find(i.productId); if (p) p.inventory = Math.max(0, p.inventory - i.qty); });
         o.stockHeld = true; if (o.status === 'new') o.status = 'processing'; persist(); return o;
       },
+      async refundOrder(id, amount) {
+        const o = db.orders.find((x) => x.id === id); if (!o || !o.paidAt) throw new Error('This order was not paid online.');
+        const done = (o.paypalRefunds || []).reduce((t, r) => t + Number(r.amount), 0);
+        const value = amount == null ? Math.round((o.total - done) * 100) / 100 : Number(amount);
+        o.paypalRefunds = [...(o.paypalRefunds || []), { id: 'local-' + Date.now(), status: 'COMPLETED', amount: value.toFixed(2), at: new Date().toISOString() }];
+        persist(); return { ok: true };
+      },
       async updateOrder(id, patch) {
         const o = db.orders.find((x) => x.id === id); if (!o) return;
         if (patch.status === 'cancelled' && o.status !== 'cancelled' && patch.restock && o.stockHeld !== false) {
