@@ -558,6 +558,7 @@ export function checkout() {
               <p class="form-error" data-err hidden></p>
               ${payPal ? `<div class="pp-wrap" data-pp><p class="muted" data-pp-loading style="font-size:13px">Loading PayPal…</p></div>` : `<button class="btn btn-primary btn-lg btn-block" type="submit" style="margin-top:8px">${icon('lock', 'icon-sm')} Place order</button>`}
               <p class="form-note">By placing your order you agree to our <a href="${href('/refund-policy')}">refund policy</a>.</p>
+              <p class="form-note" style="font-size:11.5px;opacity:.7">After placing your order, please check back on our website for order updates. Email notifications are coming soon. Thank you for your patience.</p>
             </div>
           </aside>
         </form>`;
