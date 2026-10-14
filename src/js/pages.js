@@ -476,7 +476,7 @@ export function policy({ kind }) {
       <h2>Local pickup</h2><ul><li>Location: ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}.</li><li>Hours: ${esc(s.pickupHours)}.</li><li>Your order is ready anytime — just message us to set up a time. ${esc(s.pickupNote)}</li><li>Orders are held for 7 days.</li></ul>` : `
       <p>We want you to be happy with your deal. If something isn’t right, contact us within <b>3 days</b> of delivery or pickup.</p>
       <h2>Returns</h2><ul><li>New items (only) can be returned and fully refunded if the product is unused/same condition as received as new, or defective/doesn’t work/broken. Within 3 days after delivery or pick up.</li></ul>
-      <h2>Refunds</h2><ul><li>Refunds go back to your original payment method within 5 business days of receiving the return.</li><li>Original shipping is non-refundable unless we made an error.</li><li>Items not as described or damaged in shipping are refunded in full, including shipping.</li></ul>
+      <h2>Refunds</h2><ul><li>Refunds go back to your original payment method within 5 business days of receiving the return.</li><li>Original shipping is non-refundable unless we made an error.</li><li>Items not as described or damaged in shipping are refunded, including shipping, subject to the processing fee below.</li></ul>
       <h2>Cancellations &amp; processing fee</h2><p>A refund may be requested at either of two times: after an order is placed but before it ships, or after the order has been delivered. All refunds are subject to a <b>4.5% card processing fee</b>, which may be deducted from the refund amount at the time the refund is issued. This applies to any customer who cancels an order or returns an item for a refund.</p><p>We kindly ask that you review your order carefully before completing your purchase.</p>
       <h2>Start a return</h2><p>Call or text ${esc(s.phone)} or email ${esc(s.email)} with your order number.</p>`}</div></div>`,
   };
@@ -704,9 +704,9 @@ export function order({ params }) {
           const r = await store.cancelOrder(o.id);
           dlg.dataset.done = '1';
           if (r && r.status === 'shipped') show(shippedMsg);
-          else if (r && r.refundError) show(`<h2>Order cancelled</h2><p>We cancelled your order. Your refund of <b>${money(o.total)}</b> needs one more step on our end — we’ll send it to your original payment method shortly. Questions? Call or text ${esc(s.phone)}.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
+          else if (r && r.refundError) show(`<h2>Order cancelled</h2><p>We cancelled your order. Your refund of <b>${money(Math.round(o.total * 95.5) / 100)}</b> (less the 4.5% card processing fee) needs one more step on our end — we’ll send it to your original payment method shortly. Questions? Call or text ${esc(s.phone)}.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
           else if (!o.paidAt) show(`<span class="check">${icon('check')}</span><h2>Order cancelled</h2><p>Your order has been canceled.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
-          else show(`<span class="check">${icon('check')}</span><h2>Order cancelled</h2><p>We have canceled your order and refunded you the full amount <b>${money(o.total)}</b> and will arrive back to your original payment method in a few days.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
+          else show(`<span class="check">${icon('check')}</span><h2>Order cancelled</h2><p>Your order has been cancelled and a refund of <b>${money(r && Number(r.refunded) > 0 ? Number(r.refunded) : Math.round(o.total * 95.5) / 100)}</b> has been issued to your original payment method. This reflects the 4.5% card processing fee outlined in our <a href="${href('/refund-policy')}">refund policy</a>. Please allow a few business days for it to arrive.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Exit</button></div>`);
           await store.reload();
         } catch (ex) {
           show(`<h2>We couldn’t cancel this order</h2><p>${esc(ex.message || 'Please try again.')} You can also call or text ${esc(s.phone)}.</p><div class="cx-actions"><button class="btn btn-primary" type="button" data-cx-close>Go back</button></div>`);
@@ -716,7 +716,7 @@ export function order({ params }) {
       box.onclick = (e) => {
         if (!e.target.closest('[data-cancel-ask]')) return;
         if (shipped) { show(shippedMsg); return; }
-        show(`<h2>Cancel order #${o.number}?</h2><p>${o.paidAt ? 'Are you sure you want to cancel your order and receive a full refund?' : 'Are you sure you want to cancel your order?'}</p><div class="cx-actions"><button class="btn cx-yes" type="button" data-cx-yes>Yes</button><button class="btn btn-primary" type="button" data-cx-close>No, Go back</button></div>`);
+        show(`<h2>Cancel order #${o.number}?</h2><p>${o.paidAt ? 'Are you sure you want to cancel your order? You will receive a refund of your order total less a 4.5% card processing fee.' : 'Are you sure you want to cancel your order?'}</p><div class="cx-actions"><button class="btn cx-yes" type="button" data-cx-yes>Yes</button><button class="btn btn-primary" type="button" data-cx-close>No, Go back</button></div>`);
       };
     },
   };

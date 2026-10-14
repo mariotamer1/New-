@@ -4,7 +4,7 @@
 //   { action: 'capture', orderId }  -> captures it and marks the store order paid
 //   { action: 'cancel',  orderId }  -> buyer closed PayPal: restock and cancel if still unpaid
 //   { action: 'refund',  orderId, amount? } -> admin only: refunds the amount given, or all that is left
-//   { action: 'customer_cancel', orderId } -> customer cancel: only if not shipped / no tracking; full refund if paid
+//   { action: 'customer_cancel', orderId } -> customer cancel: only if not shipped / no tracking; refund less 4.5% fee if paid
 //   { action: 'ping' }              -> checks the PayPal credentials
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -57,6 +57,8 @@ async function isAdmin(req: Request) {
   return r.ok && (await r.json()) === true;
 }
 
+const FEE_RATE = 0.045;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
@@ -75,11 +77,13 @@ Deno.serve(async (req) => {
         const refunds: { id: string; status: string; amount: string; at: string }[] = o.paypal.refunds || (o.paypal.refund ? [o.paypal.refund] : []);
         const cents = (v: unknown) => Math.round(Number(v) * 100);
         const done = refunds.filter((r) => !['FAILED', 'CANCELLED'].includes(r.status)).reduce((t, r) => t + cents(r.amount), 0);
-        const left = cents(o.paypal.amount || o.total) - done;
+        // 4.5% card processing fee is kept on every refund (see the refund policy).
+        const paid = cents(o.paypal.amount || o.total);
+        const left = paid - Math.round(paid * FEE_RATE) - done;
         if (left > 0) {
           const value = (left / 100).toFixed(2);
           const r = await pp(`/v2/payments/captures/${o.paypal.captureId}/refund`, 'POST',
-            { amount: { currency_code: 'USD', value }, note_to_payer: `Refund for cancelled ML Group order #${o.number}` },
+            { amount: { currency_code: 'USD', value }, note_to_payer: `Refund for cancelled ML Group order #${o.number} (less 4.5% card processing fee)` },
             { 'PayPal-Request-Id': `cust-cancel-${o.id}` });
           if (!r.ok) {
             await db(`orders?id=eq.${o.id}`, { method: 'PATCH', body: JSON.stringify({ notes: `${o.notes || ''}\nCUSTOMER CANCELLED — AUTOMATIC REFUND FAILED, refund manually.`.trim() }) });
