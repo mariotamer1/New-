@@ -1126,7 +1126,9 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .ord-item { grid-area: item; font-size: 14px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ord-chev { grid-area: chev; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--hair); border-radius: 50%; transition: transform .2s var(--ease); }
 .ord-row[open] .ord-chev { transform: rotate(180deg); }
-.ord-body { border-top: 1px solid var(--hair); padding: 12px 14px 14px; display: grid; gap: 12px; }
+.ord-body { border-top: 1px solid var(--hair); padding: 12px 14px 14px; display: grid; position: relative; gap: 12px; }
+.ord-body-img { position: absolute; right: 14px; bottom: 14px; width: 120px; height: 120px; object-fit: cover; border: 1px solid var(--hair); border-radius: 10px; background: #fff; }
+@media (max-width: 380px) { .ord-body-img { width: 96px; height: 96px; } }
 .ord-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 16px; }
 .ord-kv dt { font: 600 11px var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
 .ord-kv dd { font-size: 14.5px; margin: 2px 0 0; }
