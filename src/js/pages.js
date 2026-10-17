@@ -13,10 +13,17 @@ function trackingHTML(o) {
 // Whole-dollar prices drop the cents so tile tags fit on small screens.
 const tileMoney = (n) => (Number(n) % 1 ? money(n) : money(n).replace(/\.00$/, ''));
 
-// Products shown first on the home page and in the Featured sort (by slug). Temporary pick.
-const PIN_FIRST = ['milwaukee-m18-fuel-3-8-mid-torque-impact-wrench-kit-2960-22r'];
-const pinRank = (p) => { const i = PIN_FIRST.indexOf(p.slug); return i < 0 ? PIN_FIRST.length : i; };
-const pinFirst = (list) => list.slice().sort((a, b) => pinRank(a) - pinRank(b));
+// Rotating order: every page load shows a different lineup. The lead item cycles through the
+// bigger-ticket listings (price $100+) visit by visit; everything after it is shuffled once per load.
+const VISIT = (() => { const n = (Number(ls.get('ml-visit', 0)) || 0) + 1; ls.set('ml-visit', n); return n; })();
+const RAND = new Map();
+const randKey = (p) => { if (!RAND.has(p.id)) RAND.set(p.id, Math.random()); return RAND.get(p.id); };
+const pinFirst = (list) => {
+  const big = list.filter((p) => p.price >= 100 && p.inventory > 0 && p.images.length).sort((a, b) => b.price - a.price);
+  const lead = big.length ? big[VISIT % big.length] : null;
+  const rest = list.filter((p) => p !== lead).sort((a, b) => randKey(a) - randKey(b));
+  return lead ? [lead, ...rest] : rest;
+};
 
 const catName = (id) => (store.category(id) || {}).name || 'Other';
 const bestDeals = () => {
@@ -38,7 +45,7 @@ export function home() {
   live.forEach((p) => { if (!heroPicks.includes(p)) heroPicks.push(p); });
   const hero = pinFirst(heroPicks); // every in-stock product, pinned + standouts first
   const catCards = cats.map((c) => ({ c, p: topIn(c.id) })).filter((x) => x.p);
-  const featured = deals.slice(0, 10);
+  const featured = pinFirst(deals).slice(0, 10);
   const perks = [['truck', 'Ships Nationwide', '/shipping-policy'], ['store', 'Free Local Pickup', '/shipping-policy'], ['tag', 'Top Brands', '/products'], ['box', 'Wholesale Available', '/wholesale']];
   return {
     title: '',
