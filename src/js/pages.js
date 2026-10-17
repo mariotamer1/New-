@@ -13,6 +13,11 @@ function trackingHTML(o) {
 // Whole-dollar prices drop the cents so tile tags fit on small screens.
 const tileMoney = (n) => (Number(n) % 1 ? money(n) : money(n).replace(/\.00$/, ''));
 
+// Products shown first on the home page and in the Featured sort (by slug). Temporary pick.
+const PIN_FIRST = ['milwaukee-m18-fuel-3-8-mid-torque-impact-wrench-kit-2960-22r'];
+const pinRank = (p) => { const i = PIN_FIRST.indexOf(p.slug); return i < 0 ? PIN_FIRST.length : i; };
+const pinFirst = (list) => list.slice().sort((a, b) => pinRank(a) - pinRank(b));
+
 const catName = (id) => (store.category(id) || {}).name || 'Other';
 const bestDeals = () => {
   const all = store.products();
@@ -31,7 +36,7 @@ export function home() {
   deals.forEach((p) => { if (heroPicks.length < 5 && !heroPicks.includes(p)) heroPicks.push(p); });
   deals.forEach((p) => { if (heroPicks.length < 15 && !heroPicks.includes(p)) heroPicks.push(p); });
   live.forEach((p) => { if (!heroPicks.includes(p)) heroPicks.push(p); });
-  const hero = heroPicks; // every in-stock product, standouts first
+  const hero = pinFirst(heroPicks); // every in-stock product, pinned + standouts first
   const catCards = cats.map((c) => ({ c, p: topIn(c.id) })).filter((x) => x.p);
   const featured = deals.slice(0, 10);
   const perks = [['truck', 'Ships Nationwide', '/shipping-policy'], ['store', 'Free Local Pickup', '/shipping-policy'], ['tag', 'Top Brands', '/products'], ['box', 'Wholesale Available', '/wholesale']];
@@ -176,6 +181,7 @@ export function catalog({ query, params = {} }) {
         if (!isNaN(mx)) list = list.filter((p) => p.price <= mx);
         const by = { featured: () => 0, deals: (a, b) => (pctOff(b) - pctOff(a)), discount: (a, b) => (pctOff(b) - pctOff(a)) || (a.price - b.price), 'price-asc': (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, new: (a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) };
         if (!(state.q && state.sort === 'featured')) list.sort(by[state.sort] || by.featured);
+        if (!state.q && (state.sort || 'featured') === 'featured') list = pinFirst(list);
         return list;
       };
       const syncURL = () => {
