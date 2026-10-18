@@ -491,7 +491,6 @@ export function mountChrome(navigate) {
     e.preventDefault(); e.stopPropagation();
     const on = await likes.toggle(b.dataset.like);
     b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
-    toast(on ? 'Saved to Liked items' : 'Removed from Liked items');
   }, true);
   $$('[data-search]').forEach((f) => mountSearch(f, navigate));
   mountCart();
