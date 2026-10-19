@@ -471,7 +471,7 @@ export function policy({ kind }) {
     description: ship ? 'ML Group shipping prices, delivery times and free local pickup details.' : 'ML Group refund and return policy for retail purchases.',
     html: `<div class="page-head"><div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><a href="${href('/')}">Home</a><span aria-hidden="true">/</span><span aria-current="page">${ship ? 'Shipping & Pickup' : 'Refund Policy'}</span></nav><h1>${ship ? 'Shipping &amp; pickup' : 'Refund policy'}</h1></div></div>
     <div class="wrap section" style="padding-top:28px"><div class="prose">${ship ? `
-      <p>Every product page shows its exact shipping price. Shipping is charged once per item line, and local pickup is always free.</p>
+      <p>Every product page shows its exact shipping price. Combined shipping: you pay one flat shipping charge per order, no matter how many items are in your cart. Local pickup is always free.</p>
       <h2>Shipping</h2><ul><li>Orders ship within 1–2 business days to the contiguous United States.</li><li>Tracking is sent by text or email as soon as your order ships.</li><li>Large items (furniture, appliances) ship by freight; we’ll call to schedule delivery.</li></ul>
       <h2>Local pickup</h2><ul><li>Location: ${s.address1 ? esc(s.address1) + ', ' : ''}${esc(s.city)}, ${esc(s.state)} ${esc(s.zip)}.</li><li>Hours: ${esc(s.pickupHours)}.</li><li>Your order is ready anytime — just message us to set up a time. ${esc(s.pickupNote)}</li><li>Orders are held for 7 days.</li></ul>` : `
       <p>We want you to be happy with your deal. If something isn’t right, contact us within <b>3 days</b> of delivery or pickup.</p>
@@ -509,7 +509,7 @@ export function checkout() {
         const pickupOnly = items.filter((i) => i.product.noShipping);
         if (pickupOnly.length) draft.fulfillment = 'pickup';
         const pickup = draft.fulfillment === 'pickup';
-        const shipTotal = round2(items.reduce((t, i) => t + i.product.shipping, 0));
+        const shipTotal = round2(items.reduce((t, i) => Math.max(t, i.product.shipping), 0)); // combined shipping: one flat charge
         const sub = cart.subtotal();
         if ((!pickup && draft.payment === 'pickup') || draft.payment === 'link') draft.payment = 'paypal';
         // A $0 order skips the payment step entirely.

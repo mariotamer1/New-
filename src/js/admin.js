@@ -149,7 +149,7 @@ function mount(main, { store, navigate, query }) {
     const p = isNew ? null : data.products.find((x) => x.id === editId);
     if (!isNew && !p) { editId = null; return products(); }
     if (!draft || draft._for !== editId) {
-      draft = p ? JSON.parse(JSON.stringify(p)) : { title: '', slug: '', brand: '', upc: '', condition: 'New', categoryId: (store.categories()[0] || {}).id || null, description: '', price: '', originalPrice: '', shipping: 9.99, inventory: 1, published: true, bestDeal: false, images: [] };
+      draft = p ? JSON.parse(JSON.stringify(p)) : { title: '', slug: '', brand: '', upc: '', condition: 'New', categoryId: (store.categories()[0] || {}).id || null, description: '', price: '', originalPrice: '', shipping: 9.95, inventory: 1, published: true, bestDeal: false, images: [] };
       draft._for = editId;
     }
     const d = draft;
