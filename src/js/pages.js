@@ -236,7 +236,19 @@ export function catalog({ query, params = {} }) {
         if (v) { state.view = v.dataset.view; ls.set('ml-view', state.view); $$('[data-view]', root).forEach((b) => b.setAttribute('aria-pressed', b === v)); renderResults(); }
         const c = e.target.closest('[data-clear-f]');
         if (c) { const k = c.dataset.clearF; if (k === 'q' || k === 'all') { state.q = ''; const qi = $('[data-cat-q]', root); if (qi) qi.value = ''; } if (k === 'cat' || k === 'all') state.cat = ''; if (k === 'deals' || k === 'all') state.deals = false; if (k === 'price' || k === 'all') { state.min = ''; state.max = ''; } update(); }
-        if (e.target.closest('[data-more]')) { state.shown += 24; renderResults(); }
+        if (e.target.closest('[data-more]')) {
+          // Append the next batch in place (no full re-render) so the page stays where it is.
+          const list = filtered(); const from = state.shown; state.shown += 24;
+          const grid = $('[data-results] .grid', root);
+          if (!grid) { renderResults(); return; }
+          const sizes = state.view === 'grid2' ? '(min-width:1024px) 38vw, 50vw' : state.view === 'list' ? '220px' : '(min-width:1024px) 20vw, 50vw';
+          const y = window.scrollY;
+          grid.insertAdjacentHTML('beforeend', list.slice(from, state.shown).map((p) => cardHTML(p, { sizes })).join(''));
+          const more = $('[data-more]', root);
+          if (list.length > state.shown) more.textContent = `Show more (${list.length - state.shown} left)`; else more.closest('.load-more').remove();
+          mountCarousels(grid);
+          window.scrollTo(0, y);
+        }
         if (e.target.closest('[data-open-filters]')) $('#filter-dialog').showModal();
         if (e.target.closest('[data-close-filters]')) $('#filter-dialog').close();
       });
