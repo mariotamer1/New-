@@ -1147,3 +1147,6 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .ord-swipe.open .ord-row { transform: translateX(-104px); }
 .ord-del-btn { position: absolute; top: 0; right: 0; bottom: 0; width: 100px; border: 0; background: var(--err); color: #fff; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
 @media (hover: none) { .ord-del-inline { display: none; } }
+
+.ord-confirm-tap { cursor: pointer; }
+.ord-confirm-tap:hover, .ord-confirm-tap:focus-visible { opacity: .85; outline: 2px solid currentColor; outline-offset: 2px; }

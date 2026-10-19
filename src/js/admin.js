@@ -308,7 +308,7 @@ function mount(main, { store, navigate, query }) {
         const first = o.items[0] || {}; const more = o.items.length - 1;
         return `<div class="ord-swipe" data-swipe="${o.id}"><button class="ord-del-btn" type="button" data-del-order="${o.id}">${icon('trash', 'icon-sm')} Delete</button><details class="ord-row" data-oid="${o.id}">
           <summary>
-            <span class="ord-main"><b class="ord-name">${esc(o.customer.name)}</b><span class="ord-del ${o.fulfillment === 'pickup' ? 'is-pickup' : 'is-ship'}">${o.fulfillment === 'pickup' ? 'Pick up' : 'Shipping'}</span>${['completed', 'shipped'].includes(o.status) ? `<span class="ord-st done" title="Done — shipped or picked up" aria-label="Done">${icon('check', 'icon-sm')}</span>` : `<span class="ord-st todo" title="Not done yet" aria-label="Not done yet">${icon('close', 'icon-sm')}</span>`}${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}</span>
+            <span class="ord-main"><b class="ord-name">${esc(o.customer.name)}</b><span class="ord-del ${o.fulfillment === 'pickup' ? 'is-pickup' : 'is-ship'}">${o.fulfillment === 'pickup' ? 'Pick up' : 'Shipping'}</span>${['completed', 'shipped'].includes(o.status) ? `<span class="ord-st done" title="Done — shipped or picked up" aria-label="Done">${icon('check', 'icon-sm')}</span>` : `<span class="ord-st todo" title="Not done yet" aria-label="Not done yet">${icon('close', 'icon-sm')}</span>`}${needsConfirm(o) ? `<span class="adm-needs ord-confirm-tap" role="button" tabindex="0" data-confirm-order="${o.id}" title="Tap to confirm this order">Confirm</span>` : ''}</span>
             <span class="ord-item">${esc(first.title || '')}${more > 0 ? ` <small>+${more} more</small>` : ''}</span>
             <span class="ord-chev" aria-hidden="true">${icon('down', 'icon-sm')}</span>
           </summary>
@@ -563,9 +563,11 @@ function mount(main, { store, navigate, query }) {
     }
     const cf = t.closest('[data-confirm-order]');
     if (cf) {
+      e.preventDefault(); e.stopPropagation();
+      if (cf.disabled || cf.dataset.busy) return; cf.dataset.busy = '1';
       const id = cf.dataset.confirmOrder; cf.disabled = true;
-      try { await A.confirmOrder(id); refreshStore(); toast('Order confirmed — items marked sold'); await loadAll(); const d = $('#order-dlg'); if (d && d.open) { orders(); openOrder(id); } else if (tab === 'orders') orders(); else render(); }
-      catch (ex) { cf.disabled = false; toast(ex.message || 'Could not confirm this order'); }
+      try { await A.confirmOrder(id); refreshStore(); await loadAll(); const d = $('#order-dlg'); if (d && d.open) { orders(); openOrder(id); } else if (tab === 'orders') orders(); else render(); }
+      catch (ex) { cf.disabled = false; delete cf.dataset.busy; toast(ex.message || 'Could not confirm this order'); }
       return;
     }
     const co = t.closest('[data-cancel-order]');
