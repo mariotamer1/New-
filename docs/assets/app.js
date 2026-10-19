@@ -296,7 +296,7 @@
     <section class="hx-hero">
       <div class="wrap hx-hero-grid">
         <div class="hx-copy">
-          <p class="hx-eyebrow">Brand new products<br>Retail &amp; wholesale</p>
+          <p class="hx-eyebrow">Brand new products</p>
           <h1 class="hx-title">Something<br>for <span>everyone.</span></h1>
           <p class="hx-lede">Electronics, home goods, tools, appliances, furniture and more \u2014 all brand new from top retailers at discounted prices.</p>
           <a class="btn btn-primary btn-lg hx-cta" href="${k("/products")}">Shop All Deals ${v("arrow","icon-sm")}</a>
