@@ -615,7 +615,7 @@ export function checkout() {
       const pickTime = () => {
         const items = cart.items(); if (!items.length) return;
         const f = $('[data-co-form]', box); const d = f ? Object.fromEntries(new FormData(f)) : draft;
-        const p = items.length === 1 ? items[0].product : { ...items[0].product, title: `${items.length} items in your order` };
+        const p = items.length === 1 ? items[0].product : { ...items[0].product, title: `${items.reduce((t, i) => t + i.qty, 0)} items in your order` };
         openPickup(p, { name: d.name, phone: d.phone, onPick: ({ name, phone, when }) => {
           const form = $('[data-co-form]', box);
           if (form) Object.assign(draft, Object.fromEntries(new FormData(form)));
