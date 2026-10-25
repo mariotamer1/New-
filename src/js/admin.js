@@ -74,7 +74,7 @@ function mount(main, { store, navigate, query }) {
     await loadAll();
     setURL();
     if (tab === 'products' && editId) return renderEditor();
-    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings };
+    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue };
     (views[tab] || overview)();
   }
 
@@ -94,7 +94,7 @@ function mount(main, { store, navigate, query }) {
       ['Messages', data.inquiries.filter((o) => o.status === 'new').length, 'Contact + wholesale'],
     ];
     main.innerHTML = shell(`
-      <div class="adm-tiles">${tiles.map(([l, v, s]) => `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
+      <div class="adm-tiles">${tiles.map(([l, v, s]) => l.startsWith('Sales') ? `<button type="button" class="adm-tile adm-tile-link" data-tab="revenue" aria-label="Open revenue details"><span class="eyebrow">${l} ${icon('right', 'icon-sm')}</span><b class="tabnum">${v}</b><span class="muted">Tap for full revenue report</span></button>` : `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
       <div class="adm-cols two">
         <section class="adm-card"><div class="adm-card-head"><h2>Recent orders</h2><button class="link" type="button" data-tab="orders">All orders</button></div>
           ${data.orders.length ? `<ul class="adm-list">${data.orders.slice(0, 6).map((o) => `<li><button type="button" data-open-order="${o.id}"><span><b class="mono">#${o.number}</b> ${esc(o.customer.name)}<small>${fmtDate(o.createdAt, true)} · ${(() => { const n = o.items.reduce((t, i) => t + (i.qty || 1), 0); return `${n} item${n === 1 ? '' : 's'}`; })()} · ${o.fulfillment === 'pickup' ? 'Pickup' : 'Ship'}</small></span><span class="tabnum">${money(o.total)}</span>${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}${(() => { const im = o.items[0] && o.items[0].image; return im ? `<img class="adm-ord-img" src="${esc(img(im.sm || im.lg))}" alt="${esc(o.items[0].title)}" width="52" height="52" loading="lazy">` : '<span class="adm-ord-img adm-noimg"></span>'; })()}</button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No orders yet. They appear here as soon as a customer checks out.</p>'}
@@ -298,6 +298,90 @@ function mount(main, { store, navigate, query }) {
     });
   }
 
+  // ------------------------------------------------------------ revenue report
+  let revPeriod = '30';
+  const REV_PERIODS = [['today', 'Today'], ['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['ytd', 'Year to date'], ['all', 'All time']];
+  const isInPerson = (o) => o.customer && o.customer.name === 'In-person sale';
+  const qtyOf = (o) => o.items.reduce((t, i) => t + (i.qty || 1), 0);
+  function revRange(key, now = new Date()) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (key === 'today') return [day, now];
+    if (key === 'ytd') return [new Date(now.getFullYear(), 0, 1), now];
+    if (key === 'all') { const first = data.orders.reduce((m, o) => Math.min(m, +new Date(o.createdAt)), +now); return [new Date(first), now]; }
+    const n = Number(key); return [new Date(day.getTime() - (n - 1) * 864e5), now];
+  }
+  function revenue() {
+    const valid = data.orders.filter((o) => o.status !== 'cancelled');
+    const [from, to] = revRange(revPeriod);
+    const inP = valid.filter((o) => { const d = new Date(o.createdAt); return d >= from && d <= to; });
+    // previous period of equal length, for the change badge
+    const len = to - from; const prevFrom = new Date(from - len); const prev = valid.filter((o) => { const d = new Date(o.createdAt); return d >= prevFrom && d < from; });
+    const sum = (l) => round2(l.reduce((t, o) => t + o.total, 0));
+    const total = sum(inP), prevTotal = sum(prev);
+    const units = inP.reduce((t, o) => t + qtyOf(o), 0);
+    const ship = round2(inP.reduce((t, o) => t + (o.shippingTotal || 0), 0));
+    const chg = revPeriod !== 'all' && prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
+    const tiles = [
+      ['Revenue', money(total), chg == null ? `${inP.length} order${inP.length === 1 ? '' : 's'}` : `${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg)}% vs previous ${REV_PERIODS.find((x) => x[0] === revPeriod)[1].toLowerCase()}`],
+      ['Orders', inP.length, `${units} item${units === 1 ? '' : 's'} sold`],
+      ['Avg order', money(inP.length ? total / inP.length : 0), 'Revenue ÷ orders'],
+      ['Avg item price', money(units ? (total - ship) / units : 0), 'Item revenue ÷ items'],
+      ['Shipping collected', money(ship), `${inP.filter((o) => o.fulfillment !== 'pickup').length} shipped order(s)`],
+      ['Best day', (() => { const m = {}; inP.forEach((o) => { const k = new Date(o.createdAt).toDateString(); m[k] = (m[k] || 0) + o.total; }); const b = Object.entries(m).sort((a, c) => c[1] - a[1])[0]; return b ? money(b[1]) : '—'; })(), (() => { const m = {}; inP.forEach((o) => { const k = new Date(o.createdAt).toDateString(); m[k] = (m[k] || 0) + o.total; }); const b = Object.entries(m).sort((a, c) => c[1] - a[1])[0]; return b ? fmtDate(b[0]) : 'No sales yet'; })()],
+    ];
+    // chart buckets: hours for Today, days up to 45 days, weeks beyond that
+    const span = (to - from) / 864e5;
+    const unit = revPeriod === 'today' ? 'hour' : span > 45 ? 'week' : 'day';
+    const buckets = [];
+    if (unit === 'hour') { for (let h = 0; h <= to.getHours(); h++) buckets.push({ start: new Date(from.getTime() + h * 36e5), label: new Date(from.getTime() + h * 36e5).toLocaleTimeString('en-US', { hour: 'numeric' }) }); }
+    else { const step = unit === 'week' ? 7 : 1; for (let d = new Date(from); d <= to; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + step)) buckets.push({ start: new Date(d), label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }); }
+    buckets.forEach((b, i) => { const end = buckets[i + 1] ? buckets[i + 1].start : new Date(to.getTime() + 1); const os = inP.filter((o) => { const d = new Date(o.createdAt); return d >= b.start && d < end; }); b.total = sum(os); b.n = os.length; });
+    const max = Math.max(1, ...buckets.map((b) => b.total));
+    const bars = buckets.map((b) => `<div class="rv-bar" tabindex="0" data-tip="${esc(`${unit === 'week' ? 'Week of ' : ''}${b.label} · ${money(b.total)} · ${b.n} order${b.n === 1 ? '' : 's'}`)}"><i style="height:${b.total ? Math.max(3, (b.total / max) * 100) : 0}%"></i></div>`).join('');
+    const tickEvery = Math.ceil(buckets.length / 6);
+    const ticks = buckets.map((b, i) => `<span>${i % tickEvery === 0 ? esc(b.label) : ''}</span>`).join('');
+    // splits
+    const split = (rows) => { const t = rows.reduce((a, r) => a + r[1], 0) || 1; return `<ul class="rv-split">${rows.map(([l, v, n]) => `<li><div class="rv-split-top"><span>${l}</span><b class="tabnum">${money(v)}</b></div><div class="rv-meter"><i style="width:${(v / t) * 100}%"></i></div><small class="muted">${n} order${n === 1 ? '' : 's'} · ${Math.round((v / t) * 100)}%</small></li>`).join('')}</ul>`; };
+    const by = (f) => [inP.filter(f), inP.filter((o) => !f(o))];
+    const [web, store_] = by((o) => !isInPerson(o));
+    const [pick, shipd] = by((o) => o.fulfillment === 'pickup');
+    const [paidOnline, paidLocal] = by((o) => o.payment === 'paypal');
+    // top sellers & categories
+    const prod = {};
+    inP.forEach((o) => o.items.forEach((i) => { const k = i.productId || i.title; const r = prod[k] || (prod[k] = { title: i.title, image: i.image, units: 0, rev: 0, cat: (data.products.find((p) => p.id === i.productId) || {}).categoryId }); const share = o.items.length === 1 ? o.total - (o.shippingTotal || 0) : (i.price * (i.qty || 1)); r.units += i.qty || 1; r.rev += share; }));
+    const top = Object.values(prod).sort((a, b) => b.rev - a.rev);
+    const cats = {}; top.forEach((r) => { const k = catName(r.cat); cats[k] = (cats[k] || 0) + r.rev; });
+    const catRows = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+    main.innerHTML = shell(`
+      <div class="rv-periods" role="group" aria-label="Time period">${REV_PERIODS.map(([k, l]) => `<button type="button" class="chip${revPeriod === k ? ' is-on' : ''}" data-rev="${k}" aria-pressed="${revPeriod === k}">${l}</button>`).join('')}</div>
+      <p class="muted rv-range">${fmtDate(from)} – ${fmtDate(to)} · cancelled orders not counted</p>
+      <div class="adm-tiles rv-tiles">${tiles.map(([l, v, sub]) => `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${sub}</span></div>`).join('')}</div>
+      <section class="adm-card rv-chart-card"><div class="adm-card-head"><h2>Revenue by ${unit}</h2><span class="muted">${money(total)} total</span></div>
+        <div class="rv-chart"><div class="rv-bars" style="--n:${buckets.length}">${bars}</div><div class="rv-ticks" style="--n:${buckets.length}">${ticks}</div><div class="rv-tip" hidden></div></div>
+      </section>
+      <div class="adm-cols three rv-splits">
+        <section class="adm-card"><div class="adm-card-head"><h2>Where it sold</h2></div>${split([['Website orders', sum(web), web.length], ['In person', sum(store_), store_.length]])}</section>
+        <section class="adm-card"><div class="adm-card-head"><h2>Delivery</h2></div>${split([['Pickup', sum(pick), pick.length], ['Shipped', sum(shipd), shipd.length]])}</section>
+        <section class="adm-card"><div class="adm-card-head"><h2>Payment</h2></div>${split([['Paid online (PayPal)', sum(paidOnline), paidOnline.length], ['Cash / at pickup', sum(paidLocal), paidLocal.length]])}</section>
+      </div>
+      <div class="adm-cols two">
+        <section class="adm-card"><div class="adm-card-head"><h2>Top sellers</h2></div>
+          ${top.length ? `<table class="rv-table"><thead><tr><th>Item</th><th class="num">Sold</th><th class="num">Revenue</th></tr></thead><tbody>${top.slice(0, 10).map((r) => `<tr><td><div class="adm-prod">${r.image ? `<img src="${esc(img(r.image.sm || r.image.lg))}" alt="" width="40" height="40" loading="lazy">` : '<span class="adm-noimg"></span>'}<span class="rv-title">${esc(r.title)}</span></div></td><td class="num tabnum">${r.units}</td><td class="num tabnum">${money(r.rev)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+        </section>
+        <section class="adm-card"><div class="adm-card-head"><h2>By category</h2></div>
+          ${catRows.length ? `<table class="rv-table"><thead><tr><th>Category</th><th class="num">Revenue</th><th class="num">Share</th></tr></thead><tbody>${catRows.map(([c, v]) => `<tr><td>${esc(c)}</td><td class="num tabnum">${money(v)}</td><td class="num tabnum">${Math.round((v / (total - ship || 1)) * 100)}%</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+        </section>
+      </div>
+      <section class="adm-card"><div class="adm-card-head"><h2>Sales in this period</h2><span class="muted">${inP.length} order${inP.length === 1 ? '' : 's'}</span></div>
+        ${inP.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th>Sold</th><th class="num">Items</th><th class="num">Total</th></tr></thead><tbody>${inP.map((o) => `<tr><td>${fmtDate(o.createdAt, true)}</td><td><button class="link mono" type="button" data-open-order="${o.id}">#${o.number}</button></td><td>${isInPerson(o) ? 'In person' : 'Website'} · ${o.fulfillment === 'pickup' ? 'Pickup' : 'Shipped'}</td><td class="num tabnum">${qtyOf(o)}</td><td class="num tabnum">${money(o.total)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+      </section>
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Revenue', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+    const chart = $('.rv-chart', main); const tip = $('.rv-tip', main);
+    const show = (b) => { tip.textContent = b.dataset.tip; tip.hidden = false; const r = b.getBoundingClientRect(), c = chart.getBoundingClientRect(); tip.style.left = `${Math.min(Math.max(r.left - c.left + r.width / 2, 70), c.width - 70)}px`; };
+    $$('.rv-bar', main).forEach((b) => { b.addEventListener('pointerenter', () => show(b)); b.addEventListener('focus', () => show(b)); b.addEventListener('click', () => show(b)); });
+    chart.addEventListener('pointerleave', () => { tip.hidden = true; });
+  }
+
   // ------------------------------------------------------------ orders
   let orderFilter = 'all';
   function orders() {
@@ -483,6 +567,8 @@ function mount(main, { store, navigate, query }) {
   // ------------------------------------------------------------ events
   const onClick = async (e) => {
     const t = e.target;
+    const rv = t.closest('[data-rev]');
+    if (rv) { revPeriod = rv.dataset.rev; revenue(); return; }
     const tb = t.closest('[data-tab]');
     if (tb) { tab = tb.dataset.tab; editId = null; draft = null; render(); return; }
     if (t.closest('[data-logout]')) { await A.logout(); renderLogin(); return; }
