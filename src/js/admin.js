@@ -10,6 +10,7 @@ const TABS = [
   ['offers', 'Offers', 'cash'],
   ['messages', 'Messages', 'msg'],
   ['settings', 'Settings', 'gear'],
+  ['profit', 'Profit', 'percent'],
 ];
 const CONDITIONS = ['New', 'Open Box', 'Like New', 'Refurbished', 'Used – Good', 'Used – Fair', 'Scratch & Dent'];
 const ORDER_STATUS = [['new', 'New'], ['processing', 'Processing'], ['ready', 'Ready for pickup'], ['shipped', 'Shipped'], ['completed', 'Completed'], ['cancelled', 'Cancelled']];
@@ -304,6 +305,16 @@ function mount(main, { store, navigate, query }) {
 
   // ------------------------------------------------------------ inventory & cost
   let invQ = '';
+  let invSort = 'stock';
+  const INV_SORTS = [['stock', 'In stock first'], ['cost-high', 'Cost: high to low'], ['cost-low', 'Cost: low to high'], ['recent', 'Recently added']];
+  // Items without a cost always sort to the end of the cost sorts.
+  const sortInv = (list) => {
+    const byCost = (dir) => (a, b) => { const ca = costOf(a); const cb = costOf(b); if (ca == null || cb == null) return (ca == null) - (cb == null) || a.title.localeCompare(b.title); return dir * (cb - ca) || a.title.localeCompare(b.title); };
+    if (invSort === 'cost-high') return list.sort(byCost(1));
+    if (invSort === 'cost-low') return list.sort(byCost(-1));
+    if (invSort === 'recent') return list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    return list.sort((a, b) => (b.inventory > 0) - (a.inventory > 0) || a.title.localeCompare(b.title));
+  };
   const upcKey = (u) => String(u || '').replace(/\D/g, '').replace(/^0+/, '');
   const costOf = (p) => (data.costs && data.costs[p.id] != null ? data.costs[p.id] : null);
   const fmtCost = (v) => (v == null ? '' : Number(v).toFixed(2));
@@ -330,15 +341,14 @@ function mount(main, { store, navigate, query }) {
   function inventory() {
     const t = invTotals();
     const q = invQ.trim().toLowerCase(); const qd = upcKey(invQ);
-    const list = data.products.filter((p) => !q || p.title.toLowerCase().includes(q) || (qd && upcKey(p.upc).includes(qd)))
-      .sort((a, b) => (b.inventory > 0) - (a.inventory > 0) || a.title.localeCompare(b.title));
+    const list = sortInv(data.products.filter((p) => !q || p.title.toLowerCase().includes(q) || (qd && upcKey(p.upc).includes(qd))));
     main.innerHTML = shell(`
       <div class="adm-tiles inv-tiles">
         <div class="adm-tile"><span class="eyebrow">Inventory value (cost)</span><b class="tabnum" data-inv-costval>${money(t.costVal)}</b><span class="muted" data-inv-missing>${t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost'}</span></div>
         <div class="adm-tile"><span class="eyebrow">Retail value</span><b class="tabnum">${money(t.retail)}</b><span class="muted">At your website prices</span></div>
         <div class="adm-tile"><span class="eyebrow">Units in stock</span><b class="tabnum">${t.units}</b><span class="muted">${data.products.filter((p) => p.inventory > 0).length} items in stock</span></div>
       </div>
-      <div class="inv-tools"><input type="search" placeholder="Search by name or UPC" value="${esc(invQ)}" data-inv-q aria-label="Search inventory"></div>
+      <div class="inv-tools"><input type="search" placeholder="Search by name or UPC" value="${esc(invQ)}" data-inv-q aria-label="Search inventory"><div class="select"><label class="sr-only" for="inv-sort">Sort inventory</label><select id="inv-sort" data-inv-sort>${INV_SORTS.map(([v, l]) => `<option value="${v}" ${invSort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div></div>
       <ul class="inv-list">${list.map(invRow).join('') || '<li class="inv-row"><span></span><span class="muted">No matching items.</span></li>'}</ul>`, 'Inventory', `<button class="btn btn-primary" type="button" data-inv-scan>${icon('camera', 'icon-sm')} Scan</button>`);
   }
   // Update tiles and one row in place (no re-render, so typing and scrolling aren't interrupted).
@@ -876,6 +886,7 @@ function mount(main, { store, navigate, query }) {
     try { const np = await A.patchProduct(id, { inventory: n }); p.inventory = np && np.inventory != null ? np.inventory : n; refreshStore(); invRefresh(id); } catch (ex) { toast(ex.message || 'Could not update stock'); e.target.value = p.inventory; }
   };
   main.addEventListener('change', onInvStock);
+  main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
   const onInput = (e) => {
     if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; const pos = e.target.selectionStart; inventory(); const i = $('[data-inv-q]'); i.focus(); i.setSelectionRange(pos, pos); return; }
     if (e.target.matches('[data-cost]')) {

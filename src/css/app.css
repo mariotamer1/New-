@@ -1218,6 +1218,9 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .inv-tiles { margin-bottom: 16px; }
 .inv-tools { display: flex; gap: 8px; margin-bottom: 12px; }
 .inv-tools input { flex: 1; min-width: 0; height: 46px; border: 1px solid var(--line); padding: 0 12px; font: inherit; background: #fff; }
+.inv-tools { flex-wrap: wrap; }
+.inv-tools .select { flex: 1 0 100%; }
+.inv-tools .select select { height: 46px; width: 100%; font-size: 15px; }
 .inv-list { list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid var(--line); }
 .inv-row { display: grid; grid-template-columns: 52px 1fr; gap: 10px 12px; padding: 12px; border-bottom: 1px solid var(--hair); align-items: center; }
 .inv-row:last-child { border-bottom: 0; }
