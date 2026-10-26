@@ -3,7 +3,8 @@
 // barcode, closes itself and hands back the digits.
 import { BarcodeFormat, BinaryBitmap, DecodeHintType, HybridBinarizer, MultiFormatReader, RGBLuminanceSource } from '@zxing/library';
 
-const FORMATS = [BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.CODE_128];
+// Retail barcodes only (UPC/EAN). QR codes and other symbols, like Code 128, are not read.
+const FORMATS = [BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8];
 // Angles (degrees) each frame is turned through, so a barcode works at any angle to the camera.
 const ANGLES = [0, 90, 180, 270, 45, 135, 225, 315, 22, 112, 202, 292, 67, 157, 247, 337];
 
@@ -51,8 +52,9 @@ function open({ onResult, onError, onClose, continuous = false } = {}) {
   let last = '', lastAt = 0;
   const found = (text) => {
     if (done) return;
-    const digits = String(text || '').replace(/\D/g, '');
-    if (digits.length < 6) return;
+    // A UPC/EAN is all digits, 7 to 14 long. Anything else (QR text, longer codes) is ignored.
+    const digits = String(text || '');
+    if (!/^\d{7,14}$/.test(digits)) return;
     if (continuous) {
       // Keep scanning; ignore the same barcode while it stays in view.
       const now = Date.now();
@@ -88,7 +90,7 @@ function open({ onResult, onError, onClose, continuous = false } = {}) {
       // Native detector where the browser has one (Android Chrome); otherwise ZXing (iPhone Safari).
       if ('BarcodeDetector' in window) {
         const kinds = await window.BarcodeDetector.getSupportedFormats().catch(() => []);
-        const want = ['upc_a', 'upc_e', 'ean_13', 'ean_8', 'code_128'].filter((k) => kinds.includes(k));
+        const want = ['upc_a', 'upc_e', 'ean_13', 'ean_8'].filter((k) => kinds.includes(k));
         if (want.length) {
           stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
           video.srcObject = stream; await video.play();
