@@ -1,10 +1,24 @@
 // Barcode scanner for the admin product editor. Built as its own bundle (assets/scanner.js)
 // and loaded only when the admin taps SCAN. Opens the phone's back camera, reads a UPC/EAN
 // barcode, closes itself and hands back the digits.
-import { BrowserMultiFormatReader } from '@zxing/browser';
-import { BarcodeFormat, DecodeHintType } from '@zxing/library';
+import { BarcodeFormat, BinaryBitmap, DecodeHintType, HybridBinarizer, MultiFormatReader, RGBLuminanceSource } from '@zxing/library';
 
 const FORMATS = [BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.CODE_128];
+// Angles (degrees) each frame is turned through, so a barcode works at any angle to the camera.
+const ANGLES = [0, 90, 180, 270, 45, 135, 225, 315, 22, 112, 202, 292, 67, 157, 247, 337];
+
+// Turn a grayscale frame by deg, keeping its size. Pixels that turn in from outside the frame are white.
+function rotate(src, w, h, deg) {
+  const out = new Uint8ClampedArray(w * h).fill(255);
+  const r = (deg * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r), cx = w / 2, cy = h / 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const sx = Math.round((x - cx) * c + (y - cy) * s + cx), sy = Math.round(-(x - cx) * s + (y - cy) * c + cy);
+      if (sx >= 0 && sx < w && sy >= 0 && sy < h) out[y * w + x] = src[sy * w + sx];
+    }
+  }
+  return out;
+}
 
 function open({ onResult, onError, onClose, continuous = false } = {}) {
   const wrap = document.createElement('div');
@@ -88,10 +102,31 @@ function open({ onResult, onError, onClose, continuous = false } = {}) {
           return;
         }
       }
-      const hints = new Map([[DecodeHintType.POSSIBLE_FORMATS, FORMATS], [DecodeHintType.TRY_HARDER, true]]);
-      const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 80 });
-      controls = await reader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }, video, (res) => { if (res) found(res.getText()); });
-      if (done) controls.stop();
+      // Otherwise ZXing (iPhone Safari). Its 1D readers only read rows running straight across the frame,
+      // so each frame is also turned through several angles; the barcode is read at whatever angle it's held.
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      video.srcObject = stream; await video.play();
+      const reader = new MultiFormatReader();
+      reader.setHints(new Map([[DecodeHintType.POSSIBLE_FORMATS, FORMATS], [DecodeHintType.TRY_HARDER, true]]));
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      let step = 0;
+      const tick = () => {
+        if (done) return;
+        if (video.videoWidth) {
+          const sc = Math.min(1, 640 / video.videoWidth);
+          canvas.width = Math.round(video.videoWidth * sc); canvas.height = Math.round(video.videoHeight * sc);
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          const lum = new Uint8ClampedArray(canvas.width * canvas.height);
+          for (let i = 0, j = 0; j < lum.length; i += 4, j++) lum[j] = (px[i] * 77 + px[i + 1] * 150 + px[i + 2] * 29) >> 8;
+          const turned = rotate(lum, canvas.width, canvas.height, ANGLES[step++ % ANGLES.length]);
+          try { found(reader.decode(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(turned, canvas.width, canvas.height)))).getText()); } catch {}
+        }
+        raf = setTimeout(tick, 60);
+      };
+      tick();
+      controls = { stop: () => clearTimeout(raf) };
     } catch (e) {
       close();
       const msg = e && e.name === 'NotAllowedError' ? 'Camera access was blocked. Allow camera access for this site in your phone settings, then try again.' : 'The camera could not be opened on this device.';

@@ -149,18 +149,10 @@ function mount(main, { store, navigate, query }) {
   }
 
   // ------------------------------------------------------------ product editor
-  function renderEditor() {
-    const isNew = editId === 'new';
-    const p = isNew ? null : data.products.find((x) => x.id === editId);
-    if (!isNew && !p) { editId = null; return products(); }
-    if (!draft || draft._for !== editId) {
-      draft = p ? JSON.parse(JSON.stringify(p)) : { title: '', slug: '', brand: '', upc: '', condition: 'New', categoryId: (store.categories()[0] || {}).id || null, description: '', price: '', originalPrice: '', shipping: 9.95, inventory: 1, published: true, bestDeal: false, images: [] };
-      draft._for = editId;
-    }
-    const d = draft;
+  // The product form, shared by the Products editor and the scanner's Add popup.
+  function editorForm(d, isNew) {
     const pct = d.originalPrice && d.price && Number(d.originalPrice) > Number(d.price) ? Math.round((1 - d.price / d.originalPrice) * 100) : '';
-    main.innerHTML = shell(`
-      <form class="adm-editor" novalidate data-editor>
+    return `      <form class="adm-editor" novalidate data-editor>
         <div class="adm-ed-main">
           <section class="adm-card"><div class="adm-card-head"><h2>Details</h2></div><div class="adm-card-body form">
             <div class="field"><label for="ed-title">Title</label><input id="ed-title" name="title" required maxlength="140" value="${esc(d.title)}" placeholder="e.g. 55&quot; 4K Smart TV – Open Box"></div>
@@ -197,7 +189,19 @@ function mount(main, { store, navigate, query }) {
           </div>
           <div class="adm-confirm" data-confirm hidden><p><b>Delete this product?</b> This can’t be undone.</p><div><button class="btn btn-sm adm-danger" type="button" data-confirm-delete>Delete</button><button class="btn btn-sm" type="button" data-confirm-cancel>Keep it</button></div></div>
         </div>
-      </form>`, `<button class="adm-back" type="button" data-cancel-edit>${icon('left')} Back</button>`, `<button class="adm-scan" type="button" data-scan aria-label="Scan barcode for UPC"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 8v8M9 8v8M11.5 8v8M13 8v8M15.5 8v8M17.5 8v8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>SCAN</span></button>`);
+      </form>`;
+  }
+
+  function renderEditor() {
+    const isNew = editId === 'new';
+    const p = isNew ? null : data.products.find((x) => x.id === editId);
+    if (!isNew && !p) { editId = null; return products(); }
+    if (!draft || draft._for !== editId) {
+      draft = p ? JSON.parse(JSON.stringify(p)) : { title: '', slug: '', brand: '', upc: '', condition: 'New', categoryId: (store.categories()[0] || {}).id || null, description: '', price: '', originalPrice: '', shipping: 9.95, inventory: 1, published: true, bestDeal: false, images: [] };
+      draft._for = editId;
+    }
+    const d = draft;
+    main.innerHTML = shell(editorForm(d, isNew), `<button class="adm-back" type="button" data-cancel-edit>${icon('left')} Back</button>`, `<button class="adm-scan" type="button" data-scan aria-label="Scan barcode for UPC"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 8v8M9 8v8M11.5 8v8M13 8v8M15.5 8v8M17.5 8v8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>SCAN</span></button>`);
     wireEditor();
   }
 
@@ -214,8 +218,9 @@ function mount(main, { store, navigate, query }) {
       </figcaption></figure>`).join('');
   }
 
-  function wireEditor() {
+  function wireEditor(opts = {}) {
     const form = $('[data-editor]');
+    const isNew = opts.isNew != null ? opts.isNew : editId === 'new';
     const f = (n) => form.elements[n];
     const redrawPhotos = () => { $('[data-photos]').innerHTML = photosHTML(draft); };
     const syncDraft = () => {
@@ -286,7 +291,7 @@ function mount(main, { store, navigate, query }) {
       $$('[aria-invalid]', form).forEach((x) => x.removeAttribute('aria-invalid'));
       if (problems.length) { problems.forEach(([id]) => $('#' + id).setAttribute('aria-invalid', 'true')); err.textContent = problems.map((x) => x[1]).join(' '); err.hidden = false; $('#' + problems[0][0]).focus(); return; }
       const rec = {
-        id: editId === 'new' ? undefined : editId, title: draft.title.trim(), slug: draft.slug.trim(), brand: draft.brand.trim(), upc,
+        id: isNew ? undefined : editId, title: draft.title.trim(), slug: draft.slug.trim(), brand: draft.brand.trim(), upc,
         condition: draft.condition, categoryId: draft.categoryId || null, description: draft.description.trim(),
         price: round2(price), originalPrice: orig > price ? round2(orig) : null, shipping: round2(ship), inventory: inv,
         published: draft.published, bestDeal: false, noShipping: !!draft.noShipping, images: draft.images,
@@ -295,11 +300,12 @@ function mount(main, { store, navigate, query }) {
       try {
         const saved = await A.saveProduct(rec);
         refreshStore();
-        toast(editId === 'new' ? 'Product created' : 'Changes saved');
+        toast(isNew ? 'Product created' : 'Changes saved');
+        if (opts.onSaved) return opts.onSaved(saved);
         editId = null; draft = null; tab = 'products';
         render();
         return saved;
-      } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; btn.textContent = 'Save changes'; }
+      } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; btn.textContent = isNew ? 'List product' : 'Save changes'; }
     });
   }
 
@@ -367,6 +373,19 @@ function mount(main, { store, navigate, query }) {
     if (v == null) delete data.costs[id]; else data.costs[id] = v;
     try { await A.setCost(id, v); } catch (ex) { toast(ex.message || 'Could not save the cost'); }
   }
+  // Mini add-product popup from the scanner: the full product form. "List product" posts it and returns to the scanner.
+  function openAddProduct(code, onSaved) {
+    draft = { title: '', slug: '', brand: '', upc: code, condition: 'New', categoryId: (store.categories()[0] || {}).id || null, description: '', price: '', originalPrice: '', shipping: 9.95, inventory: 1, published: true, bestDeal: false, images: [] };
+    const dlg = document.createElement('dialog');
+    dlg.className = 'modal adm-add-dlg';
+    dlg.innerHTML = `<div class="adm-add-head"><h2>Add product</h2><button class="btn btn-sm" type="button" data-add-close aria-label="Close">${icon('close', 'icon-sm')}</button></div><div class="adm-add-body">${editorForm(draft, true)}</div>`;
+    const close = () => { dlg.close(); dlg.remove(); };
+    document.body.appendChild(dlg);
+    dlg.querySelector('[data-add-close]').addEventListener('click', close);
+    dlg.querySelector('[data-cancel-edit]').addEventListener('click', close);
+    dlg.showModal();
+    wireEditor({ isNew: true, onSaved: async (saved) => { close(); await loadAll(); onSaved(saved); } });
+  }
   async function invScan() {
     if (!window.MLScanner) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = ENV.root + 'assets/scanner.js' + (ENV.cfg.v ? '?v=' + ENV.cfg.v : ''); s.onload = res; s.onerror = rej; document.head.appendChild(s); });
     let cur = null; // { code, id }
@@ -395,13 +414,13 @@ function mount(main, { store, navigate, query }) {
         ${p ? `<div class="sp-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="">` : ''}<div><h3>${esc(p.title)}</h3><div class="sp-stock">In stock: <button type="button" class="sp-stock-btn tabnum" data-sp-edit aria-label="Change stock">${p.inventory} ${icon('edit', 'icon-sm')}</button> · ${money(p.price)}</div>${p.inventory <= 0 || !p.published ? `<div class="sp-status">${p.inventory <= 0 ? 'Sold out — saved, not showing on the website' : 'Hidden from the website'}${!p.published ? ` <button class="btn btn-sm" type="button" data-sp-relist>Show on website</button>` : ' · add stock to relist'}</div>` : '<div class="sp-status ok">Live on the website</div>'}</div></div>
           <div class="sp-cost"><label>Cost per item<span class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-sp-cost></span></label><div class="sp-total"><small>Total cost (${p.inventory})</small><b class="tabnum" data-sp-total>${c != null ? money(c * Math.max(0, p.inventory)) : '—'}</b></div></div>
           <div class="sp-actions"><button class="btn" type="button" data-sp="-1">${icon('minus', 'icon-sm')} Reduce by 1</button><button class="btn adm-danger" type="button" data-sp="out">Mark out of stock</button><button class="btn btn-primary" type="button" data-sp="+1">${icon('plus', 'icon-sm')} Add 1 stock</button></div>`
-        : '<p class="sp-new">This UPC isn’t on the website yet.</p>'}
+        : '<div class="sp-new-row"><p class="sp-new">This item isn’t on the website.</p><button class="btn btn-primary" type="button" data-sp-add>Add</button></div>'}
       </div>`;
     };
     paint(false);
     // iOS ignores touch-action on some versions: block the double-tap zoom gesture on the action buttons.
     let lastTap = 0;
-    panel.addEventListener('touchend', (e) => { if (!e.target.closest('.sp-actions, [data-sp-edit], [data-sp-copy]')) return; const now = Date.now(); if (now - lastTap < 350) { e.preventDefault(); e.target.closest('button').click(); } lastTap = now; }, { passive: false });
+    panel.addEventListener('touchend', (e) => { if (!e.target.closest('.sp-actions, [data-sp-edit], [data-sp-copy], [data-sp-add]')) return; const now = Date.now(); if (now - lastTap < 350) { e.preventDefault(); e.target.closest('button').click(); } lastTap = now; }, { passive: false });
     panel.addEventListener('click', async (e) => {
       if (e.target.closest('[data-sp-copy]')) { try { await navigator.clipboard.writeText(cur.code); e.target.closest('button').textContent = 'Copied'; } catch { toast('Copy not available — press and hold the number to copy'); } return; }
       if (e.target.closest('[data-sp-edit]') && cur && cur.id) {
@@ -415,6 +434,7 @@ function mount(main, { store, navigate, query }) {
         try { const np = await A.patchProduct(p.id, { published: true }); p.published = true; if (np) p.inventory = np.inventory; refreshStore(); } catch (ex) { toast(ex.message || 'Could not relist'); }
         paint(false); return;
       }
+      if (e.target.closest('[data-sp-add]')) { openAddProduct(cur.code, (saved) => { cur = { code: cur.code, id: saved.id }; paint(true); }); return; }
       const b = e.target.closest('[data-sp]'); if (!b || !cur || !cur.id) return;
       const p = data.products.find((x) => x.id === cur.id); if (!p) return;
       $$('[data-sp]', panel).forEach((x) => { x.disabled = true; });

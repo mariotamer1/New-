@@ -1267,3 +1267,11 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 /* No double-tap zoom on the scanner and admin buttons (fast repeated taps). */
 .scan-overlay, .scan-overlay *, .admin button, .admin .btn, .admin input { touch-action: manipulation; }
 .sp-actions .btn, .sp-stock-btn { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+/* Scanner's Add product popup */
+.adm-add-dlg { width: min(980px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; }
+.adm-add-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: #fff; z-index: 1; }
+.adm-add-head h2 { margin: 0; font-size: 20px; }
+.adm-add-body { padding: 12px; }
+.sp-new-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.sp-new-row .sp-new { margin: 0; }
