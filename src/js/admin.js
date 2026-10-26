@@ -364,7 +364,7 @@ function mount(main, { store, navigate, query }) {
       onClose: () => { if (tab === 'inventory') inventory(); },
     });
     // Typed UPC box is always there, above the results card.
-    h.panel.innerHTML = `<form class="sp-type" data-sp-type><label class="sr-only" for="sp-upc">Type a UPC</label><input id="sp-upc" type="text" inputmode="numeric" autocomplete="off" placeholder="Type UPC" enterkeyhint="search"><button class="btn btn-primary" type="submit">Look up</button></form><div data-sp-out></div>`;
+    h.panel.innerHTML = `<form class="sp-type" data-sp-type><label class="sr-only" for="sp-upc">Type a UPC</label><input id="sp-upc" type="text" inputmode="numeric" autocomplete="off" placeholder="Type UPC" enterkeyhint="search"><button class="btn btn-primary" type="submit">Search</button></form><div data-sp-out></div>`;
     const panel = $('[data-sp-out]', h.panel);
     // Put the typed-UPC box right under the scan frame, inside the camera view.
     const typeForm = h.panel.querySelector('[data-sp-type]'); const cam = h.panel.parentElement.querySelector('.scan-cam'); if (cam) cam.appendChild(typeForm);
