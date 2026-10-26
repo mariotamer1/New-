@@ -76,7 +76,7 @@ function mount(main, { store, navigate, query }) {
     await loadAll();
     setURL();
     if (tab === 'products' && editId) return renderEditor();
-    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, inventory };
+    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, inventory };
     (views[tab] || overview)();
   }
 
@@ -87,16 +87,18 @@ function mount(main, { store, navigate, query }) {
     const out = P.filter((p) => p.inventory <= 0);
     const since = Date.now() - 30 * 864e5;
     const rev = data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) > since).reduce((s, o) => s + o.total, 0);
+    const profit30 = round2(profitRows(new Date(Date.now() - 30 * 864e5), new Date()).reduce((t, r) => t + r.profit, 0));
     const tiles = [
       ['Live listings', live.length, 'Published and in stock'],
       ['New orders', data.orders.filter((o) => o.status === 'new').length, `${data.orders.length} total`],
       ['Units in stock', P.reduce((s, p) => s + Math.max(0, p.inventory), 0), `${out.length} sold out (hidden)`],
       ['New offers', data.offers.filter((o) => o.status === 'new').length, `${data.offers.length} total`],
       ['Sales · 30 days', money(rev), 'Excludes cancelled'],
+      ['Profit · 30 days', money(profit30), 'Revenue minus cost'],
       ['Messages', data.inquiries.filter((o) => o.status === 'new').length, 'Contact + wholesale'],
     ];
     main.innerHTML = shell(`
-      <div class="adm-tiles">${tiles.map(([l, v, s]) => l.startsWith('Sales') ? `<button type="button" class="adm-tile adm-tile-link" data-tab="revenue" aria-label="Open revenue details"><span class="eyebrow">${l} ${icon('right', 'icon-sm')}</span><b class="tabnum">${v}</b><span class="muted">Tap for full revenue report</span></button>` : `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
+      <div class="adm-tiles">${tiles.map(([l, v, s]) => (l.startsWith('Sales') || l.startsWith('Profit')) ? `<button type="button" class="adm-tile adm-tile-link" data-tab="${l.startsWith('Profit') ? 'profit' : 'revenue'}" aria-label="Open ${l.startsWith('Profit') ? 'profit' : 'revenue'} details"><span class="eyebrow">${l} ${icon('right', 'icon-sm')}</span><b class="tabnum">${v}</b><span class="muted">${l.startsWith('Profit') ? 'Tap for profit report' : 'Tap for full revenue report'}</span></button>` : `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
       <div class="adm-cols two">
         <section class="adm-card"><div class="adm-card-head"><h2>Recent orders</h2><button class="link" type="button" data-tab="orders">All orders</button></div>
           ${data.orders.length ? `<ul class="adm-list">${data.orders.slice(0, 6).map((o) => `<li><button type="button" data-open-order="${o.id}"><span><b class="mono">#${o.number}</b> ${esc(o.customer.name)}<small>${fmtDate(o.createdAt, true)} · ${(() => { const n = o.items.reduce((t, i) => t + (i.qty || 1), 0); return `${n} item${n === 1 ? '' : 's'}`; })()} · ${o.fulfillment === 'pickup' ? 'Pickup' : 'Ship'}</small></span><span class="tabnum">${money(o.total)}</span>${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}${(() => { const im = o.items[0] && o.items[0].image; return im ? `<img class="adm-ord-img" src="${esc(img(im.sm || im.lg))}" alt="${esc(o.items[0].title)}" width="52" height="52" loading="lazy">` : '<span class="adm-ord-img adm-noimg"></span>'; })()}</button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No orders yet. They appear here as soon as a customer checks out.</p>'}
@@ -429,6 +431,39 @@ function mount(main, { store, navigate, query }) {
     });
   }
 
+  // ------------------------------------------------------------ profit
+  let profitPeriod = '30';
+  // One row per sale: revenue (items, excluding shipping, minus refunds) minus the cost of what sold.
+  function profitRows(from, to) {
+    const costs = data.costs || {};
+    return data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) >= from && new Date(o.createdAt) <= to).map((o) => {
+      const cost = round2(o.items.reduce((t, i) => t + (costs[i.productId] != null ? costs[i.productId] * (i.qty || 1) : 0), 0));
+      const missing = o.items.filter((i) => costs[i.productId] == null).length;
+      const refunds = refundsOf(o).reduce((t, r) => t + Number(r.amount), 0);
+      const revenue = round2((o.subtotal != null ? o.subtotal : o.total) - refunds);
+      return { o, cost, revenue, profit: round2(revenue - cost), missing };
+    });
+  }
+  function profit() {
+    const [from, to] = revRange(profitPeriod);
+    const rows = profitRows(from, to);
+    const total = round2(rows.reduce((t, r) => t + r.profit, 0));
+    const rev = round2(rows.reduce((t, r) => t + r.revenue, 0));
+    const missing = rows.reduce((t, r) => t + r.missing, 0);
+    const margin = rev ? Math.round((total / rev) * 100) : 0;
+    main.innerHTML = shell(`
+      <div class="rv-periods" role="group" aria-label="Time period">${REV_PERIODS.map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
+      <div class="adm-tiles rv-tiles">
+        <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
+        <div class="adm-tile"><span class="eyebrow">Margin</span><b class="tabnum">${margin}%</b><span class="muted">Profit ÷ revenue</span></div>
+        ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
+      </div>
+      <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
+        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt, true)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+      </section>
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Profit', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+  }
+
   // ------------------------------------------------------------ revenue report
   let revPeriod = '30';
   const REV_PERIODS = [['today', 'Today'], ['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['ytd', 'Year to date'], ['all', 'All time']];
@@ -699,6 +734,8 @@ function mount(main, { store, navigate, query }) {
   const onClick = async (e) => {
     const t = e.target;
     if (t.closest('[data-inv-scan]')) { try { await invScan(); } catch { toast('The scanner could not load. Check your connection and try again.'); } return; }
+    const pf = t.closest('[data-prof]');
+    if (pf) { profitPeriod = pf.dataset.prof; profit(); return; }
     const rv = t.closest('[data-rev]');
     if (rv) { revPeriod = rv.dataset.rev; revenue(); return; }
     const tb = t.closest('[data-tab]');
