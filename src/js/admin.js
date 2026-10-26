@@ -309,7 +309,8 @@ function mount(main, { store, navigate, query }) {
   const INV_SORTS = [['stock', 'In stock first'], ['cost-high', 'Cost: high to low'], ['cost-low', 'Cost: low to high'], ['recent', 'Recently added']];
   // Items without a cost always sort to the end of the cost sorts.
   const sortInv = (list) => {
-    const byCost = (dir) => (a, b) => { const ca = costOf(a); const cb = costOf(b); if (ca == null || cb == null) return (ca == null) - (cb == null) || a.title.localeCompare(b.title); return dir * (cb - ca) || a.title.localeCompare(b.title); };
+    // Sort by total cost on hand (cost × units in stock), so 10 units outrank 1 unit of a pricier item.
+    const byCost = (dir) => (a, b) => { const ca = costOf(a); const cb = costOf(b); if (ca == null || cb == null) return (ca == null) - (cb == null) || a.title.localeCompare(b.title); const ta = ca * Math.max(0, a.inventory); const tb = cb * Math.max(0, b.inventory); return dir * (tb - ta) || a.title.localeCompare(b.title); };
     if (invSort === 'cost-high') return list.sort(byCost(1));
     if (invSort === 'cost-low') return list.sort(byCost(-1));
     if (invSort === 'recent') return list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
