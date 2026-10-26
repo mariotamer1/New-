@@ -1200,7 +1200,7 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .sp-upc { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .sp-upc b { font: 600 20px/1.1 var(--font-mono); letter-spacing: .04em; }
 .sp-prod { display: flex; gap: 12px; align-items: center; }
-.sp-prod img { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid var(--hair); flex: none; }
+.sp-prod img { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; border: 1px solid var(--hair); flex: none; }
 .sp-prod h3 { margin: 0; font: 600 15px/1.3 var(--font-body); }
 .sp-stock { font-size: 14px; color: var(--mute); margin-top: 4px; }
 .sp-stock b { color: var(--ink); font-size: 18px; }
