@@ -379,7 +379,7 @@ function mount(main, { store, navigate, query }) {
       const c = p ? costOf(p) : null;
       panel.innerHTML = `<div class="sp-card"${fresh ? '' : ' style="animation:none"'}>
         <div class="sp-upc"><b>${esc(cur.code)}</b><button class="btn btn-sm" type="button" data-sp-copy>Copy</button></div>
-        ${p ? `<div class="sp-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="">` : ''}<div><h3>${esc(p.title)}</h3><div class="sp-stock">In stock: <button type="button" class="sp-stock-btn tabnum" data-sp-edit aria-label="Change stock">${p.inventory} ${icon('edit', 'icon-sm')}</button> · ${money(p.price)}</div></div></div>
+        ${p ? `<div class="sp-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="">` : ''}<div><h3>${esc(p.title)}</h3><div class="sp-stock">In stock: <button type="button" class="sp-stock-btn tabnum" data-sp-edit aria-label="Change stock">${p.inventory} ${icon('edit', 'icon-sm')}</button> · ${money(p.price)}</div>${p.inventory <= 0 || !p.published ? `<div class="sp-status">${p.inventory <= 0 ? 'Sold out — saved, not showing on the website' : 'Hidden from the website'}${!p.published ? ` <button class="btn btn-sm" type="button" data-sp-relist>Show on website</button>` : ' · add stock to relist'}</div>` : '<div class="sp-status ok">Live on the website</div>'}</div></div>
           <div class="sp-cost"><label>Cost per item<span class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-sp-cost></span></label><div class="sp-total"><small>Total cost (${p.inventory})</small><b class="tabnum" data-sp-total>${c != null ? money(c * Math.max(0, p.inventory)) : '—'}</b></div></div>
           <div class="sp-actions"><button class="btn" type="button" data-sp="-1">${icon('minus', 'icon-sm')} Reduce by 1</button><button class="btn adm-danger" type="button" data-sp="out">Mark out of stock</button><button class="btn btn-primary" type="button" data-sp="+1">${icon('plus', 'icon-sm')} Add 1 stock</button></div>`
         : '<p class="sp-new">This UPC isn’t on the website yet.</p>'}
@@ -393,6 +393,11 @@ function mount(main, { store, navigate, query }) {
         btn.outerHTML = `<form class="sp-stock-form" data-sp-stockform><input type="number" inputmode="numeric" min="0" step="1" value="${p.inventory}" aria-label="New stock"><button class="btn btn-sm btn-primary" type="submit">Save</button></form>`;
         const inp = $('[data-sp-stockform] input', panel); inp.focus(); inp.select();
         return;
+      }
+      if (e.target.closest('[data-sp-relist]') && cur && cur.id) {
+        const p = data.products.find((x) => x.id === cur.id);
+        try { const np = await A.patchProduct(p.id, { published: true }); p.published = true; if (np) p.inventory = np.inventory; refreshStore(); } catch (ex) { toast(ex.message || 'Could not relist'); }
+        paint(false); return;
       }
       const b = e.target.closest('[data-sp]'); if (!b || !cur || !cur.id) return;
       const p = data.products.find((x) => x.id === cur.id); if (!p) return;
