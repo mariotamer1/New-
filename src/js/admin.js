@@ -319,7 +319,7 @@ function mount(main, { store, navigate, query }) {
       ${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="" width="52" height="52" loading="lazy">` : '<span class="adm-noimg"></span>'}
       <div><div class="inv-title">${esc(p.title)}</div><div class="inv-meta">${p.upc ? 'UPC ' + esc(p.upc) : 'No UPC'}${p.published ? '' : ' · Hidden'}</div></div>
       <div class="inv-nums">
-        <div><small>Stock</small><b class="tabnum" data-inv-stock>${p.inventory}</b></div>
+        <div><small>Stock</small><label class="sp-money inv-stock-in"><input type="number" inputmode="numeric" min="0" step="1" value="${p.inventory}" data-inv-setstock="${p.id}" aria-label="Stock of ${esc(p.title)}"></label></div>
         <div><small>Price</small><b class="tabnum">${money(p.price)}</b></div>
         <div><small>Cost</small><label class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-cost="${p.id}" aria-label="Cost of ${esc(p.title)}"></label></div>
         <div><small>Total cost</small><b class="tabnum" data-inv-total>${tot}</b></div>
@@ -345,7 +345,7 @@ function mount(main, { store, navigate, query }) {
     const cv = $('[data-inv-costval]'); if (cv) cv.textContent = money(t.costVal);
     const ms = $('[data-inv-missing]'); if (ms) ms.textContent = t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost';
     const p = data.products.find((x) => x.id === id); const row = id && $(`[data-inv="${id}"]`);
-    if (p && row) { const c = costOf(p); $('[data-inv-stock]', row).textContent = p.inventory; $('[data-inv-total]', row).textContent = c != null ? money(c * Math.max(0, p.inventory)) : '—'; row.classList.toggle('is-out', p.inventory <= 0); }
+    if (p && row) { const c = costOf(p); const si = $('[data-inv-setstock]', row); if (si && document.activeElement !== si) si.value = p.inventory; $('[data-inv-total]', row).textContent = c != null ? money(c * Math.max(0, p.inventory)) : '—'; row.classList.toggle('is-out', p.inventory <= 0); }
   }
   async function saveCost(id, raw) {
     const v = raw === '' ? null : round2(Math.max(0, Number(raw)));
@@ -379,7 +379,7 @@ function mount(main, { store, navigate, query }) {
       const c = p ? costOf(p) : null;
       panel.innerHTML = `<div class="sp-card"${fresh ? '' : ' style="animation:none"'}>
         <div class="sp-upc"><b>${esc(cur.code)}</b><button class="btn btn-sm" type="button" data-sp-copy>Copy</button></div>
-        ${p ? `<div class="sp-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="">` : ''}<div><h3>${esc(p.title)}</h3><div class="sp-stock">In stock: <b class="tabnum">${p.inventory}</b> · ${money(p.price)}</div></div></div>
+        ${p ? `<div class="sp-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="">` : ''}<div><h3>${esc(p.title)}</h3><div class="sp-stock">In stock: <button type="button" class="sp-stock-btn tabnum" data-sp-edit aria-label="Change stock">${p.inventory} ${icon('edit', 'icon-sm')}</button> · ${money(p.price)}</div></div></div>
           <div class="sp-cost"><label>Cost per item<span class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-sp-cost></span></label><div class="sp-total"><small>Total cost (${p.inventory})</small><b class="tabnum" data-sp-total>${c != null ? money(c * Math.max(0, p.inventory)) : '—'}</b></div></div>
           <div class="sp-actions"><button class="btn" type="button" data-sp="-1">${icon('minus', 'icon-sm')} Reduce by 1</button><button class="btn adm-danger" type="button" data-sp="out">Mark out of stock</button><button class="btn btn-primary" type="button" data-sp="+1">${icon('plus', 'icon-sm')} Add 1 stock</button></div>`
         : '<p class="sp-new">This UPC isn’t on the website yet.</p>'}
@@ -388,6 +388,12 @@ function mount(main, { store, navigate, query }) {
     paint(false);
     panel.addEventListener('click', async (e) => {
       if (e.target.closest('[data-sp-copy]')) { try { await navigator.clipboard.writeText(cur.code); e.target.closest('button').textContent = 'Copied'; } catch { toast('Copy not available — press and hold the number to copy'); } return; }
+      if (e.target.closest('[data-sp-edit]') && cur && cur.id) {
+        const p = data.products.find((x) => x.id === cur.id); const btn = e.target.closest('[data-sp-edit]');
+        btn.outerHTML = `<form class="sp-stock-form" data-sp-stockform><input type="number" inputmode="numeric" min="0" step="1" value="${p.inventory}" aria-label="New stock"><button class="btn btn-sm btn-primary" type="submit">Save</button></form>`;
+        const inp = $('[data-sp-stockform] input', panel); inp.focus(); inp.select();
+        return;
+      }
       const b = e.target.closest('[data-sp]'); if (!b || !cur || !cur.id) return;
       const p = data.products.find((x) => x.id === cur.id); if (!p) return;
       $$('[data-sp]', panel).forEach((x) => { x.disabled = true; });
@@ -398,6 +404,13 @@ function mount(main, { store, navigate, query }) {
         p.inventory = np && np.inventory != null ? np.inventory : p.inventory;
         refreshStore();
       } catch (ex) { toast(ex.message || 'Could not update stock'); }
+      paint(false);
+    });
+    panel.addEventListener('submit', async (e) => {
+      if (!e.target.matches('[data-sp-stockform]')) return; e.preventDefault();
+      const p = data.products.find((x) => x.id === cur.id); const n = parseInt(e.target.querySelector('input').value, 10);
+      if (!(n >= 0)) { toast('Enter a number 0 or higher'); return; }
+      try { const np = await A.patchProduct(p.id, { inventory: n }); p.inventory = np && np.inventory != null ? np.inventory : n; refreshStore(); } catch (ex) { toast(ex.message || 'Could not update stock'); }
       paint(false);
     });
     panel.addEventListener('input', (e) => {
@@ -811,6 +824,13 @@ function mount(main, { store, navigate, query }) {
     if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests' || tab === 'orders') orders(); }
     if (t.matches('[data-import]') && t.files[0]) { try { await A.importData(await t.files[0].text()); refreshStore(); toast('Backup imported'); render(); } catch (ex) { toast(ex.message, 'err'); } }
   };
+  const onInvStock = async (e) => {
+    if (!e.target.matches('[data-inv-setstock]')) return;
+    const id = e.target.dataset.invSetstock; const n = parseInt(e.target.value, 10); const p = data.products.find((x) => x.id === id);
+    if (!p || !(n >= 0) || n === p.inventory) { if (p) e.target.value = p.inventory; return; }
+    try { const np = await A.patchProduct(id, { inventory: n }); p.inventory = np && np.inventory != null ? np.inventory : n; refreshStore(); invRefresh(id); } catch (ex) { toast(ex.message || 'Could not update stock'); e.target.value = p.inventory; }
+  };
+  main.addEventListener('change', onInvStock);
   const onInput = (e) => {
     if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; const pos = e.target.selectionStart; inventory(); const i = $('[data-inv-q]'); i.focus(); i.setSelectionRange(pos, pos); return; }
     if (e.target.matches('[data-cost]')) {

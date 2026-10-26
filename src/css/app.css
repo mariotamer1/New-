@@ -1252,3 +1252,9 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .scan-continuous .scan-hint { bottom: auto; top: calc(22px + env(safe-area-inset-top, 0px)); font-size: 13px; padding: 7px 12px; }
 .scan-overlay.scan-continuous { grid-template-rows: minmax(300px, 48vh) 1fr; }
 .scan-continuous .scan-frame { margin-bottom: 56px; aspect-ratio: 2 / 1; }
+
+.sp-stock-btn { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 2px 8px; font: 800 18px var(--font-body); color: var(--ink); cursor: pointer; }
+.sp-stock-btn .icon { width: 14px; height: 14px; }
+.sp-stock-form { display: inline-flex; gap: 6px; align-items: center; vertical-align: middle; }
+.sp-stock-form input { width: 76px; height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; font: 700 17px var(--font-body); }
+.inv-stock-in input { font-weight: 700; }
