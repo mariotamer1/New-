@@ -116,16 +116,19 @@ function open({ onResult, onError, onClose, continuous = false } = {}) {
       const tick = () => {
         if (done) return;
         if (video.videoWidth) {
-          const sc = Math.min(1, 640 / video.videoWidth);
-          canvas.width = Math.round(video.videoWidth * sc); canvas.height = Math.round(video.videoHeight * sc);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Read the centre band of the camera at full resolution: far-away barcodes keep their detail.
+          const sx = Math.round(video.videoWidth * 0.1), sw = Math.round(video.videoWidth * 0.8);
+          const sy = Math.round(video.videoHeight * 0.25), sh = Math.round(video.videoHeight * 0.5);
+          canvas.width = sw; canvas.height = sh;
+          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
           const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
           const lum = new Uint8ClampedArray(canvas.width * canvas.height);
           for (let i = 0, j = 0; j < lum.length; i += 4, j++) lum[j] = (px[i] * 77 + px[i + 1] * 150 + px[i + 2] * 29) >> 8;
-          const turned = rotate(lum, canvas.width, canvas.height, ANGLES[step++ % ANGLES.length]);
-          try { found(reader.decode(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(turned, canvas.width, canvas.height)))).getText()); } catch {}
+          // Straight-on first (most scans), then one other angle per frame.
+          const attempt = (frame) => { try { found(reader.decode(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(frame, canvas.width, canvas.height)))).getText()); return true; } catch { return false; } };
+          if (!attempt(lum) && !done) attempt(rotate(lum, canvas.width, canvas.height, ANGLES[step++ % ANGLES.length]));
         }
-        raf = setTimeout(tick, 60);
+        raf = setTimeout(tick, 30);
       };
       tick();
       controls = { stop: () => clearTimeout(raf) };
