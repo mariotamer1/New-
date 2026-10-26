@@ -415,7 +415,7 @@ function mount(main, { store, navigate, query }) {
           <div class="sp-cost"><label>Cost per item<span class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-sp-cost></span></label><div class="sp-total"><small>Total cost (${p.inventory})</small><b class="tabnum" data-sp-total>${c != null ? money(c * Math.max(0, p.inventory)) : '—'}</b></div></div>
           <div class="sp-actions"><button class="btn" type="button" data-sp="-1">${icon('minus', 'icon-sm')} Reduce by 1</button><button class="btn adm-danger" type="button" data-sp="out">Mark out of stock</button><button class="btn btn-primary" type="button" data-sp="+1">${icon('plus', 'icon-sm')} Add 1 stock</button></div>`
         : '<div class="sp-new-row"><p class="sp-new">This item isn’t on the website.</p><button class="btn btn-primary" type="button" data-sp-add>Add</button></div>'}
-      </div>`;
+      </div>${p && p.images[0] ? `<figure class="sp-hero"><img src="${esc(img(p.images[0].lg || p.images[0].sm))}" alt="${esc(p.title)}"><figcaption>${esc(p.title)}</figcaption></figure>` : ''}`;
     };
     paint(false);
     // iOS ignores touch-action on some versions: block the double-tap zoom gesture on the action buttons.

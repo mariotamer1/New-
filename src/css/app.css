@@ -1279,3 +1279,6 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .adm-add-body { padding: 12px; }
 .sp-new-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
 .sp-new-row .sp-new { margin: 0; }
+.sp-hero { margin: 16px 0 0; background: #fff; border: 1px solid var(--line); padding: 12px; }
+.sp-hero img { display: block; width: 100%; max-height: 360px; object-fit: contain; }
+.sp-hero figcaption { margin-top: 10px; font-weight: 700; font-size: 16px; line-height: 1.3; }
