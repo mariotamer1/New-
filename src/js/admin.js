@@ -6,6 +6,7 @@ const TABS = [
   ['overview', 'Overview', 'chart'],
   ['products', 'Products', 'tag'],
   ['orders', 'Orders', 'box'],
+  ['inventory', 'Inventory', 'layers'],
   ['offers', 'Offers', 'cash'],
   ['messages', 'Messages', 'msg'],
   ['settings', 'Settings', 'gear'],
@@ -33,7 +34,8 @@ function mount(main, { store, navigate, query }) {
 
   async function loadAll() {
     const [products, orders, offers, inquiries] = await Promise.all([A.products(), A.orders(), A.offers(), A.inquiries()]);
-    data = { products, orders, offers, inquiries };
+    const costs = await (A.costs ? A.costs().catch(() => ({})) : {});
+    data = { products, orders, offers, inquiries, costs };
   }
 
   // ------------------------------------------------------------ login
@@ -74,7 +76,7 @@ function mount(main, { store, navigate, query }) {
     await loadAll();
     setURL();
     if (tab === 'products' && editId) return renderEditor();
-    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue };
+    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, inventory };
     (views[tab] || overview)();
   }
 
@@ -295,6 +297,105 @@ function mount(main, { store, navigate, query }) {
         render();
         return saved;
       } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; btn.textContent = 'Save changes'; }
+    });
+  }
+
+  // ------------------------------------------------------------ inventory & cost
+  let invQ = '';
+  const upcKey = (u) => String(u || '').replace(/\D/g, '').replace(/^0+/, '');
+  const costOf = (p) => (data.costs && data.costs[p.id] != null ? data.costs[p.id] : null);
+  const fmtCost = (v) => (v == null ? '' : Number(v).toFixed(2));
+  function invTotals() {
+    const P = data.products;
+    const units = P.reduce((t, p) => t + Math.max(0, p.inventory), 0);
+    const costVal = round2(P.reduce((t, p) => t + (costOf(p) != null ? costOf(p) * Math.max(0, p.inventory) : 0), 0));
+    const retail = round2(P.reduce((t, p) => t + p.price * Math.max(0, p.inventory), 0));
+    const missing = P.filter((p) => p.inventory > 0 && costOf(p) == null).length;
+    return { units, costVal, retail, missing };
+  }
+  function invRow(p) {
+    const c = costOf(p); const tot = c != null ? money(c * Math.max(0, p.inventory)) : '—';
+    return `<li class="inv-row${p.inventory <= 0 ? ' is-out' : ''}" data-inv="${p.id}">
+      ${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="" width="52" height="52" loading="lazy">` : '<span class="adm-noimg"></span>'}
+      <div><div class="inv-title">${esc(p.title)}</div><div class="inv-meta">${p.upc ? 'UPC ' + esc(p.upc) : 'No UPC'}${p.published ? '' : ' · Hidden'}</div></div>
+      <div class="inv-nums">
+        <div><small>Stock</small><b class="tabnum" data-inv-stock>${p.inventory}</b></div>
+        <div><small>Price</small><b class="tabnum">${money(p.price)}</b></div>
+        <div><small>Cost</small><label class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-cost="${p.id}" aria-label="Cost of ${esc(p.title)}"></label></div>
+        <div><small>Total cost</small><b class="tabnum" data-inv-total>${tot}</b></div>
+      </div></li>`;
+  }
+  function inventory() {
+    const t = invTotals();
+    const q = invQ.trim().toLowerCase(); const qd = upcKey(invQ);
+    const list = data.products.filter((p) => !q || p.title.toLowerCase().includes(q) || (qd && upcKey(p.upc).includes(qd)))
+      .sort((a, b) => (b.inventory > 0) - (a.inventory > 0) || a.title.localeCompare(b.title));
+    main.innerHTML = shell(`
+      <div class="adm-tiles inv-tiles">
+        <div class="adm-tile"><span class="eyebrow">Inventory value (cost)</span><b class="tabnum" data-inv-costval>${money(t.costVal)}</b><span class="muted" data-inv-missing>${t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost'}</span></div>
+        <div class="adm-tile"><span class="eyebrow">Retail value</span><b class="tabnum">${money(t.retail)}</b><span class="muted">At your website prices</span></div>
+        <div class="adm-tile"><span class="eyebrow">Units in stock</span><b class="tabnum">${t.units}</b><span class="muted">${data.products.filter((p) => p.inventory > 0).length} items in stock</span></div>
+      </div>
+      <div class="inv-tools"><input type="search" placeholder="Search by name or UPC" value="${esc(invQ)}" data-inv-q aria-label="Search inventory"></div>
+      <ul class="inv-list">${list.map(invRow).join('') || '<li class="inv-row"><span></span><span class="muted">No matching items.</span></li>'}</ul>`, 'Inventory', `<button class="btn btn-primary" type="button" data-inv-scan>${icon('camera', 'icon-sm')} Scan</button>`);
+  }
+  // Update tiles and one row in place (no re-render, so typing and scrolling aren't interrupted).
+  function invRefresh(id) {
+    const t = invTotals();
+    const cv = $('[data-inv-costval]'); if (cv) cv.textContent = money(t.costVal);
+    const ms = $('[data-inv-missing]'); if (ms) ms.textContent = t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost';
+    const p = data.products.find((x) => x.id === id); const row = id && $(`[data-inv="${id}"]`);
+    if (p && row) { const c = costOf(p); $('[data-inv-stock]', row).textContent = p.inventory; $('[data-inv-total]', row).textContent = c != null ? money(c * Math.max(0, p.inventory)) : '—'; row.classList.toggle('is-out', p.inventory <= 0); }
+  }
+  async function saveCost(id, raw) {
+    const v = raw === '' ? null : round2(Math.max(0, Number(raw)));
+    if (raw !== '' && !Number.isFinite(v)) return;
+    data.costs = data.costs || {};
+    if (v == null) delete data.costs[id]; else data.costs[id] = v;
+    try { await A.setCost(id, v); } catch (ex) { toast(ex.message || 'Could not save the cost'); }
+  }
+  async function invScan() {
+    if (!window.MLScanner) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = ENV.root + 'assets/scanner.js' + (ENV.cfg.v ? '?v=' + ENV.cfg.v : ''); s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+    let cur = null; // { code, id }
+    const h = window.MLScanner.open({
+      continuous: true,
+      onResult: (code) => { cur = { code, id: (data.products.find((p) => p.upc && upcKey(p.upc) === upcKey(code)) || {}).id || null }; paint(true); },
+      onError: (msg) => toast(msg),
+      onClose: () => { if (tab === 'inventory') inventory(); },
+    });
+    const panel = h.panel;
+    const paint = (fresh) => {
+      if (!cur) { panel.innerHTML = '<p class="sp-empty">Scan a barcode. Each new scan shows up here — the camera stays on.</p>'; return; }
+      const p = cur.id && data.products.find((x) => x.id === cur.id);
+      const c = p ? costOf(p) : null;
+      panel.innerHTML = `<div class="sp-card"${fresh ? '' : ' style="animation:none"'}>
+        <div class="sp-upc"><b>${esc(cur.code)}</b><button class="btn btn-sm" type="button" data-sp-copy>Copy</button></div>
+        ${p ? `<div class="sp-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="">` : ''}<div><h3>${esc(p.title)}</h3><div class="sp-stock">In stock: <b class="tabnum">${p.inventory}</b> · ${money(p.price)}</div></div></div>
+          <div class="sp-cost"><label>Cost per item<span class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-sp-cost></span></label><div class="sp-total"><small>Total cost (${p.inventory})</small><b class="tabnum" data-sp-total>${c != null ? money(c * Math.max(0, p.inventory)) : '—'}</b></div></div>
+          <div class="sp-actions"><button class="btn" type="button" data-sp="-1">${icon('minus', 'icon-sm')} Reduce by 1</button><button class="btn adm-danger" type="button" data-sp="out">Mark out of stock</button><button class="btn btn-primary" type="button" data-sp="+1">${icon('plus', 'icon-sm')} Add 1 stock</button></div>`
+        : '<p class="sp-new">This UPC isn’t on the website yet.</p>'}
+      </div>`;
+    };
+    paint(false);
+    panel.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-sp-copy]')) { try { await navigator.clipboard.writeText(cur.code); e.target.closest('button').textContent = 'Copied'; } catch { toast('Copy not available — press and hold the number to copy'); } return; }
+      const b = e.target.closest('[data-sp]'); if (!b || !cur || !cur.id) return;
+      const p = data.products.find((x) => x.id === cur.id); if (!p) return;
+      $$('[data-sp]', panel).forEach((x) => { x.disabled = true; });
+      try {
+        let np;
+        if (b.dataset.sp === 'out') np = await A.patchProduct(p.id, { inventory: 0 });
+        else np = await A.adjustInventory(p.id, b.dataset.sp === '+1' ? 1 : -1);
+        p.inventory = np && np.inventory != null ? np.inventory : p.inventory;
+        refreshStore();
+      } catch (ex) { toast(ex.message || 'Could not update stock'); }
+      paint(false);
+    });
+    panel.addEventListener('input', (e) => {
+      if (!e.target.matches('[data-sp-cost]') || !cur || !cur.id) return;
+      const p = data.products.find((x) => x.id === cur.id); const v = e.target.value;
+      const tot = $('[data-sp-total]', panel); if (tot) tot.textContent = v === '' ? '—' : money(Number(v) * Math.max(0, p.inventory));
+      clearTimeout(invScan.t); invScan.t = setTimeout(() => saveCost(p.id, v), 500);
     });
   }
 
@@ -567,6 +668,7 @@ function mount(main, { store, navigate, query }) {
   // ------------------------------------------------------------ events
   const onClick = async (e) => {
     const t = e.target;
+    if (t.closest('[data-inv-scan]')) { try { await invScan(); } catch { toast('The scanner could not load. Check your connection and try again.'); } return; }
     const rv = t.closest('[data-rev]');
     if (rv) { revPeriod = rv.dataset.rev; revenue(); return; }
     const tb = t.closest('[data-tab]');
@@ -700,7 +802,17 @@ function mount(main, { store, navigate, query }) {
     if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests' || tab === 'orders') orders(); }
     if (t.matches('[data-import]') && t.files[0]) { try { await A.importData(await t.files[0].text()); refreshStore(); toast('Backup imported'); render(); } catch (ex) { toast(ex.message, 'err'); } }
   };
-  const onInput = (e) => { if (e.target.matches('[data-pf-q]')) { prodFilter.q = e.target.value; const pos = e.target.selectionStart; products(); const i = $('[data-pf-q]'); i.focus(); i.setSelectionRange(pos, pos); } };
+  const onInput = (e) => {
+    if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; const pos = e.target.selectionStart; inventory(); const i = $('[data-inv-q]'); i.focus(); i.setSelectionRange(pos, pos); return; }
+    if (e.target.matches('[data-cost]')) {
+      const id = e.target.dataset.cost; const v = e.target.value; const p = data.products.find((x) => x.id === id);
+      data.costs = data.costs || {}; if (v === '') delete data.costs[id]; else data.costs[id] = Number(v);
+      const row = e.target.closest('[data-inv]'); if (row && p) $('[data-inv-total]', row).textContent = v === '' ? '—' : money(Number(v) * Math.max(0, p.inventory));
+      invRefresh(null);
+      clearTimeout(onInput.t); onInput.t = setTimeout(() => saveCost(id, v), 600);
+      return;
+    }
+    if (e.target.matches('[data-pf-q]')) { prodFilter.q = e.target.value; const pos = e.target.selectionStart; products(); const i = $('[data-pf-q]'); i.focus(); i.setSelectionRange(pos, pos); } };
   const onSubmit = async (e) => {
     const f = e.target;
     if (f.matches('[data-login]')) {

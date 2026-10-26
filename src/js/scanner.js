@@ -6,13 +6,22 @@ import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 
 const FORMATS = [BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.CODE_128];
 
-function open({ onResult, onError } = {}) {
+function open({ onResult, onError, onClose, continuous = false } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'scan-overlay';
   wrap.innerHTML = `<video playsinline muted autoplay></video><div class="scan-frame"></div>
     <p class="scan-hint">Point your camera at a barcode</p>
     <button class="scan-btn scan-close" type="button" aria-label="Close scanner"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     <button class="scan-btn scan-flash" type="button" aria-label="Turn on flash" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" data-slash/></svg></button>`;
+  // Continuous mode (inventory): camera stays open on top, results panel below it.
+  let panel = null;
+  if (continuous) {
+    wrap.classList.add('scan-continuous');
+    const cam = document.createElement('div'); cam.className = 'scan-cam';
+    [...wrap.children].forEach((c) => cam.appendChild(c));
+    panel = document.createElement('div'); panel.className = 'scan-panel';
+    wrap.append(cam, panel);
+  }
   document.body.appendChild(wrap);
   const video = wrap.querySelector('video');
   let controls = null, stream = null, done = false, raf = 0;
@@ -23,11 +32,22 @@ function open({ onResult, onError } = {}) {
     try { controls && controls.stop(); } catch {}
     try { stream && stream.getTracks().forEach((t) => t.stop()); } catch {}
     wrap.remove();
+    onClose && onClose();
   };
+  let last = '', lastAt = 0;
   const found = (text) => {
     if (done) return;
     const digits = String(text || '').replace(/\D/g, '');
     if (digits.length < 6) return;
+    if (continuous) {
+      // Keep scanning; ignore the same barcode while it stays in view.
+      const now = Date.now();
+      if (digits === last && now - lastAt < 2500) { lastAt = now; return; }
+      last = digits; lastAt = now;
+      if (navigator.vibrate) navigator.vibrate(60);
+      onResult && onResult(digits);
+      return;
+    }
     if (navigator.vibrate) navigator.vibrate(60);
     close();
     onResult && onResult(digits);
@@ -61,7 +81,7 @@ function open({ onResult, onError } = {}) {
           const det = new window.BarcodeDetector({ formats: want });
           const tick = async () => {
             if (done) return;
-            try { const r = await det.detect(video); if (r && r[0]) return found(r[0].rawValue); } catch {}
+            try { const r = await det.detect(video); if (r && r[0]) { found(r[0].rawValue); if (!continuous) return; } } catch {}
             raf = requestAnimationFrame(tick);
           };
           tick();
@@ -78,7 +98,7 @@ function open({ onResult, onError } = {}) {
       onError && onError(msg);
     }
   })();
-  return close;
+  return continuous ? { close, panel } : close;
 }
 
 window.MLScanner = { open };

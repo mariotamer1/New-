@@ -175,6 +175,8 @@ function createLocalBackend() {
       async deleteProduct(id) { db.products = db.products.filter((p) => p.id !== id); persist(); },
       async patchProduct(id, patch) { const p = find(id); if (p) Object.assign(p, patch); persist(); return p; },
       async adjustInventory(id, delta) { const p = find(id); if (p) p.inventory = Math.max(0, (p.inventory || 0) + delta); persist(); return p; },
+      async costs() { return { ...(db.costs || {}) }; },
+      async setCost(id, cost) { db.costs = db.costs || {}; if (cost == null) delete db.costs[id]; else db.costs[id] = cost; persist(); },
       async orders() { return db.orders; },
       async setTracking(id, tracking) { const o = db.orders.find((x) => x.id === id); if (o) { o.tracking = tracking; persist(); } },
       async deleteOrder(o) {

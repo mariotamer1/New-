@@ -187,6 +187,9 @@ export function createSupabaseBackend(cfg) {
         const res = await rest('PATCH', `products?id=eq.${encodeURIComponent(id)}`, body, 'return=representation');
         const p = fromProduct(res[0]); const i = cache.products.findIndex((x) => x.id === id); if (i >= 0) cache.products[i] = p; return p;
       },
+      // Item costs live in an admin-only table (never readable by shoppers).
+      async costs() { const rows = await rest('GET', 'product_costs?select=product_id,cost'); const m = {}; rows.forEach((r) => { if (r.cost != null) m[r.product_id] = Number(r.cost); }); return m; },
+      async setCost(id, cost) { await rest('POST', 'product_costs?on_conflict=product_id', { product_id: id, cost: cost == null ? null : Number(cost), updated_at: new Date().toISOString() }, 'resolution=merge-duplicates'); },
       async adjustInventory(id, delta) {
         const n = await rpc('admin_adjust_inventory', { p_id: id, p_delta: delta });
         const p = cache.products.find((x) => x.id === id); if (p) p.inventory = n; return p;
