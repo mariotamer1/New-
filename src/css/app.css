@@ -1241,3 +1241,7 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .sp-money input[type=number] { -moz-appearance: textfield; }
 @media (max-width: 759px) { .adm-side nav ul { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-width: 1099px) { .inv-tiles .adm-tile:not(:first-child) b { font-size: 21px; overflow-wrap: normal; } }
+
+.sp-type { display: flex; gap: 8px; margin-bottom: 12px; }
+.sp-type input { flex: 1; min-width: 0; height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font: 600 17px var(--font-mono); letter-spacing: .04em; background: #fff; color: var(--ink); }
+.sp-type .btn { min-height: 48px; border-radius: 10px; }

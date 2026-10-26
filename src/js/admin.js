@@ -363,9 +363,16 @@ function mount(main, { store, navigate, query }) {
       onError: (msg) => toast(msg),
       onClose: () => { if (tab === 'inventory') inventory(); },
     });
-    const panel = h.panel;
+    // Typed UPC box is always there, above the results card.
+    h.panel.innerHTML = `<form class="sp-type" data-sp-type><label class="sr-only" for="sp-upc">Type a UPC</label><input id="sp-upc" type="text" inputmode="numeric" autocomplete="off" placeholder="Type UPC" enterkeyhint="search"><button class="btn btn-primary" type="submit">Look up</button></form><div data-sp-out></div>`;
+    const panel = $('[data-sp-out]', h.panel);
+    h.panel.querySelector('[data-sp-type]').addEventListener('submit', (e) => {
+      e.preventDefault(); const inp = e.target.querySelector('input'); const code = inp.value.replace(/\D/g, '');
+      if (code.length < 6) { toast('Enter at least 6 digits'); return; }
+      cur = { code, id: (data.products.find((p) => p.upc && upcKey(p.upc) === upcKey(code)) || {}).id || null }; paint(true); inp.value = ''; inp.blur();
+    });
     const paint = (fresh) => {
-      if (!cur) { panel.innerHTML = '<p class="sp-empty">Scan a barcode. Each new scan shows up here — the camera stays on.</p>'; return; }
+      if (!cur) { panel.innerHTML = '<p class="sp-empty">Scan a barcode or type the UPC above. Each new scan shows up here — the camera stays on.</p>'; return; }
       const p = cur.id && data.products.find((x) => x.id === cur.id);
       const c = p ? costOf(p) : null;
       panel.innerHTML = `<div class="sp-card"${fresh ? '' : ' style="animation:none"'}>
