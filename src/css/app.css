@@ -1261,3 +1261,6 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 
 .sp-status { margin-top: 6px; font-size: 13px; color: #8a4b00; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .sp-status.ok { color: var(--ok); }
+/* No double-tap zoom on the scanner and admin buttons (fast repeated taps). */
+.scan-overlay, .scan-overlay *, .admin button, .admin .btn, .admin input { touch-action: manipulation; }
+.sp-actions .btn, .sp-stock-btn { -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }

@@ -386,6 +386,9 @@ function mount(main, { store, navigate, query }) {
       </div>`;
     };
     paint(false);
+    // iOS ignores touch-action on some versions: block the double-tap zoom gesture on the action buttons.
+    let lastTap = 0;
+    panel.addEventListener('touchend', (e) => { if (!e.target.closest('.sp-actions, [data-sp-edit], [data-sp-copy]')) return; const now = Date.now(); if (now - lastTap < 350) { e.preventDefault(); e.target.closest('button').click(); } lastTap = now; }, { passive: false });
     panel.addEventListener('click', async (e) => {
       if (e.target.closest('[data-sp-copy]')) { try { await navigator.clipboard.writeText(cur.code); e.target.closest('button').textContent = 'Copied'; } catch { toast('Copy not available — press and hold the number to copy'); } return; }
       if (e.target.closest('[data-sp-edit]') && cur && cur.id) {
