@@ -345,10 +345,14 @@ function mount(main, { store, navigate, query }) {
         <div><small>Total cost</small><b class="tabnum" data-inv-total>${tot}</b></div>
       </div></li>`;
   }
-  function inventory() {
-    const t = invTotals();
+  // Rows for the current search. Typing only swaps these rows, so the search box keeps focus and the page doesn't jump.
+  function invRowsHTML() {
     const q = invQ.trim().toLowerCase(); const qd = upcKey(invQ);
     const list = sortInv(data.products.filter((p) => !q || p.title.toLowerCase().includes(q) || (qd && upcKey(p.upc).includes(qd))));
+    return list.map(invRow).join('') || '<li class="inv-row"><span></span><span class="muted">No matching items.</span></li>';
+  }
+  function inventory() {
+    const t = invTotals();
     main.innerHTML = shell(`
       <div class="adm-tiles inv-tiles">
         <div class="adm-tile"><span class="eyebrow">Inventory value (cost)</span><b class="tabnum" data-inv-costval>${money(t.costVal)}</b><span class="muted" data-inv-missing>${t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost'}</span></div>
@@ -356,7 +360,7 @@ function mount(main, { store, navigate, query }) {
         <div class="adm-tile"><span class="eyebrow">Units in stock</span><b class="tabnum">${t.units}</b><span class="muted">${data.products.filter((p) => p.inventory > 0).length} items in stock</span></div>
       </div>
       <div class="inv-tools"><input type="search" placeholder="Search by name or UPC" value="${esc(invQ)}" data-inv-q aria-label="Search inventory"><div class="select"><label class="sr-only" for="inv-sort">Sort inventory</label><select id="inv-sort" data-inv-sort>${INV_SORTS.map(([v, l]) => `<option value="${v}" ${invSort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div></div>
-      <ul class="inv-list">${list.map(invRow).join('') || '<li class="inv-row"><span></span><span class="muted">No matching items.</span></li>'}</ul>`, 'Inventory', `<button class="btn btn-primary" type="button" data-inv-scan>${icon('camera', 'icon-sm')} Scan</button>`);
+      <ul class="inv-list">${invRowsHTML()}</ul>`, 'Inventory', `<button class="btn btn-primary" type="button" data-inv-scan>${icon('camera', 'icon-sm')} Scan</button>`);
   }
   // Update tiles and one row in place (no re-render, so typing and scrolling aren't interrupted).
   function invRefresh(id) {
@@ -909,7 +913,7 @@ function mount(main, { store, navigate, query }) {
   main.addEventListener('change', onInvStock);
   main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
   const onInput = (e) => {
-    if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; const pos = e.target.selectionStart; inventory(); const i = $('[data-inv-q]'); i.focus(); i.setSelectionRange(pos, pos); return; }
+    if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; $('.inv-list').innerHTML = invRowsHTML(); return; }
     if (e.target.matches('[data-cost]')) {
       const id = e.target.dataset.cost; const v = e.target.value; const p = data.products.find((x) => x.id === id);
       data.costs = data.costs || {}; if (v === '') delete data.costs[id]; else data.costs[id] = Number(v);

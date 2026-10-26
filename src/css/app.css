@@ -1279,3 +1279,8 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .adm-add-body { padding: 12px; }
 .sp-new-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
 .sp-new-row .sp-new { margin: 0; }
+
+/* iPhone zooms the page when a field with text under 16px is tapped, which makes the screen jump.
+   Keep fields at 16px on touch screens so the page stays still while typing. */
+@media (pointer: coarse) { input, select, textarea { font-size: 16px; } }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
