@@ -1245,3 +1245,10 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .sp-type { display: flex; gap: 8px; margin-bottom: 12px; }
 .sp-type input { flex: 1; min-width: 0; height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font: 600 17px var(--font-mono); letter-spacing: .04em; background: #fff; color: var(--ink); }
 .sp-type .btn { min-height: 48px; border-radius: 10px; }
+
+.scan-cam .sp-type { position: absolute; left: 16px; right: 16px; bottom: 12px; margin: 0; z-index: 2; }
+.scan-cam .sp-type input { background: rgba(255,255,255,.96); border-color: #fff; }
+.scan-cam .sp-type .btn { background: #fff; color: var(--ink); border-color: #fff; }
+.scan-continuous .scan-hint { bottom: auto; top: calc(22px + env(safe-area-inset-top, 0px)); font-size: 13px; padding: 7px 12px; }
+.scan-overlay.scan-continuous { grid-template-rows: minmax(300px, 48vh) 1fr; }
+.scan-continuous .scan-frame { margin-bottom: 56px; aspect-ratio: 2 / 1; }
