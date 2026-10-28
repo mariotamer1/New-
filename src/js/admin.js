@@ -500,29 +500,16 @@ function mount(main, { store, navigate, query }) {
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Profit', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
   }
 
-  // ------------------------------------------------------------ sales data (owner's sheet, 2024 to now)
-  // Monthly profit from the owner's sheet. From January 2026 on, each month uses the average monthly profit until changed here.
-  const SALES_MONTHS = [['2024-04', 471.83], ['2024-05', 481.14], ['2024-06', 292.82], ['2024-07', 1101.99], ['2024-08', 1797.00], ['2024-09', 1592.18], ['2024-10', 446.34], ['2024-11', 396.66], ['2024-12', 1596.93],
-    ['2025-01', 2000.00], ['2025-02', 2000.00], ['2025-03', 3000.00], ['2025-04', 3000.00], ['2025-05', 3000.00], ['2025-06', 2037.59], ['2025-07', 3002.21], ['2025-08', 2753.21], ['2025-09', 3184.79], ['2025-10', 3231.09], ['2025-11', 3123.05], ['2025-12', 4516.84]];
-  const SALES_AVG_2026 = 2771.49;
-  const SALES_TOTALS = { gross: 253099.17, expenses: 169954.44, profit: 83144.74, roi: 32.85, grossPerMonth: 8436.64, expensesPerMonth: 5665.15, noiPerMonth: 2771.49 };
+  // ------------------------------------------------------------ sales data (owner's sheet, since 2024)
+  const SALES_TOTALS = { gross: 253099.17, profit: 83144.74 };
   function salesDataHTML() {
-    const now = new Date();
-    const rows = SALES_MONTHS.map(([m, v]) => ({ m, v, est: false }));
-    for (let mo = 1; mo <= now.getMonth() + 1; mo++) rows.push({ m: `2026-${String(mo).padStart(2, '0')}`, v: SALES_AVG_2026, est: true });
-    const label = (m) => new Date(m + '-01T12:00:00').toLocaleString('en-US', { month: 'long', year: 'numeric' });
-    const sum = rows.reduce((t, r) => t + r.v, 0);
     const T = SALES_TOTALS;
-    return `<section class="adm-card sales-data"><div class="adm-card-head"><h2>Sales data</h2><span class="muted" style="font-size:13px">From your sheet. Months from Jan 2026 are the average.</span></div>
+    return `<section class="adm-card sales-data"><div class="adm-card-head"><h2>Sales data</h2><span class="muted" style="font-size:13px">Since 2024, from your sheet</span></div>
       <div class="adm-card-body">
         <div class="adm-tiles rv-tiles">
-          <div class="adm-tile"><span class="eyebrow">Gross revenue (since 2024)</span><b class="tabnum">${money(T.gross)}</b><span class="muted">${money(T.grossPerMonth)} / month</span></div>
-          <div class="adm-tile"><span class="eyebrow">Expenses / cost (since 2024)</span><b class="tabnum">-${money(T.expenses)}</b><span class="muted">${money(T.expensesPerMonth)} / month</span></div>
-          <div class="adm-tile"><span class="eyebrow">Profit (since 2024)</span><b class="tabnum">${money(T.profit)}</b><span class="muted">${money(T.noiPerMonth)} / month</span></div>
-          <div class="adm-tile"><span class="eyebrow">Average % ROI</span><b class="tabnum">${T.roi.toFixed(2)}%</b><span class="muted">From your sheet</span></div>
+          <div class="adm-tile"><span class="eyebrow">Revenue (since 2024)</span><b class="tabnum">${money(T.gross)}</b><span class="muted">Gross revenue</span></div>
+          <div class="adm-tile"><span class="eyebrow">Profit (since 2024)</span><b class="tabnum">${money(T.profit)}</b><span class="muted">From your sheet</span></div>
         </div>
-        <table class="rv-table"><thead><tr><th>Month</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().reverse().map((r) => `<tr><td>${label(r.m)}${r.est ? ' <small class="muted">· average</small>' : ''}</td><td class="num tabnum">${money(r.v)}</td></tr>`).join('')}</tbody></table>
-        <p class="muted" style="font-size:13px">Months listed add up to ${money(sum)}.</p>
       </div></section>`;
   }
 
