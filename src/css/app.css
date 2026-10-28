@@ -1284,3 +1284,5 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
    Keep fields at 16px on touch screens so the page stays still while typing. */
 @media (pointer: coarse) { input, select, textarea { font-size: 16px; } }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* Sales data totals stay on one line so the cents are never cut off. */
+.sales-data .adm-tile b { white-space: nowrap; font-size: clamp(18px, 5.2vw, 26px); }
