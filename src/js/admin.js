@@ -625,7 +625,10 @@ function mount(main, { store, navigate, query }) {
     if (key === 'ytd') profit = 30372.38; // set from the owner's sheet
     // YTD revenue: 99,000 from the owner's sheet, plus the website's YTD revenue.
     const extra = key === 'ytd' ? 99000 : 0;
-    return { revenue: round2(site.reduce((t, r) => t + r.revenue, 0) + extra), expenses: round2(site.reduce((t, r) => t + r.cost, 0)), profit: round2(profit) };
+    const revenue = round2(site.reduce((t, r) => t + r.revenue, 0) + extra);
+    // YTD expenses are revenue minus profit.
+    const expenses = key === 'ytd' ? round2(revenue - profit) : round2(site.reduce((t, r) => t + r.cost, 0));
+    return { revenue, expenses, profit: round2(profit) };
   }
   function salesPage() {
     const T = rangeTotals(sbRange);
