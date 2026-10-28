@@ -623,7 +623,9 @@ function mount(main, { store, navigate, query }) {
       if (new Date(yy, mm - 1, 1) >= b.from && new Date(yy, mm, 0, 23, 59, 59, 999) <= b.to) profit += v;
     });
     if (key === 'ytd') profit = 30372.38; // set from the owner's sheet
-    return { revenue: round2(site.reduce((t, r) => t + r.revenue, 0)), expenses: round2(site.reduce((t, r) => t + r.cost, 0)), profit: round2(profit) };
+    // YTD revenue: 99,000 from the owner's sheet, plus the website's YTD revenue.
+    const extra = key === 'ytd' ? 99000 : 0;
+    return { revenue: round2(site.reduce((t, r) => t + r.revenue, 0) + extra), expenses: round2(site.reduce((t, r) => t + r.cost, 0)), profit: round2(profit) };
   }
   function salesPage() {
     const T = rangeTotals(sbRange);
