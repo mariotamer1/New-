@@ -530,7 +530,7 @@ function mount(main, { store, navigate, query }) {
       <div class="rv-periods" role="group" aria-label="Time period">${REV_PERIODS.map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
       <div class="adm-tiles rv-tiles">
         <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
-        <div class="adm-tile"><span class="eyebrow">Margin</span><b class="tabnum">${margin}%</b><span class="muted">Profit ÷ revenue</span></div>
+        <div class="adm-tile"><span class="eyebrow">Margin</span><b class="tabnum">${rev ? margin + '%' : '—'}</b><span class="muted">Profit ÷ revenue</span></div>
         ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
       </div>
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
@@ -600,6 +600,8 @@ function mount(main, { store, navigate, query }) {
   const SALES_MONTHS = [['2024-04', 471.83], ['2024-05', 481.14], ['2024-06', 292.82], ['2024-07', 1101.99], ['2024-08', 1797.00], ['2024-09', 1592.18], ['2024-10', 446.34], ['2024-11', 396.66], ['2024-12', 1596.93],
     ['2025-01', 2000.00], ['2025-02', 2000.00], ['2025-03', 3000.00], ['2025-04', 3000.00], ['2025-05', 3000.00], ['2025-06', 2037.59], ['2025-07', 3002.21], ['2025-08', 2753.21], ['2025-09', 3184.79], ['2025-10', 3231.09], ['2025-11', 3123.05], ['2025-12', 4516.84]];
   const SALES_AVG_2026 = 2771.49;
+  const SALES_AVG_REVENUE = 8436.64;
+  const SALES_AVG_EXPENSES = 5665.15;
   // Sales page: revenue, expenses and profit for a range. Site orders are exact; the sheet adds profit for whole months in the range.
   let sbRange = 'all';
   const SB_RANGES = [['today', 'Today'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['ytd', 'YTD'], ['lastyear', 'Last year'], ['all', 'All time']];
@@ -615,21 +617,27 @@ function mount(main, { store, navigate, query }) {
     if (key === 'all') return { revenue: SALES_TOTALS.gross, expenses: SALES_TOTALS.expenses, profit: SALES_TOTALS.profit };
     const b = rangeBounds(key); const now = new Date();
     const site = profitRows(b.from, b.to);
-    // Monthly profit: the owner's sheet, then the 2026 average. Each month's figure is spread over its days, so a range gets the share of days it covers.
-    const months = [...SALES_MONTHS];
-    for (let mo = 1; mo <= now.getMonth() + 1; mo++) months.push([`${now.getFullYear()}-${String(mo).padStart(2, '0')}`, SALES_AVG_2026]);
-    let profit = 0;
-    months.forEach(([m, v]) => {
-      const [yy, mm] = m.split('-').map(Number);
+    // A month's figure is spread over its days, so a range gets the share of days it covers.
+    const share = (yy, mm, from, to) => {
       const ms = new Date(yy, mm - 1, 1); const me = new Date(yy, mm, 0, 23, 59, 59, 999);
-      const from = Math.max(+ms, +b.from); const to = Math.min(+me, +b.to);
-      if (to > from) profit += v * (to - from) / (+me - +ms + 1);
-    });
-    if (key === 'ytd') profit = 30372.38; // set from the owner's sheet
-    // YTD revenue: 99,000 from the owner's sheet, plus the website's YTD revenue. YTD expenses are revenue minus profit.
-    const revenue = round2(site.reduce((t, r) => t + r.revenue, 0) + (key === 'ytd' ? 99000 : 0));
-    const expenses = key === 'ytd' ? round2(revenue - profit) : round2(site.reduce((t, r) => t + r.cost, 0));
-    return { revenue, expenses, profit: round2(profit) };
+      const f = Math.max(+ms, +from); const t = Math.min(+me, +to);
+      return t > f ? (t - f) / (+me - +ms + 1) : 0;
+    };
+    let profit = 0, revenue = 0, expenses = 0;
+    // Sheet months before 2026: profit only.
+    SALES_MONTHS.forEach(([m, v]) => { const [yy, mm] = m.split('-').map(Number); profit += v * share(yy, mm, b.from, b.to); });
+    // 2026 months: the sheet averages for revenue, expenses and profit (profit = revenue minus expenses).
+    for (let mo = 1; mo <= now.getMonth() + 1; mo++) {
+      const f = share(now.getFullYear(), mo, b.from, b.to);
+      profit += SALES_AVG_2026 * f; revenue += SALES_AVG_REVENUE * f; expenses += SALES_AVG_EXPENSES * f;
+    }
+    if (key === 'ytd') {
+      // YTD: 99,000 from the owner's sheet plus website revenue; profit set by the owner; expenses are revenue minus profit.
+      profit = 30372.38;
+      revenue = site.reduce((t, r) => t + r.revenue, 0) + 99000;
+      expenses = revenue - profit;
+    }
+    return { revenue: round2(revenue), expenses: round2(expenses), profit: round2(profit) };
   }
   function salesPage() {
     const T = rangeTotals(sbRange);
