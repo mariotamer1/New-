@@ -611,29 +611,57 @@ function mount(main, { store, navigate, query }) {
     return [...years.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
   }
   const sbMoney = (v) => (v == null ? '—' : money(v));
-  // Sales breakdown: its own admin page (opened from the Sales tile on Overview).
+  // Sales page: revenue, expenses and profit for a range. Site orders are exact; the sheet adds profit for whole months in the range.
+  let sbRange = 'all';
+  const SB_RANGES = [['today', 'Today'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['ytd', 'YTD'], ['lastyear', 'Last year'], ['all', 'All time']];
+  function rangeBounds(key) {
+    const now = new Date(); const y = now.getFullYear(); const startDay = new Date(y, now.getMonth(), now.getDate());
+    if (key === 'today') return { from: startDay, to: now };
+    if (key === '7' || key === '30') return { from: new Date(startDay - Number(key) * 864e5), to: now };
+    if (key === 'ytd') return { from: new Date(y, 0, 1), to: now };
+    if (key === 'lastyear') return { from: new Date(y - 1, 0, 1), to: new Date(y - 1, 11, 31, 23, 59, 59, 999) };
+    return { from: new Date(0), to: now };
+  }
+  function rangeTotals(key) {
+    if (key === 'all') return { revenue: SALES_TOTALS.gross, expenses: SALES_TOTALS.expenses, profit: SALES_TOTALS.profit };
+    const b = rangeBounds(key); const now = new Date();
+    const site = profitRows(b.from, b.to);
+    const siteMonths = new Set(profitRows(new Date(0), now).map((r) => periodOf(r.o.createdAt, 'month')));
+    let profit = site.reduce((t, r) => t + r.profit, 0); let sheetMonths = 0;
+    const months = [...SALES_MONTHS];
+    for (let mo = 1; mo <= now.getMonth() + 1; mo++) months.push([`${now.getFullYear()}-${String(mo).padStart(2, '0')}`, SALES_AVG_2026]);
+    months.forEach(([m, v]) => {
+      if (siteMonths.has(m)) return;
+      const [yy, mm] = m.split('-').map(Number);
+      if (new Date(yy, mm - 1, 1) >= b.from && new Date(yy, mm, 0, 23, 59, 59, 999) <= b.to) { profit += v; sheetMonths++; }
+    });
+    // The sheet has monthly profit only, so revenue and expenses can't be shown for ranges that include sheet months.
+    const exact = sheetMonths === 0;
+    return {
+      revenue: exact ? round2(site.reduce((t, r) => t + r.revenue, 0)) : null,
+      expenses: exact ? round2(site.reduce((t, r) => t + r.cost, 0)) : null,
+      profit: round2(profit),
+    };
+  }
   function salesPage() {
+    const T = rangeTotals(sbRange);
     const rows = salesBreakdownRows(sbUnit).slice().reverse();
-    const sum = (k) => round2(rows.reduce((t, r) => t + (r[k] || 0), 0));
     const note = sbUnit === 'day' || sbUnit === 'week'
       ? 'Day and week views only cover orders on this website. Your sheet has monthly profit only.'
       : 'Site = orders on this website. Sheet = your monthly profit from before the website. Average = the monthly average from January 2026 until you change it.';
+    const line = (label, v, neg) => `<div class="sb-row"><span class="eyebrow">${label}</span><b class="tabnum">${v == null ? '—' : (neg ? '-' : '') + money(v)}</b></div>`;
     main.innerHTML = shell(`
-      <div class="adm-tiles rv-tiles sb-totals">
-        <div class="adm-tile"><span class="eyebrow">Total revenue · since 2024</span><b class="tabnum">${money(SALES_TOTALS.gross)}</b><span class="muted">From your sheet</span></div>
-        <div class="adm-tile"><span class="eyebrow">Total expenses · since 2024</span><b class="tabnum">${money(SALES_TOTALS.expenses)}</b><span class="muted">From your sheet</span></div>
-        <div class="adm-tile"><span class="eyebrow">Total profit · since 2024</span><b class="tabnum">${money(SALES_TOTALS.profit)}</b><span class="muted">From your sheet</span></div>
+      <div class="sb-rows">
+        ${line('Revenue', T.revenue)}
+        ${line('Expenses', T.expenses, true)}
+        ${line('Profit', T.profit)}
       </div>
+      <div class="rv-periods" role="group" aria-label="Time range">${SB_RANGES.map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
       <div class="rv-periods" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" class="chip${sbUnit === k ? ' is-on' : ''}" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
-      <div class="adm-tiles rv-tiles">
-        <div class="adm-tile"><span class="eyebrow">Revenue</span><b class="tabnum">${money(sum('revenue'))}</b><span class="muted">Site orders</span></div>
-        <div class="adm-tile"><span class="eyebrow">Expenses</span><b class="tabnum">${money(sum('expenses'))}</b><span class="muted">Cost of items sold</span></div>
-        <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(sum('profit'))}</b><span class="muted">Site + sheet</span></div>
-      </div>
       <section class="adm-card"><div class="adm-card-head"><h2>By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</h2></div>
         ${rows.length ? `<table class="rv-table sb-table"><thead><tr><th>Period</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)} <small class="muted">· ${r.source}</small></td><td class="num tabnum">${sbMoney(r.revenue)}</td><td class="num tabnum">${sbMoney(r.expenses)}</td><td class="num tabnum">${sbMoney(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales yet for this view.</p>'}
       </section>
-      <p class="muted" style="font-size:13px">${note}</p>`, 'Sales breakdown', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+      <p class="muted" style="font-size:13px">${note}</p>`, 'Sales', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
   }
 
   // ------------------------------------------------------------ revenue report
@@ -909,6 +937,8 @@ function mount(main, { store, navigate, query }) {
     if (t.closest('[data-sales-breakdown]')) { tab = 'sales'; editId = null; draft = null; render(); return; }
     const sb = t.closest('[data-sb]');
     if (sb) { sbUnit = sb.dataset.sb; salesPage(); return; }
+    const sr = t.closest('[data-sbr]');
+    if (sr) { sbRange = sr.dataset.sbr; salesPage(); return; }
     const pf = t.closest('[data-prof]');
     if (pf) { profitPeriod = pf.dataset.prof; profit(); return; }
     const rv = t.closest('[data-rev]');
