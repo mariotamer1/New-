@@ -117,7 +117,7 @@ function mount(main, { store, navigate, query }) {
     markSeen(tab);
     setURL();
     if (tab === 'products' && editId) return renderEditor();
-    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, inventory };
+    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, sales: salesPage, inventory };
     (views[tab] || overview)();
   }
 
@@ -611,44 +611,29 @@ function mount(main, { store, navigate, query }) {
     return [...years.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
   }
   const sbMoney = (v) => (v == null ? '—' : money(v));
-  function paintSalesBreakdown(dlg) {
+  // Sales breakdown: its own admin page (opened from the Sales tile on Overview).
+  function salesPage() {
     const rows = salesBreakdownRows(sbUnit).slice().reverse();
     const sum = (k) => round2(rows.reduce((t, r) => t + (r[k] || 0), 0));
     const note = sbUnit === 'day' || sbUnit === 'week'
       ? 'Day and week views only cover orders on this website. Your sheet has monthly profit only.'
       : 'Site = orders on this website. Sheet = your monthly profit from before the website. Average = the monthly average from January 2026 until you change it.';
-    dlg.innerHTML = `<div class="adm-add-head"><h2>Sales breakdown</h2><button class="btn btn-sm" type="button" data-sb-close aria-label="Close">${icon('close', 'icon-sm')}</button></div>
-      <div class="adm-add-body">
-        <div class="adm-tiles rv-tiles sb-totals">
-          <div class="adm-tile"><span class="eyebrow">Total revenue · since 2024</span><b class="tabnum">${money(SALES_TOTALS.gross)}</b><span class="muted">From your sheet</span></div>
-          <div class="adm-tile"><span class="eyebrow">Total expenses · since 2024</span><b class="tabnum">${money(SALES_TOTALS.expenses)}</b><span class="muted">From your sheet</span></div>
-          <div class="adm-tile"><span class="eyebrow">Total profit · since 2024</span><b class="tabnum">${money(SALES_TOTALS.profit)}</b><span class="muted">From your sheet</span></div>
-        </div>
-        <div class="rv-periods" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" class="chip${sbUnit === k ? ' is-on' : ''}" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
-        <div class="adm-tiles rv-tiles">
-          <div class="adm-tile"><span class="eyebrow">Revenue</span><b class="tabnum">${money(sum('revenue'))}</b><span class="muted">Site orders</span></div>
-          <div class="adm-tile"><span class="eyebrow">Expenses</span><b class="tabnum">${money(sum('expenses'))}</b><span class="muted">Cost of items sold</span></div>
-          <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(sum('profit'))}</b><span class="muted">Site + sheet</span></div>
-        </div>
-        <section class="adm-card"><div class="adm-card-head"><h2>By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</h2></div>
-          ${rows.length ? `<table class="rv-table sb-table"><thead><tr><th>Period</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)} <small class="muted">· ${r.source}</small></td><td class="num tabnum">${sbMoney(r.revenue)}</td><td class="num tabnum">${sbMoney(r.expenses)}</td><td class="num tabnum">${sbMoney(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales yet for this view.</p>'}
-        </section>
-        <p class="muted" style="font-size:13px">${note}</p>
-      </div>`;
-  }
-  function salesBreakdown() {
-    let dlg = document.getElementById('sales-dlg');
-    if (!dlg) {
-      dlg = document.createElement('dialog');
-      dlg.id = 'sales-dlg'; dlg.className = 'modal adm-add-dlg sb-dlg';
-      document.body.appendChild(dlg);
-      dlg.addEventListener('click', (e) => {
-        const c = e.target.closest('[data-sb]'); if (c) { sbUnit = c.dataset.sb; paintSalesBreakdown(dlg); return; }
-        if (e.target.closest('[data-sb-close]')) dlg.close();
-      });
-    }
-    paintSalesBreakdown(dlg);
-    if (!dlg.open) dlg.showModal();
+    main.innerHTML = shell(`
+      <div class="adm-tiles rv-tiles sb-totals">
+        <div class="adm-tile"><span class="eyebrow">Total revenue · since 2024</span><b class="tabnum">${money(SALES_TOTALS.gross)}</b><span class="muted">From your sheet</span></div>
+        <div class="adm-tile"><span class="eyebrow">Total expenses · since 2024</span><b class="tabnum">${money(SALES_TOTALS.expenses)}</b><span class="muted">From your sheet</span></div>
+        <div class="adm-tile"><span class="eyebrow">Total profit · since 2024</span><b class="tabnum">${money(SALES_TOTALS.profit)}</b><span class="muted">From your sheet</span></div>
+      </div>
+      <div class="rv-periods" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" class="chip${sbUnit === k ? ' is-on' : ''}" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
+      <div class="adm-tiles rv-tiles">
+        <div class="adm-tile"><span class="eyebrow">Revenue</span><b class="tabnum">${money(sum('revenue'))}</b><span class="muted">Site orders</span></div>
+        <div class="adm-tile"><span class="eyebrow">Expenses</span><b class="tabnum">${money(sum('expenses'))}</b><span class="muted">Cost of items sold</span></div>
+        <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(sum('profit'))}</b><span class="muted">Site + sheet</span></div>
+      </div>
+      <section class="adm-card"><div class="adm-card-head"><h2>By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</h2></div>
+        ${rows.length ? `<table class="rv-table sb-table"><thead><tr><th>Period</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)} <small class="muted">· ${r.source}</small></td><td class="num tabnum">${sbMoney(r.revenue)}</td><td class="num tabnum">${sbMoney(r.expenses)}</td><td class="num tabnum">${sbMoney(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales yet for this view.</p>'}
+      </section>
+      <p class="muted" style="font-size:13px">${note}</p>`, 'Sales breakdown', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
   }
 
   // ------------------------------------------------------------ revenue report
@@ -921,7 +906,9 @@ function mount(main, { store, navigate, query }) {
   const onClick = async (e) => {
     const t = e.target;
     if (t.closest('[data-inv-scan]')) { try { await invScan(); } catch { toast('The scanner could not load. Check your connection and try again.'); } return; }
-    if (t.closest('[data-sales-breakdown]')) { salesBreakdown(); return; }
+    if (t.closest('[data-sales-breakdown]')) { tab = 'sales'; editId = null; draft = null; render(); return; }
+    const sb = t.closest('[data-sb]');
+    if (sb) { sbUnit = sb.dataset.sb; salesPage(); return; }
     const pf = t.closest('[data-prof]');
     if (pf) { profitPeriod = pf.dataset.prof; profit(); return; }
     const rv = t.closest('[data-rev]');
