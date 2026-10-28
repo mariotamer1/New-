@@ -520,8 +520,10 @@ function mount(main, { store, navigate, query }) {
   function profit() {
     const [from, to] = revRange(profitPeriod);
     const rows = profitRows(from, to);
-    const total = round2(rows.reduce((t, r) => t + r.profit, 0));
-    const rev = round2(rows.reduce((t, r) => t + r.revenue, 0));
+    // Same totals as the Sales page for this period (website orders plus the owner's sheet).
+    const T = rangeTotals(profitPeriod);
+    const total = T.profit;
+    const rev = T.revenue;
     const missing = rows.reduce((t, r) => t + r.missing, 0);
     const margin = rev ? Math.round((total / rev) * 100) : 0;
     main.innerHTML = shell(`
@@ -604,7 +606,7 @@ function mount(main, { store, navigate, query }) {
   function rangeBounds(key) {
     const now = new Date(); const y = now.getFullYear(); const startDay = new Date(y, now.getMonth(), now.getDate());
     if (key === 'today') return { from: startDay, to: now };
-    if (key === '7' || key === '30') return { from: new Date(startDay - Number(key) * 864e5), to: now };
+    if (key === '7' || key === '30' || key === '90') return { from: new Date(startDay - Number(key) * 864e5), to: now };
     if (key === 'ytd') return { from: new Date(y, 0, 1), to: now };
     if (key === 'lastyear') return { from: new Date(y - 1, 0, 1), to: new Date(y - 1, 11, 31, 23, 59, 59, 999) };
     return { from: new Date(0), to: now };
