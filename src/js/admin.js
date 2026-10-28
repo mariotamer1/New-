@@ -534,25 +534,7 @@ function mount(main, { store, navigate, query }) {
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
         ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt, true)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
       </section>
-      ${salesDataHTML()}
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Profit', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
-  }
-
-  // ------------------------------------------------------------ sales data (owner's sheet, since 2024)
-  const SALES_TOTALS = { gross: 253099.17, expenses: 169954.44, profit: 83144.74 };
-  // Monthly profit from the owner's sheet (before the website). From January 2026 each month uses the average until changed here.
-  const SALES_MONTHS = [['2024-04', 471.83], ['2024-05', 481.14], ['2024-06', 292.82], ['2024-07', 1101.99], ['2024-08', 1797.00], ['2024-09', 1592.18], ['2024-10', 446.34], ['2024-11', 396.66], ['2024-12', 1596.93],
-    ['2025-01', 2000.00], ['2025-02', 2000.00], ['2025-03', 3000.00], ['2025-04', 3000.00], ['2025-05', 3000.00], ['2025-06', 2037.59], ['2025-07', 3002.21], ['2025-08', 2753.21], ['2025-09', 3184.79], ['2025-10', 3231.09], ['2025-11', 3123.05], ['2025-12', 4516.84]];
-  const SALES_AVG_2026 = 2771.49;
-  function salesDataHTML() {
-    const T = SALES_TOTALS;
-    return `<section class="adm-card sales-data"><div class="adm-card-head"><h2>Sales data</h2><span class="muted" style="font-size:13px">Since 2024, from your sheet</span></div>
-      <div class="adm-card-body">
-        <div class="adm-tiles rv-tiles">
-          <div class="adm-tile"><span class="eyebrow">Revenue (since 2024)</span><b class="tabnum">${money(T.gross)}</b><span class="muted">Gross revenue</span></div>
-          <div class="adm-tile"><span class="eyebrow">Profit (since 2024)</span><b class="tabnum">${money(T.profit)}</b><span class="muted">From your sheet</span></div>
-        </div>
-      </div></section>`;
   }
 
   // ------------------------------------------------------------ sales breakdown (pop-up from Overview)
@@ -610,7 +592,12 @@ function mount(main, { store, navigate, query }) {
     });
     return [...years.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
   }
-  const sbMoney = (v) => (v == null ? '—' : money(v));
+  const sbMoney = (v) => (v == null ? '' : money(v));
+  // The owner's sheet: all-time totals, and monthly profit before the website. From January 2026 each month uses the average until changed here.
+  const SALES_TOTALS = { gross: 253099.17, expenses: 169954.44, profit: 83144.74 };
+  const SALES_MONTHS = [['2024-04', 471.83], ['2024-05', 481.14], ['2024-06', 292.82], ['2024-07', 1101.99], ['2024-08', 1797.00], ['2024-09', 1592.18], ['2024-10', 446.34], ['2024-11', 396.66], ['2024-12', 1596.93],
+    ['2025-01', 2000.00], ['2025-02', 2000.00], ['2025-03', 3000.00], ['2025-04', 3000.00], ['2025-05', 3000.00], ['2025-06', 2037.59], ['2025-07', 3002.21], ['2025-08', 2753.21], ['2025-09', 3184.79], ['2025-10', 3231.09], ['2025-11', 3123.05], ['2025-12', 4516.84]];
+  const SALES_AVG_2026 = 2771.49;
   // Sales page: revenue, expenses and profit for a range. Site orders are exact; the sheet adds profit for whole months in the range.
   let sbRange = 'all';
   const SB_RANGES = [['today', 'Today'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['ytd', 'YTD'], ['lastyear', 'Last year'], ['all', 'All time']];
@@ -627,29 +614,20 @@ function mount(main, { store, navigate, query }) {
     const b = rangeBounds(key); const now = new Date();
     const site = profitRows(b.from, b.to);
     const siteMonths = new Set(profitRows(new Date(0), now).map((r) => periodOf(r.o.createdAt, 'month')));
-    let profit = site.reduce((t, r) => t + r.profit, 0); let sheetMonths = 0;
+    let profit = site.reduce((t, r) => t + r.profit, 0);
     const months = [...SALES_MONTHS];
     for (let mo = 1; mo <= now.getMonth() + 1; mo++) months.push([`${now.getFullYear()}-${String(mo).padStart(2, '0')}`, SALES_AVG_2026]);
     months.forEach(([m, v]) => {
       if (siteMonths.has(m)) return;
       const [yy, mm] = m.split('-').map(Number);
-      if (new Date(yy, mm - 1, 1) >= b.from && new Date(yy, mm, 0, 23, 59, 59, 999) <= b.to) { profit += v; sheetMonths++; }
+      if (new Date(yy, mm - 1, 1) >= b.from && new Date(yy, mm, 0, 23, 59, 59, 999) <= b.to) profit += v;
     });
-    // The sheet has monthly profit only, so revenue and expenses can't be shown for ranges that include sheet months.
-    const exact = sheetMonths === 0;
-    return {
-      revenue: exact ? round2(site.reduce((t, r) => t + r.revenue, 0)) : null,
-      expenses: exact ? round2(site.reduce((t, r) => t + r.cost, 0)) : null,
-      profit: round2(profit),
-    };
+    return { revenue: round2(site.reduce((t, r) => t + r.revenue, 0)), expenses: round2(site.reduce((t, r) => t + r.cost, 0)), profit: round2(profit) };
   }
   function salesPage() {
     const T = rangeTotals(sbRange);
     const rows = salesBreakdownRows(sbUnit).slice().reverse();
-    const note = sbUnit === 'day' || sbUnit === 'week'
-      ? 'Day and week views only cover orders on this website. Your sheet has monthly profit only.'
-      : 'Site = orders on this website. Sheet = your monthly profit from before the website. Average = the monthly average from January 2026 until you change it.';
-    const line = (label, v, neg) => `<div class="sb-row"><span class="eyebrow">${label}</span><b class="tabnum">${v == null ? '—' : (neg ? '-' : '') + money(v)}</b></div>`;
+    const line = (label, v, neg) => `<div class="sb-row"><span class="eyebrow">${label}</span><b class="tabnum">${v == null ? '' : (neg ? '-' : '') + money(v)}</b></div>`;
     main.innerHTML = shell(`
       <div class="sb-rows">
         ${line('Revenue', T.revenue)}
@@ -659,9 +637,9 @@ function mount(main, { store, navigate, query }) {
       <div class="rv-periods" role="group" aria-label="Time range">${SB_RANGES.map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
       <div class="rv-periods" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" class="chip${sbUnit === k ? ' is-on' : ''}" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
       <section class="adm-card"><div class="adm-card-head"><h2>By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</h2></div>
-        ${rows.length ? `<table class="rv-table sb-table"><thead><tr><th>Period</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)} <small class="muted">· ${r.source}</small></td><td class="num tabnum">${sbMoney(r.revenue)}</td><td class="num tabnum">${sbMoney(r.expenses)}</td><td class="num tabnum">${sbMoney(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales yet for this view.</p>'}
+        ${rows.length ? `<table class="rv-table sb-table"><thead><tr><th>Period</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)}</td><td class="num tabnum">${sbMoney(r.revenue)}</td><td class="num tabnum">${sbMoney(r.expenses)}</td><td class="num tabnum">${sbMoney(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales yet for this view.</p>'}
       </section>
-      <p class="muted" style="font-size:13px">${note}</p>`, 'Sales', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+      `, 'Sales', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
   }
 
   // ------------------------------------------------------------ revenue report
