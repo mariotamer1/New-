@@ -94,12 +94,15 @@ function mount(main, { store, navigate, query }) {
       ['New orders', data.orders.filter((o) => o.status === 'new').length, `${data.orders.length} total`],
       ['Units in stock', P.reduce((s, p) => s + Math.max(0, p.inventory), 0), `${out.length} sold out (hidden)`],
       ['New offers', data.offers.filter((o) => o.status === 'new').length, `${data.offers.length} total`],
-      ['Sales · 30 days', money(rev), 'Excludes cancelled'],
+      ['Sales · 30 days', money(rev), 'Tap for sales breakdown'],
       ['Profit · 30 days', money(profit30), 'Revenue minus cost'],
       ['Messages', data.inquiries.filter((o) => o.status === 'new').length, 'Contact + wholesale'],
+      ['Total revenue · since 2024', money(SALES_TOTALS.gross), 'From your sheet'],
+      ['Total expenses · since 2024', money(SALES_TOTALS.expenses), 'From your sheet'],
+      ['Total profit · since 2024', money(SALES_TOTALS.profit), 'From your sheet'],
     ];
     main.innerHTML = shell(`
-      <div class="adm-tiles">${tiles.map(([l, v, s]) => (l.startsWith('Sales') || l.startsWith('Profit')) ? `<button type="button" class="adm-tile adm-tile-link" data-tab="${l.startsWith('Profit') ? 'profit' : 'revenue'}" aria-label="Open ${l.startsWith('Profit') ? 'profit' : 'revenue'} details"><span class="eyebrow">${l} ${icon('right', 'icon-sm')}</span><b class="tabnum">${v}</b><span class="muted">${l.startsWith('Profit') ? 'Tap for profit report' : 'Tap for full revenue report'}</span></button>` : `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
+      <div class="adm-tiles">${tiles.map(([l, v, s]) => l.startsWith('Sales') ? `<button type="button" class="adm-tile adm-tile-link" data-sales-breakdown aria-label="Open sales breakdown"><span class="eyebrow">${l} ${icon('right', 'icon-sm')}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></button>` : `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
       <div class="adm-cols two">
         <section class="adm-card"><div class="adm-card-head"><h2>Recent orders</h2><button class="link" type="button" data-tab="orders">All orders</button></div>
           ${data.orders.length ? `<ul class="adm-list">${data.orders.slice(0, 6).map((o) => `<li><button type="button" data-open-order="${o.id}"><span><b class="mono">#${o.number}</b> ${esc(o.customer.name)}<small>${fmtDate(o.createdAt, true)} · ${(() => { const n = o.items.reduce((t, i) => t + (i.qty || 1), 0); return `${n} item${n === 1 ? '' : 's'}`; })()} · ${o.fulfillment === 'pickup' ? 'Pickup' : 'Ship'}</small></span><span class="tabnum">${money(o.total)}</span>${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}${(() => { const im = o.items[0] && o.items[0].image; return im ? `<img class="adm-ord-img" src="${esc(img(im.sm || im.lg))}" alt="${esc(o.items[0].title)}" width="52" height="52" loading="lazy">` : '<span class="adm-ord-img adm-noimg"></span>'; })()}</button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No orders yet. They appear here as soon as a customer checks out.</p>'}
@@ -501,7 +504,11 @@ function mount(main, { store, navigate, query }) {
   }
 
   // ------------------------------------------------------------ sales data (owner's sheet, since 2024)
-  const SALES_TOTALS = { gross: 253099.17, profit: 83144.74 };
+  const SALES_TOTALS = { gross: 253099.17, expenses: 169954.44, profit: 83144.74 };
+  // Monthly profit from the owner's sheet (before the website). From January 2026 each month uses the average until changed here.
+  const SALES_MONTHS = [['2024-04', 471.83], ['2024-05', 481.14], ['2024-06', 292.82], ['2024-07', 1101.99], ['2024-08', 1797.00], ['2024-09', 1592.18], ['2024-10', 446.34], ['2024-11', 396.66], ['2024-12', 1596.93],
+    ['2025-01', 2000.00], ['2025-02', 2000.00], ['2025-03', 3000.00], ['2025-04', 3000.00], ['2025-05', 3000.00], ['2025-06', 2037.59], ['2025-07', 3002.21], ['2025-08', 2753.21], ['2025-09', 3184.79], ['2025-10', 3231.09], ['2025-11', 3123.05], ['2025-12', 4516.84]];
+  const SALES_AVG_2026 = 2771.49;
   function salesDataHTML() {
     const T = SALES_TOTALS;
     return `<section class="adm-card sales-data"><div class="adm-card-head"><h2>Sales data</h2><span class="muted" style="font-size:13px">Since 2024, from your sheet</span></div>
@@ -511,6 +518,97 @@ function mount(main, { store, navigate, query }) {
           <div class="adm-tile"><span class="eyebrow">Profit (since 2024)</span><b class="tabnum">${money(T.profit)}</b><span class="muted">From your sheet</span></div>
         </div>
       </div></section>`;
+  }
+
+  // ------------------------------------------------------------ sales breakdown (pop-up from Overview)
+  let sbUnit = 'month';
+  const SB_UNITS = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['year', 'Year']];
+  const ymd = (t) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  // Period key for a date in local time: the day, the Monday of its week, the month (YYYY-MM) or the year.
+  function periodOf(d, unit) {
+    const x = new Date(d);
+    if (unit === 'year') return String(x.getFullYear());
+    if (unit === 'month') return ymd(x).slice(0, 7);
+    if (unit === 'week') { const w = new Date(x.getFullYear(), x.getMonth(), x.getDate()); w.setDate(w.getDate() - ((w.getDay() + 6) % 7)); return ymd(w); }
+    return ymd(x);
+  }
+  function periodLabel(key, unit) {
+    if (unit === 'year') return key;
+    if (unit === 'month') return new Date(key + '-01T12:00:00').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const day = new Date(key + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return unit === 'week' ? `Week of ${day}` : day;
+  }
+  // Rows per period. Site = orders on this website (revenue, expenses, profit). Sheet and Average = profit only.
+  function salesBreakdownRows(unit) {
+    const now = new Date();
+    const bucket = (u) => {
+      const m = new Map();
+      profitRows(new Date(0), now).forEach((r) => {
+        const k = periodOf(r.o.createdAt, u);
+        const x = m.get(k) || { key: k, revenue: 0, expenses: 0, profit: 0 };
+        x.revenue = round2(x.revenue + r.revenue); x.expenses = round2(x.expenses + r.cost); x.profit = round2(x.profit + r.profit);
+        m.set(k, x);
+      });
+      return m;
+    };
+    if (unit === 'day' || unit === 'week') {
+      return [...bucket(unit).values()].map((r) => ({ ...r, label: periodLabel(r.key, unit), source: 'Site' }));
+    }
+    const site = bucket('month'); const sheet = new Map(SALES_MONTHS); const out = [];
+    for (let i = 2024 * 12 + 3; i <= now.getFullYear() * 12 + now.getMonth(); i++) {
+      const y = Math.floor(i / 12); const key = `${y}-${String(i % 12 + 1).padStart(2, '0')}`;
+      const s = site.get(key); site.delete(key);
+      if (s) out.push({ ...s, label: periodLabel(key, 'month'), source: 'Site' });
+      else if (sheet.has(key)) out.push({ key, label: periodLabel(key, 'month'), revenue: null, expenses: null, profit: sheet.get(key), source: 'Sheet' });
+      else if (y === 2026) out.push({ key, label: periodLabel(key, 'month'), revenue: null, expenses: null, profit: SALES_AVG_2026, source: 'Average' });
+    }
+    site.forEach((s) => out.push({ ...s, label: periodLabel(s.key, 'month'), source: 'Site' }));
+    if (unit === 'month') return out.sort((a, b) => (a.key < b.key ? -1 : 1));
+    const years = new Map();
+    out.forEach((r) => {
+      const y = r.key.slice(0, 4);
+      const x = years.get(y) || { key: y, label: y, revenue: null, expenses: null, profit: 0, source: 'Year' };
+      if (r.revenue != null) x.revenue = round2((x.revenue || 0) + r.revenue);
+      if (r.expenses != null) x.expenses = round2((x.expenses || 0) + r.expenses);
+      x.profit = round2(x.profit + r.profit);
+      years.set(y, x);
+    });
+    return [...years.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
+  }
+  const sbMoney = (v) => (v == null ? '—' : money(v));
+  function paintSalesBreakdown(dlg) {
+    const rows = salesBreakdownRows(sbUnit).slice().reverse();
+    const sum = (k) => round2(rows.reduce((t, r) => t + (r[k] || 0), 0));
+    const note = sbUnit === 'day' || sbUnit === 'week'
+      ? 'Day and week views only cover orders on this website. Your sheet has monthly profit only.'
+      : 'Site = orders on this website. Sheet = your monthly profit from before the website. Average = the monthly average from January 2026 until you change it.';
+    dlg.innerHTML = `<div class="adm-add-head"><h2>Sales breakdown</h2><button class="btn btn-sm" type="button" data-sb-close aria-label="Close">${icon('close', 'icon-sm')}</button></div>
+      <div class="adm-add-body">
+        <div class="rv-periods" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" class="chip${sbUnit === k ? ' is-on' : ''}" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
+        <div class="adm-tiles rv-tiles">
+          <div class="adm-tile"><span class="eyebrow">Revenue</span><b class="tabnum">${money(sum('revenue'))}</b><span class="muted">Site orders</span></div>
+          <div class="adm-tile"><span class="eyebrow">Expenses</span><b class="tabnum">${money(sum('expenses'))}</b><span class="muted">Cost of items sold</span></div>
+          <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(sum('profit'))}</b><span class="muted">Site + sheet</span></div>
+        </div>
+        <section class="adm-card"><div class="adm-card-head"><h2>By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</h2></div>
+          ${rows.length ? `<table class="rv-table sb-table"><thead><tr><th>Period</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)} <small class="muted">· ${r.source}</small></td><td class="num tabnum">${sbMoney(r.revenue)}</td><td class="num tabnum">${sbMoney(r.expenses)}</td><td class="num tabnum">${sbMoney(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales yet for this view.</p>'}
+        </section>
+        <p class="muted" style="font-size:13px">${note}</p>
+      </div>`;
+  }
+  function salesBreakdown() {
+    let dlg = document.getElementById('sales-dlg');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'sales-dlg'; dlg.className = 'modal adm-add-dlg sb-dlg';
+      document.body.appendChild(dlg);
+      dlg.addEventListener('click', (e) => {
+        const c = e.target.closest('[data-sb]'); if (c) { sbUnit = c.dataset.sb; paintSalesBreakdown(dlg); return; }
+        if (e.target.closest('[data-sb-close]')) dlg.close();
+      });
+    }
+    paintSalesBreakdown(dlg);
+    if (!dlg.open) dlg.showModal();
   }
 
   // ------------------------------------------------------------ revenue report
@@ -783,6 +881,7 @@ function mount(main, { store, navigate, query }) {
   const onClick = async (e) => {
     const t = e.target;
     if (t.closest('[data-inv-scan]')) { try { await invScan(); } catch { toast('The scanner could not load. Check your connection and try again.'); } return; }
+    if (t.closest('[data-sales-breakdown]')) { salesBreakdown(); return; }
     const pf = t.closest('[data-prof]');
     if (pf) { profitPeriod = pf.dataset.prof; profit(); return; }
     const rv = t.closest('[data-rev]');
