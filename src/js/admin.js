@@ -628,15 +628,15 @@ function mount(main, { store, navigate, query }) {
   function salesPage() {
     const T = rangeTotals(sbRange);
     const rows = salesBreakdownRows(sbUnit).slice().reverse();
-    const line = (label, v, neg) => `<div class="sb-row"><span class="eyebrow">${label}</span><b class="tabnum">${v == null ? '' : (neg ? '-' : '') + money(v)}</b></div>`;
+    const card = (label, v, neg, cls = '') => `<div class="sb-card ${cls}"><span class="eyebrow">${label}</span><b class="tabnum">${v == null ? '' : (neg ? '-' : '') + money(v)}</b></div>`;
     main.innerHTML = shell(`
-      <div class="sb-rows">
-        ${line('Revenue', T.revenue)}
-        ${line('Expenses', T.expenses, true)}
-        ${line('Profit', T.profit)}
+      <div class="sb-cards">
+        ${card('Revenue', T.revenue)}
+        ${card('Expenses', T.expenses, true)}
+        ${card('Profit', T.profit, false, 'is-profit')}
       </div>
-      <div class="rv-periods" role="group" aria-label="Time range">${SB_RANGES.map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
-      <div class="rv-periods" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" class="chip${sbUnit === k ? ' is-on' : ''}" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
+      <div class="sb-ranges" role="group" aria-label="Time range">${SB_RANGES.map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
+      <div class="sb-seg" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
       <section class="adm-card"><div class="adm-card-head"><h2>By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</h2></div>
         ${rows.length ? `<table class="rv-table sb-table"><thead><tr><th>Period</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)}</td><td class="num tabnum">${sbMoney(r.revenue)}</td><td class="num tabnum">${sbMoney(r.expenses)}</td><td class="num tabnum">${sbMoney(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales yet for this view.</p>'}
       </section>
