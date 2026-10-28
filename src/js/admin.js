@@ -53,10 +53,49 @@ function mount(main, { store, navigate, query }) {
     setTimeout(() => { const i = $('#adm-pw'); if (i) i.focus(); }, 30);
   }
 
+  // ------------------------------------------------------------ nav badges (unseen items)
+  // "Seen" = the tab was opened in this browser. Messages count people, so several messages from one person show as 1.
+  const SEEN_KEY = 'mlgroup-admin-seen-v1';
+  const seenIds = () => { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); } };
+  const saveSeen = (set) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify([...set].slice(-3000))); } catch {} };
+  const isPickupReq = (m) => m.type === 'pickup' && m.status === 'new';
+  const isMsgReq = (m) => m.type !== 'pickup' && m.status === 'new';
+  function unseenBadge(k) {
+    const seen = seenIds();
+    if (k === 'orders') return data.orders.filter((o) => o.status === 'new' && !seen.has('o:' + o.id)).length + data.inquiries.filter((m) => isPickupReq(m) && !seen.has('m:' + m.id)).length;
+    if (k === 'offers') return data.offers.filter((o) => o.status === 'new' && !seen.has('f:' + o.id)).length;
+    if (k === 'messages') return new Set(data.inquiries.filter((m) => isMsgReq(m) && !seen.has('m:' + m.id)).map((m) => String(m.email || m.phone || m.name || m.id).toLowerCase())).size;
+    return 0;
+  }
+  function markSeen(k) {
+    const seen = seenIds();
+    if (k === 'orders') { data.orders.filter((o) => o.status === 'new').forEach((o) => seen.add('o:' + o.id)); data.inquiries.filter(isPickupReq).forEach((m) => seen.add('m:' + m.id)); }
+    if (k === 'offers') data.offers.filter((o) => o.status === 'new').forEach((o) => seen.add('f:' + o.id));
+    if (k === 'messages') data.inquiries.filter(isMsgReq).forEach((m) => seen.add('m:' + m.id));
+    saveSeen(seen);
+  }
+  // Update the badge circles on the nav in place (no page redraw).
+  function paintBadges() {
+    $$('nav[aria-label="Admin"] [data-tab]').forEach((b) => {
+      const k = b.dataset.tab; const n = k === tab ? 0 : unseenBadge(k);
+      let el = b.querySelector('.adm-badge');
+      if (!n) { if (el) el.remove(); return; }
+      if (!el) { el = document.createElement('b'); el.className = 'adm-badge'; b.appendChild(el); }
+      el.textContent = n;
+    });
+  }
+  if (!window.__admBadgePoll) {
+    window.__admBadgePoll = setInterval(async () => {
+      if (document.hidden || !data || !$('nav[aria-label="Admin"]')) return;
+      try { await loadAll(); paintBadges(); } catch {}
+    }, 30000);
+  }
+
   // ------------------------------------------------------------ shell
   function shell(body, title, actions = '') {
     const nNew = (k, st = 'new') => data[k].filter((x) => x.status === st).length;
-    const badge = { orders: nNew('orders') + data.inquiries.filter((m) => m.type === 'pickup' && m.status === 'new').length, offers: nNew('offers'), requests: data.inquiries.filter((m) => m.type === 'pickup' && m.status === 'new').length, messages: data.inquiries.filter((m) => m.type !== 'pickup' && m.status === 'new').length };
+    const badge = {};
+    ['orders', 'offers', 'messages'].forEach((k) => { badge[k] = k === tab ? 0 : unseenBadge(k); });
     return `<div class="admin">
       <aside class="adm-side on-ink">
         <a class="logo" href="${href('/')}" aria-label="View store">${logo()}</a>
@@ -75,6 +114,7 @@ function mount(main, { store, navigate, query }) {
   async function render() {
     if (!(await A.session())) { renderLogin(); return; }
     await loadAll();
+    markSeen(tab);
     setURL();
     if (tab === 'products' && editId) return renderEditor();
     const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, inventory };
