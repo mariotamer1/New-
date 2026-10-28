@@ -675,7 +675,7 @@ function mount(main, { store, navigate, query }) {
       <div class="sb-cards">
         ${card('Revenue', T.revenue)}
         ${card('Expenses', T.expenses, true)}
-        ${card('Profit', T.profit, false, 'is-profit')}
+        ${card('Profit', T.profit)}
       </div>
       <div class="sb-ranges" role="group" aria-label="Time range">${SB_RANGES.map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
       <div class="sb-seg" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>

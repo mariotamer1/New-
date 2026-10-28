@@ -300,7 +300,7 @@
       <div class="sb-cards">
         ${a("Revenue",e.revenue)}
         ${a("Expenses",e.expenses,!0)}
-        ${a("Profit",e.profit,!1,"is-profit")}
+        ${a("Profit",e.profit)}
       </div>
       <div class="sb-ranges" role="group" aria-label="Time range">${Ve.map(([s,o])=>`<button type="button" class="chip${Pt===s?" is-on":""}" data-sbr="${s}" aria-pressed="${Pt===s}">${o}</button>`).join("")}</div>
       <div class="sb-seg" role="group" aria-label="Breakdown by">${ge.map(([s,o])=>`<button type="button" data-sb="${s}" aria-pressed="${ht===s}">${o}</button>`).join("")}</div>
