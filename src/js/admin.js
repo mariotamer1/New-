@@ -630,6 +630,37 @@ function mount(main, { store, navigate, query }) {
     const expenses = key === 'ytd' ? round2(revenue - profit) : round2(site.reduce((t, r) => t + r.cost, 0));
     return { revenue, expenses, profit: round2(profit) };
   }
+  // Short axis label for a period key.
+  function shortLabel(key, unit) {
+    if (unit === 'year') return key;
+    if (unit === 'month') return new Date(key + '-01T12:00:00').toLocaleString('en-US', { month: 'short', year: '2-digit' });
+    return new Date(key + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  // Chart of revenue and expenses (bars) and profit (line) by period, oldest on the left. Tap a bar or dot for the figures.
+  function salesChart(rowsDesc) {
+    const rows = rowsDesc.slice().sort((x, y) => (x.key < y.key ? -1 : 1));
+    if (!rows.length) return '<p class="muted adm-empty">No sales yet for this view.</p>';
+    const W = 640, H = 240, pl = 12, pr = 12, pt = 14, pb = 30;
+    const max = Math.max(1, ...rows.flatMap((r) => [r.revenue || 0, r.expenses || 0, Math.max(r.profit || 0, 0)]));
+    const slot = (W - pl - pr) / rows.length;
+    const yOf = (v) => pt + (H - pt - pb) * (1 - Math.max(v || 0, 0) / max);
+    const bw = Math.max(3, Math.min(22, slot * 0.34));
+    const every = Math.max(1, Math.ceil(rows.length / 8));
+    let bars = '', line = '', dots = '', labels = '';
+    rows.forEach((r, i) => {
+      const cx = pl + slot * (i + 0.5); const name = esc(r.label);
+      if (r.revenue != null) bars += `<rect x="${(cx - bw - 1).toFixed(1)}" y="${yOf(r.revenue).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pb - yOf(r.revenue)).toFixed(1)}" rx="2" fill="#d4d4d4"><title>${name} · Revenue ${money(r.revenue)}</title></rect>`;
+      if (r.expenses != null) bars += `<rect x="${(cx + 1).toFixed(1)}" y="${yOf(r.expenses).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pb - yOf(r.expenses)).toFixed(1)}" rx="2" fill="#6b6b6b"><title>${name} · Expenses ${money(r.expenses)}</title></rect>`;
+      line += `${i ? ' L' : 'M'}${cx.toFixed(1)} ${yOf(r.profit).toFixed(1)}`;
+      dots += `<circle cx="${cx.toFixed(1)}" cy="${yOf(r.profit).toFixed(1)}" r="4" fill="#0b0b0c" stroke="#fff" stroke-width="1.5"><title>${name} · Profit ${money(r.profit)}</title></circle>`;
+      if (i % every === 0 || i === rows.length - 1) labels += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle">${esc(shortLabel(r.key, sbUnit))}</text>`;
+    });
+    return `<svg class="sb-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Revenue, expenses and profit by ${sbUnit}">
+      <line x1="${pl}" x2="${W - pr}" y1="${H - pb}" y2="${H - pb}" stroke="#0b0b0c" stroke-width="1"/>
+      ${bars}<path d="${line}" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linejoin="round"/>${dots}${labels}
+    </svg>
+    <div class="sb-legend"><span><i style="background:#d4d4d4"></i>Revenue</span><span><i style="background:#6b6b6b"></i>Expenses</span><span><i style="background:#0b0b0c"></i>Profit</span></div>`;
+  }
   function salesPage() {
     const T = rangeTotals(sbRange);
     const rows = salesBreakdownRows(sbUnit).slice().reverse();
@@ -642,9 +673,7 @@ function mount(main, { store, navigate, query }) {
       </div>
       <div class="sb-ranges" role="group" aria-label="Time range">${SB_RANGES.map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
       <div class="sb-seg" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
-      <section class="adm-card"><div class="adm-card-head"><h2>By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</h2></div>
-        ${rows.length ? `<table class="rv-table sb-table"><thead><tr><th>Period</th><th class="num">Revenue</th><th class="num">Expenses</th><th class="num">Profit</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.label)}</td><td class="num tabnum">${sbMoney(r.revenue)}</td><td class="num tabnum">${sbMoney(r.expenses)}</td><td class="num tabnum">${sbMoney(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales yet for this view.</p>'}
-      </section>
+      <section class="adm-card sb-chart-card"><div class="adm-card-head"><h2>Trend</h2><span class="muted" style="font-size:13px">By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</span></div>${salesChart(rows)}</section>
       `, 'Sales', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
   }
 

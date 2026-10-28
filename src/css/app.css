@@ -1300,3 +1300,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .sb-seg button { flex: 1; min-height: 44px; background: #fff; border: 0; border-left: 1px solid var(--ink); font-weight: 600; font-size: 14px; color: var(--ink); }
 .sb-seg button:first-child { border-left: 0; }
 .sb-seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+/* Sales page trend chart */
+.sb-chart { display: block; width: 100%; height: auto; padding: 12px 10px 0; }
+.sb-chart text { font: 600 10px var(--font-body); fill: var(--mute); }
+.sb-chart rect, .sb-chart circle { cursor: pointer; }
+.sb-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 16px 14px; font-size: 12px; color: var(--mute); }
+.sb-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: middle; }
