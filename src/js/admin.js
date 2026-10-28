@@ -128,18 +128,13 @@ function mount(main, { store, navigate, query }) {
     const out = P.filter((p) => p.inventory <= 0);
     const since = Date.now() - 30 * 864e5;
     const rev = data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) > since).reduce((s, o) => s + o.total, 0);
-    const profit30 = round2(profitRows(new Date(Date.now() - 30 * 864e5), new Date()).reduce((t, r) => t + r.profit, 0));
     const tiles = [
       ['Live listings', live.length, 'Published and in stock'],
       ['New orders', data.orders.filter((o) => o.status === 'new').length, `${data.orders.length} total`],
       ['Units in stock', P.reduce((s, p) => s + Math.max(0, p.inventory), 0), `${out.length} sold out (hidden)`],
       ['New offers', data.offers.filter((o) => o.status === 'new').length, `${data.offers.length} total`],
       ['Sales · 30 days', money(rev), 'Tap for sales breakdown'],
-      ['Profit · 30 days', money(profit30), 'Revenue minus cost'],
       ['Messages', data.inquiries.filter((o) => o.status === 'new').length, 'Contact + wholesale'],
-      ['Total revenue · since 2024', money(SALES_TOTALS.gross), 'From your sheet'],
-      ['Total expenses · since 2024', money(SALES_TOTALS.expenses), 'From your sheet'],
-      ['Total profit · since 2024', money(SALES_TOTALS.profit), 'From your sheet'],
     ];
     main.innerHTML = shell(`
       <div class="adm-tiles">${tiles.map(([l, v, s]) => l.startsWith('Sales') ? `<button type="button" class="adm-tile adm-tile-link" data-sales-breakdown aria-label="Open sales breakdown"><span class="eyebrow">${l} ${icon('right', 'icon-sm')}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></button>` : `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
@@ -624,6 +619,11 @@ function mount(main, { store, navigate, query }) {
       : 'Site = orders on this website. Sheet = your monthly profit from before the website. Average = the monthly average from January 2026 until you change it.';
     dlg.innerHTML = `<div class="adm-add-head"><h2>Sales breakdown</h2><button class="btn btn-sm" type="button" data-sb-close aria-label="Close">${icon('close', 'icon-sm')}</button></div>
       <div class="adm-add-body">
+        <div class="adm-tiles rv-tiles sb-totals">
+          <div class="adm-tile"><span class="eyebrow">Total revenue · since 2024</span><b class="tabnum">${money(SALES_TOTALS.gross)}</b><span class="muted">From your sheet</span></div>
+          <div class="adm-tile"><span class="eyebrow">Total expenses · since 2024</span><b class="tabnum">${money(SALES_TOTALS.expenses)}</b><span class="muted">From your sheet</span></div>
+          <div class="adm-tile"><span class="eyebrow">Total profit · since 2024</span><b class="tabnum">${money(SALES_TOTALS.profit)}</b><span class="muted">From your sheet</span></div>
+        </div>
         <div class="rv-periods" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" class="chip${sbUnit === k ? ' is-on' : ''}" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
         <div class="adm-tiles rv-tiles">
           <div class="adm-tile"><span class="eyebrow">Revenue</span><b class="tabnum">${money(sum('revenue'))}</b><span class="muted">Site orders</span></div>
