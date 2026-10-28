@@ -640,13 +640,18 @@ function mount(main, { store, navigate, query }) {
   function salesChart(rowsDesc) {
     const rows = rowsDesc.slice().sort((x, y) => (x.key < y.key ? -1 : 1));
     if (!rows.length) return '<p class="muted adm-empty">No sales yet for this view.</p>';
-    const W = 640, H = 240, pl = 12, pr = 12, pt = 14, pb = 30;
+    const W = 640, H = 240, pl = 50, pr = 12, pt = 14, pb = 30;
     const max = Math.max(1, ...rows.flatMap((r) => [r.revenue || 0, r.expenses || 0, Math.max(r.profit || 0, 0)]));
     const slot = (W - pl - pr) / rows.length;
     const yOf = (v) => pt + (H - pt - pb) * (1 - Math.max(v || 0, 0) / max);
     const bw = Math.max(3, Math.min(22, slot * 0.34));
     const every = Math.max(1, Math.ceil(rows.length / 8));
-    let bars = '', line = '', dots = '', labels = '';
+    const short = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k' : '$' + Math.round(v));
+    let bars = '', line = '', dots = '', labels = '', ticks = '';
+    [0, 0.25, 0.5, 0.75, 1].forEach((f) => {
+      const v = max * f; const y = yOf(v);
+      ticks += `<line x1="${pl}" x2="${W - pr}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e6e6e6" stroke-width="1"/><text x="${pl - 8}" y="${(y + 3.5).toFixed(1)}" text-anchor="end">${short(v)}</text>`;
+    });
     rows.forEach((r, i) => {
       const cx = pl + slot * (i + 0.5); const name = esc(r.label);
       if (r.revenue != null) bars += `<rect x="${(cx - bw - 1).toFixed(1)}" y="${yOf(r.revenue).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pb - yOf(r.revenue)).toFixed(1)}" rx="2" fill="#d4d4d4"><title>${name} · Revenue ${money(r.revenue)}</title></rect>`;
@@ -656,6 +661,7 @@ function mount(main, { store, navigate, query }) {
       if (i % every === 0 || i === rows.length - 1) labels += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle">${esc(shortLabel(r.key, sbUnit))}</text>`;
     });
     return `<svg class="sb-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Revenue, expenses and profit by ${sbUnit}">
+      ${ticks}
       <line x1="${pl}" x2="${W - pr}" y1="${H - pb}" y2="${H - pb}" stroke="#0b0b0c" stroke-width="1"/>
       ${bars}<path d="${line}" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linejoin="round"/>${dots}${labels}
     </svg>
