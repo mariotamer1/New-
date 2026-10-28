@@ -113,12 +113,32 @@ function mount(main, { store, navigate, query }) {
 
   async function render() {
     if (!(await A.session())) { renderLogin(); return; }
-    await loadAll();
+    // Show the tab at once from data already loaded; refresh from the database in the background.
+    if (!data) await loadAll();
     markSeen(tab);
     setURL();
     if (tab === 'products' && editId) return renderEditor();
+    paintTab();
+    refreshInBackground();
+  }
+  const paintTab = () => {
     const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, sales: salesPage, inventory };
     (views[tab] || overview)();
+  }
+
+  // Pull fresh data without holding up the tab. Repaint only when something changed and nothing is being typed.
+  let refreshing = false;
+  const snapshot = () => JSON.stringify([data.orders.map((o) => o.id + o.status), data.inquiries.map((m) => m.id + m.status), data.offers.map((o) => o.id + o.status), data.products.map((p) => p.id + p.inventory + p.price + p.published)]);
+  async function refreshInBackground() {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      const before = snapshot();
+      await loadAll();
+      paintBadges();
+      const typing = main.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
+      if (snapshot() !== before && !typing && !editId) paintTab();
+    } catch {} finally { refreshing = false; }
   }
 
   // ------------------------------------------------------------ overview
