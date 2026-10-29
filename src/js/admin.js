@@ -637,25 +637,26 @@ function mount(main, { store, navigate, query }) {
     if (key === 'all') return { revenue: SALES_TOTALS.gross, expenses: SALES_TOTALS.expenses, profit: SALES_TOTALS.profit };
     const b = rangeBounds(key); const now = new Date();
     const site = profitRows(b.from, b.to);
-    // A month's figure is spread over its days, so a range gets the share of days it covers.
-    const share = (yy, mm, from, to) => {
-      const ms = new Date(yy, mm - 1, 1); const me = new Date(yy, mm, 0, 23, 59, 59, 999);
-      const f = Math.max(+ms, +from); const t = Math.min(+me, +to);
-      return t > f ? (t - f) / (+me - +ms + 1) : 0;
-    };
+    // A month's figure is added once, on its last day, so it counts for a range only if that last day is inside the range.
+    const lastDayIn = (yy, mm) => { const me = new Date(yy, mm, 0, 23, 59, 59, 999); return me >= b.from && me <= b.to; };
     let profit = 0, revenue = 0, expenses = 0;
     // Sheet months before 2026: profit only.
-    SALES_MONTHS.forEach(([m, v]) => { const [yy, mm] = m.split('-').map(Number); profit += v * share(yy, mm, b.from, b.to); });
+    SALES_MONTHS.forEach(([m, v]) => { const [yy, mm] = m.split('-').map(Number); if (lastDayIn(yy, mm)) profit += v; });
     // 2026 months: the sheet averages for revenue, expenses and profit (profit = revenue minus expenses).
     for (let mo = 1; mo <= now.getMonth() + 1; mo++) {
-      const f = share(now.getFullYear(), mo, b.from, b.to);
-      profit += SALES_AVG_2026 * f; revenue += SALES_AVG_REVENUE * f; expenses += SALES_AVG_EXPENSES * f;
+      if (!lastDayIn(now.getFullYear(), mo)) continue;
+      profit += SALES_AVG_2026; revenue += SALES_AVG_REVENUE; expenses += SALES_AVG_EXPENSES;
     }
     if (key === 'ytd') {
       // YTD: 99,000 from the owner's sheet plus website revenue; profit set by the owner; expenses are revenue minus profit.
       profit = 30372.38;
       revenue = site.reduce((t, r) => t + r.revenue, 0) + 99000;
       expenses = revenue - profit;
+    } else {
+      // Website sales count as they happen.
+      profit += site.reduce((t, r) => t + r.profit, 0);
+      revenue += site.reduce((t, r) => t + r.revenue, 0);
+      expenses += site.reduce((t, r) => t + r.cost, 0);
     }
     return { revenue: round2(revenue), expenses: round2(expenses), profit: round2(profit) };
   }
