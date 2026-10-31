@@ -302,7 +302,7 @@
           <a class="btn btn-primary btn-lg hx-cta" href="${k("/products")}">Shop All Deals ${v("arrow","icon-sm")}</a>
         </div>
         <div class="hx-orbit" data-hx-orbit aria-roledescription="carousel" aria-label="Featured products \u2014 swipe to browse">
-          ${i.map((d,m)=>`<a class="hx-shot${d.slug==="dewalt-xtreme-12v-max-variable-speed-brushless-1-2-in-drive-cordless-impact-wren"?" hx-whole":""}" data-hx-item href="${k("/products/"+d.slug)}" aria-label="${u(d.title)}">${H(d.images[0],{alt:"",eager:m<6,sizes:"(min-width:900px) 26vw, 50vw"})}<span class="hx-tag">${_(d)?`<s class="tabnum">${P(d.originalPrice)}</s>`:""}<b class="tabnum">${P(d.price)}</b></span></a>`).join("")}
+          ${i.map((d,m)=>`<a class="hx-shot" data-hx-item href="${k("/products/"+d.slug)}" aria-label="${u(d.title)}">${H(d.images[0],{alt:"",eager:m<6,sizes:"(min-width:900px) 26vw, 50vw"})}<span class="hx-tag">${_(d)?`<s class="tabnum">${P(d.originalPrice)}</s>`:""}<b class="tabnum">${P(d.price)}</b></span></a>`).join("")}
           <button class="hx-car-btn prev" type="button" aria-label="Previous product" data-hx-go="-1">${v("left","icon-sm")}</button>
           <button class="hx-car-btn next" type="button" aria-label="Next product" data-hx-go="1">${v("right","icon-sm")}</button>
         </div>
