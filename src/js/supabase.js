@@ -13,7 +13,7 @@ const fromProduct = (r) => ({
   categoryId: r.category_id, description: r.description || '', price: Number(r.price),
   originalPrice: r.original_price == null ? null : Number(r.original_price), shipping: Number(r.shipping),
   noShipping: !!r.no_shipping, inventory: r.inventory, published: r.published, bestDeal: r.best_deal,
-  images: r.images || [], createdAt: r.created_at, updatedAt: r.updated_at,
+  images: r.images || [], heroImage: r.hero_image || null, createdAt: r.created_at, updatedAt: r.updated_at,
 });
 const toProduct = (p) => {
   const o = {
