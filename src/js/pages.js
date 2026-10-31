@@ -48,7 +48,7 @@ export function home() {
           <a class="btn btn-primary btn-lg hx-cta" href="${href('/products')}">Shop All Deals ${icon('arrow', 'icon-sm')}</a>
         </div>
         <div class="hx-orbit" data-hx-orbit aria-roledescription="carousel" aria-label="Featured products — swipe to browse">
-          ${hero.map((p, i) => `<a class="hx-shot" data-hx-item href="${href('/products/' + p.slug)}" aria-label="${esc(p.title)}">${imgTag(p.images[0], { alt: '', eager: i < 6, sizes: '(min-width:900px) 26vw, 50vw' })}<span class="hx-tag">${pctOff(p) ? `<s class="tabnum">${money(p.originalPrice)}</s>` : ''}<b class="tabnum">${money(p.price)}</b></span></a>`).join('')}
+          ${hero.map((p, i) => `<a class="hx-shot${p.slug === 'dewalt-xtreme-12v-max-variable-speed-brushless-1-2-in-drive-cordless-impact-wren' ? ' hx-whole' : ''}" data-hx-item href="${href('/products/' + p.slug)}" aria-label="${esc(p.title)}">${imgTag(p.images[0], { alt: '', eager: i < 6, sizes: '(min-width:900px) 26vw, 50vw' })}<span class="hx-tag">${pctOff(p) ? `<s class="tabnum">${money(p.originalPrice)}</s>` : ''}<b class="tabnum">${money(p.price)}</b></span></a>`).join('')}
           <button class="hx-car-btn prev" type="button" aria-label="Previous product" data-hx-go="-1">${icon('left', 'icon-sm')}</button>
           <button class="hx-car-btn next" type="button" aria-label="Next product" data-hx-go="1">${icon('right', 'icon-sm')}</button>
         </div>
