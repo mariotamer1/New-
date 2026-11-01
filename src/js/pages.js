@@ -52,6 +52,7 @@ export function home() {
           <button class="hx-car-btn prev" type="button" aria-label="Previous product" data-hx-go="-1">${icon('left', 'icon-sm')}</button>
           <button class="hx-car-btn next" type="button" aria-label="Next product" data-hx-go="1">${icon('right', 'icon-sm')}</button>
         </div>
+        <p class="hx-swipe" aria-hidden="true">Swipe to see more ${icon('right', 'icon-sm')}</p>
       </div>
     </section>
     <section class="hx-perks" aria-label="Why shop ML Group">

@@ -1307,3 +1307,8 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .sb-chart rect, .sb-chart circle { cursor: pointer; }
 .sb-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 16px 14px; font-size: 12px; color: var(--mute); }
 .sb-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: middle; }
+
+/* Home hero: visible cue that the product collage swipes */
+.hx-swipe { display: inline-flex; align-items: center; gap: 6px; margin: 4px 0 0; font: 600 13px/1 var(--font-body); letter-spacing: .04em; color: #3b3b39; }
+.hx-swipe .icon { width: 14px; height: 14px; }
+@media (min-width: 900px) { .hx-swipe { display: none; } }

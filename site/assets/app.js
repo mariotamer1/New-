@@ -306,6 +306,7 @@
           <button class="hx-car-btn prev" type="button" aria-label="Previous product" data-hx-go="-1">${v("left","icon-sm")}</button>
           <button class="hx-car-btn next" type="button" aria-label="Next product" data-hx-go="1">${v("right","icon-sm")}</button>
         </div>
+        <p class="hx-swipe" aria-hidden="true">Swipe to see more ${v("right","icon-sm")}</p>
       </div>
     </section>
     <section class="hx-perks" aria-label="Why shop ML Group">
