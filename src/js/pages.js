@@ -101,8 +101,13 @@ export function home() {
         el.dataset.slot = k < RING.length ? RING[k] : (k === n - 1 && n > RING.length ? 'in-l' : 'off');
         el.tabIndex = k < RING.length ? 0 : -1;
       });
-      const go = (d) => { idx = (idx + d + n) % n; paint(); };
+      const swipeCue = orbit.parentElement.querySelector('.hx-swipe');
+      const go = (d) => { idx = (idx + d + n) % n; paint(); if (swipeCue) swipeCue.remove(); };
       paint();
+      // The "swipe" cue goes away once the visitor starts swiping.
+      let startX = null;
+      orbit.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+      orbit.addEventListener('touchmove', (e) => { if (startX !== null && Math.abs(e.touches[0].clientX - startX) > 8 && swipeCue) swipeCue.remove(); }, { passive: true });
       orbit.addEventListener('click', (e) => { const b = e.target.closest('[data-hx-go]'); if (b) { e.preventDefault(); go(Number(b.dataset.hxGo)); } });
       let x0 = null, y0 = 0, moved = false;
       orbit.addEventListener('pointerdown', (e) => { x0 = e.clientX; y0 = e.clientY; moved = false; });
