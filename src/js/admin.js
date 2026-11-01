@@ -369,7 +369,7 @@ function mount(main, { store, navigate, query }) {
 
   // ------------------------------------------------------------ inventory & cost
   let invQ = '';
-  let invSort = 'stock';
+  let invSort = 'cost-high';
   const INV_SORTS = [['stock', 'In stock first'], ['cost-high', 'Cost: high to low'], ['cost-low', 'Cost: low to high'], ['recent', 'Recently added']];
   // Items without a cost always sort to the end of the cost sorts.
   const sortInv = (list) => {
