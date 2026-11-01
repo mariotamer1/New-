@@ -1312,3 +1312,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .hx-swipe { display: inline-flex; align-items: center; gap: 6px; margin: 4px 0 0; font: 600 13px/1 var(--font-body); letter-spacing: .04em; color: #3b3b39; }
 .hx-swipe .icon { width: 14px; height: 14px; }
 @media (min-width: 900px) { .hx-swipe { display: none; } }
+.hx-swipe { animation: hxSwipeIn 1.2s ease-out .6s both; }
+@keyframes hxSwipeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hx-swipe { animation: none; } }
