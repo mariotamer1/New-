@@ -170,6 +170,38 @@ function mount(main, { store, navigate, query }) {
   const statusLabel = (list, v) => (list.find(([k]) => k === v) || [v, v])[1];
 
   // ------------------------------------------------------------ products list
+  // Input sale: quantity and total sold for, for one product. Saves the sale (revenue and profit) and takes the stock.
+  function openSaleDialog(p) {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'modal adm-add-dlg';
+    dlg.innerHTML = `<div class="adm-add-head"><h2>Input sale</h2><button class="btn btn-sm" type="button" data-sale-close aria-label="Close">${icon('close', 'icon-sm')}</button></div>
+      <form class="adm-add-body form" data-sale-form novalidate>
+        <p class="muted" style="margin:0 0 12px">${esc(p.title)}</p>
+        <div class="field"><label for="sale-qty">Quantity sold</label><input id="sale-qty" name="qty" type="number" inputmode="numeric" min="1" step="1" value="1" required></div>
+        <div class="field"><label for="sale-total">Total sold for</label><div class="money-input"><span>$</span><input id="sale-total" name="total" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="0.00"></div></div>
+        <p class="form-error" data-sale-err hidden></p>
+        <div class="adm-ed-actions"><button class="btn btn-primary btn-lg" type="submit">Save sale</button><button class="btn btn-lg" type="button" data-sale-close>Cancel</button></div>
+      </form>`;
+    document.body.appendChild(dlg);
+    const close = () => { dlg.close(); dlg.remove(); };
+    dlg.querySelectorAll('[data-sale-close]').forEach((b) => b.addEventListener('click', close));
+    const form = dlg.querySelector('[data-sale-form]');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = dlg.querySelector('[data-sale-err]');
+      const qty = parseInt(form.elements.qty.value, 10); const raw = form.elements.total.value;
+      if (!(qty >= 1)) { err.textContent = 'Enter a quantity of at least 1.'; err.hidden = false; return; }
+      if (raw === '' || !(Number(raw) >= 0)) { err.textContent = 'Enter the total sold for.'; err.hidden = false; return; }
+      const btn = form.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        await A.recordSale(p, qty, Number(raw));
+        selected.clear(); close(); toast('Sale recorded');
+        await loadAll(); refreshStore(); products();
+      } catch (ex) { err.textContent = ex.message || 'Could not save the sale'; err.hidden = false; btn.disabled = false; btn.textContent = 'Save sale'; }
+    });
+    dlg.showModal();
+  }
+
   function products() {
     const q = prodFilter.q.toLowerCase();
     let list = data.products.filter((p) => !q || `${p.title} ${p.brand || ''} ${p.upc || ''} ${p.slug}`.toLowerCase().includes(q));
@@ -186,11 +218,7 @@ function mount(main, { store, navigate, query }) {
       </div>
       <div class="adm-bulk" data-bulk ${selected.size ? '' : 'hidden'}>
         <b data-bulk-n>${selected.size} selected</b>
-        <label class="adm-inline">Discount <input type="number" min="1" max="95" value="20" data-bulk-pct aria-label="Discount percent"> %</label>
-        <button class="btn btn-sm" type="button" data-bulk="discount">Apply discount</button>
-        <button class="btn btn-sm" type="button" data-bulk="publish">Publish</button>
-        <button class="btn btn-sm" type="button" data-bulk="unpublish">Unpublish</button>
-        <button class="btn btn-sm" type="button" data-bulk="delete">Delete</button>
+        <button class="btn btn-sm btn-primary" type="button" data-bulk="sale">Input sale</button>
       </div>
       <div class="table-wrap"><table class="tbl adm-table"><thead><tr>
         <th><input type="checkbox" aria-label="Select all" data-sel-all ${list.length && list.every((p) => selected.has(p.id)) ? 'checked' : ''}></th>
@@ -1084,18 +1112,7 @@ function mount(main, { store, navigate, query }) {
     const ap = t.closest('[data-accept-price]');
     if (ap) { const o = data.offers.find((x) => x.id === ap.dataset.acceptPrice); const p = data.products.find((x) => x.id === o.productId); if (p) { await A.saveProduct({ ...p, originalPrice: p.originalPrice || p.price, price: o.amount }); await A.updateOffer(o.id, { status: 'accepted' }); refreshStore(); toast(`Price set to ${money(o.amount)} and offer accepted`); await loadAll(); offers(); } return; }
     const bulk = t.closest('[data-bulk]');
-    if (bulk) {
-      const ids = [...selected]; const act = bulk.dataset.bulk;
-      if (act === 'delete' && !bulk.dataset.sure) { bulk.dataset.sure = '1'; bulk.textContent = `Confirm delete ${ids.length}`; bulk.classList.add('adm-danger'); return; }
-      for (const id of ids) {
-        const p = data.products.find((x) => x.id === id); if (!p) continue;
-        if (act === 'discount') { const pctv = Math.min(95, Math.max(1, parseInt($('[data-bulk-pct]').value, 10) || 0)); const base = p.originalPrice || p.price; await A.saveProduct({ ...p, originalPrice: base, price: round2(base * (1 - pctv / 100)) }); }
-        if (act === 'publish') await A.patchProduct(id, { published: true });
-        if (act === 'unpublish') await A.patchProduct(id, { published: false });
-        if (act === 'delete') await A.deleteProduct(id);
-      }
-      selected.clear(); refreshStore(); toast('Updated ' + ids.length + ' product' + (ids.length > 1 ? 's' : '')); await loadAll(); products(); return;
-    }
+    if (bulk) { const p = data.products.find((x) => x.id === [...selected][0]); if (p) openSaleDialog(p); return; }
     const cm = t.closest('[data-cat-move]');
     if (cm) { const li = cm.closest('[data-cat]'); const ids = store.categories().map((c) => c.id); const i = ids.indexOf(li.dataset.cat), j = i + Number(cm.dataset.catMove); [ids[i], ids[j]] = [ids[j], ids[i]]; await A.reorderCategories(ids); refreshStore(); categories(); return; }
     const cs = t.closest('[data-cat-save]');

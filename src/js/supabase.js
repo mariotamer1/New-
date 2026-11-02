@@ -190,6 +190,12 @@ export function createSupabaseBackend(cfg) {
       // Item costs live in an admin-only table (never readable by shoppers).
       async costs() { const rows = await rest('GET', 'product_costs?select=product_id,cost'); const m = {}; rows.forEach((r) => { if (r.cost != null) m[r.product_id] = Number(r.cost); }); return m; },
       async setCost(id, cost) { await rest('POST', 'product_costs?on_conflict=product_id', { product_id: id, cost: cost == null ? null : Number(cost), updated_at: new Date().toISOString() }, 'resolution=merge-duplicates'); },
+      // In-person sale: records the order, takes the stock (never below 0) and marks the order completed.
+      async recordSale(p, qty, total) {
+        const [o] = await rest('POST', 'orders', { status: 'new', fulfillment: 'pickup', payment: 'pickup', customer: { name: 'In-person sale', email: '', phone: '' }, items: [{ productId: p.id, slug: p.slug, title: p.title, image: p.images[0] || null, price: round2(total / qty), qty, shipping: 0 }], subtotal: round2(total), shipping_total: 0, total: round2(total), notes: `Sold in person (added by admin) - ${qty} unit${qty === 1 ? '' : 's'} for $${round2(total).toFixed(2)}`, stock_held: false }, 'return=representation');
+        await rpc('admin_confirm_order', { p_id: o.id });
+        await rest('PATCH', `orders?id=eq.${encodeURIComponent(o.id)}`, { status: 'completed' });
+      },
       async adjustInventory(id, delta) {
         const n = await rpc('admin_adjust_inventory', { p_id: id, p_delta: delta });
         const p = cache.products.find((x) => x.id === id); if (p) p.inventory = n; return p;
