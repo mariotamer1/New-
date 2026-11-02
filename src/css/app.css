@@ -1328,3 +1328,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .sb-seg { border-radius: 999px; overflow: hidden; border-color: rgba(0,0,0,.12); box-shadow: 0 4px 12px -8px rgba(0,0,0,.4); }
 .sb-seg button { border-left-color: rgba(0,0,0,.08); }
 .sb-chart-card { border-radius: 18px; overflow: hidden; border-color: rgba(0,0,0,.08); box-shadow: 0 10px 28px -18px rgba(0,0,0,.35); }
+
+/* Orders: live search */
+.ord-search { display: block; width: 100%; height: 46px; margin-bottom: 12px; border: 1px solid var(--line); padding: 0 14px; font: inherit; background: #fff; }

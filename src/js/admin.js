@@ -839,9 +839,23 @@ function mount(main, { store, navigate, query }) {
 
   // ------------------------------------------------------------ orders
   let orderFilter = 'all';
+  let orderQ = '';
+  // Live order search: order number, item name or amount. Hides rows that don't match, so the search box keeps focus.
+  function applyOrderSearch() {
+    const q = orderQ.trim().toLowerCase(); const qn = q.replace(/[#$,\s]/g, '');
+    let shown = 0;
+    data.orders.forEach((o) => {
+      const row = $(`[data-swipe="${o.id}"]`, main); if (!row) return;
+      const hit = !q || String(o.number).includes(qn) || o.items.some((i) => String(i.title || '').toLowerCase().includes(q)) || (qn && [o.total, o.subtotal].some((v) => Number(v || 0).toFixed(2).includes(qn)));
+      row.hidden = !hit; if (hit) shown++;
+    });
+    const none = $('[data-ord-none]', main); if (none) none.hidden = !(q && !shown);
+  }
   function orders() {
     const list = data.orders.filter((o) => orderFilter === 'all' || o.status === orderFilter);
     main.innerHTML = shell(`
+      <input type="search" class="ord-search" placeholder="Search order #, item or amount" value="${esc(orderQ)}" data-ord-q aria-label="Search orders" autocomplete="off">
+      <p class="muted adm-empty" data-ord-none hidden>No orders match your search.</p>
       <div class="adm-toolbar"><div class="select"><label class="sr-only" for="of-f">Status</label><select id="of-f" data-of>${[['all', 'All orders'], ...ORDER_STATUS].map(([v, l]) => `<option value="${v}" ${orderFilter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div><span class="muted" style="font-size:14px">${list.length} order${list.length === 1 ? '' : 's'}</span></div>
       ${list.length ? `<div class="ord-list">${list.map((o) => {
         const first = o.items[0] || {}; const more = o.items.length - 1;
@@ -863,6 +877,7 @@ function mount(main, { store, navigate, query }) {
       <h2 class="adm-sub" id="pickup-requests">Pickup requests</h2>
       ${requestsHTML()}
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Orders');
+    applyOrderSearch();
   }
   // PayPal refunds: full or partial; several partial refunds can add up to what the customer paid.
   const refundsOf = (o) => (o.paypalRefunds || []).filter((r) => !['FAILED', 'CANCELLED'].includes(r.status));
@@ -1161,6 +1176,7 @@ function mount(main, { store, navigate, query }) {
   main.addEventListener('change', onInvStock);
   main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
   const onInput = (e) => {
+    if (e.target.matches('[data-ord-q]')) { orderQ = e.target.value; applyOrderSearch(); return; }
     if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; $('.inv-list').innerHTML = invRowsHTML(); return; }
     if (e.target.matches('[data-cost]')) {
       const id = e.target.dataset.cost; const v = e.target.value; const p = data.products.find((x) => x.id === id);
