@@ -170,11 +170,11 @@ function mount(main, { store, navigate, query }) {
   const statusLabel = (list, v) => (list.find(([k]) => k === v) || [v, v])[1];
 
   // ------------------------------------------------------------ products list
-  // Input sale: quantity and total sold for, for one product. Saves the sale (revenue and profit) and takes the stock.
+  // Add sale: quantity and total sold for, for one product. Saves the sale (revenue and profit) and takes the stock.
   function openSaleDialog(p) {
     const dlg = document.createElement('dialog');
     dlg.className = 'modal adm-add-dlg';
-    dlg.innerHTML = `<div class="adm-add-head"><h2>Input sale</h2><button class="btn btn-sm" type="button" data-sale-close aria-label="Close">${icon('close', 'icon-sm')}</button></div>
+    dlg.innerHTML = `<div class="adm-add-head"><h2>Add sale</h2><button class="btn btn-sm" type="button" data-sale-close aria-label="Close">${icon('close', 'icon-sm')}</button></div>
       <form class="adm-add-body form" data-sale-form novalidate>
         <p class="muted" style="margin:0 0 12px">${esc(p.title)}</p>
         <div class="field"><label for="sale-qty">Quantity sold</label><input id="sale-qty" name="qty" type="number" inputmode="numeric" min="1" step="1" value="1" required></div>
@@ -218,7 +218,7 @@ function mount(main, { store, navigate, query }) {
       </div>
       <div class="adm-bulk" data-bulk ${selected.size ? '' : 'hidden'}>
         <b data-bulk-n>${selected.size} selected</b>
-        <button class="btn btn-sm btn-primary" type="button" data-bulk="sale">Input sale</button>
+        <button class="btn btn-sm btn-primary" type="button" data-bulk="sale">Add sale</button>
       </div>
       <div class="table-wrap"><table class="tbl adm-table"><thead><tr>
         <th><input type="checkbox" aria-label="Select all" data-sel-all ${list.length && list.every((p) => selected.has(p.id)) ? 'checked' : ''}></th>
