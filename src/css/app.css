@@ -1288,15 +1288,24 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* Sales data totals stay on one line so the cents are never cut off. */
 .sales-data .adm-tile b { white-space: nowrap; font-size: clamp(18px, 5.2vw, 26px); }
 /* Sales page: revenue, expenses and profit cards, range buttons and Day/Week/Month/Year switch. */
-.sb-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
-.sb-card { background: #fff; border: 1px solid var(--ink); padding: 14px 12px; min-width: 0; }
-.sb-card .eyebrow { display: block; margin: 0; font-size: 11px; letter-spacing: .12em; }
-.sb-card b { display: block; margin-top: 8px; font-size: clamp(11px, 3.3vw, 17px); white-space: nowrap; overflow: hidden; text-overflow: clip; }
-.sb-card.is-profit { background: var(--ink); color: #fff; }
-.sb-card.is-profit .eyebrow { color: #cfcfcf; }
-.sb-ranges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-.sb-ranges .chip { min-height: 42px; padding: 0 14px; font-size: 14px; border-radius: 0; border: 1px solid var(--ink); }
-.sb-ranges .chip.is-on { background: var(--ink); color: #fff; }
+.sb-cards { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 18px; }
+@media (min-width: 700px) { .sb-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.sb-card { border-radius: 18px; padding: 16px 16px 10px; min-width: 0; background: #fff; border: 1px solid rgba(0,0,0,.06); box-shadow: 0 10px 28px -18px rgba(0,0,0,.35); overflow: hidden; }
+.sb-card.is-rev { background: linear-gradient(160deg, #f4f2ff, #fff 70%); }
+.sb-card.is-exp { background: linear-gradient(160deg, #fff1ef, #fff 70%); }
+.sb-card.is-pro { background: linear-gradient(160deg, #eefaf1, #fff 70%); }
+.sb-card-top { display: flex; align-items: center; gap: 14px; }
+.sb-ic { flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; }
+.sb-ic .icon { width: 24px; height: 24px; }
+.is-rev .sb-ic { background: #e9e5ff; color: #5a3fe6; }
+.is-exp .sb-ic { background: #ffe1dd; color: #d63b2e; }
+.is-pro .sb-ic { background: #ddf5e3; color: #2fa24c; }
+.sb-label { display: block; font: 600 13px/1.2 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: #2b2b2b; }
+.sb-card b { display: block; margin-top: 4px; font: 800 clamp(20px, 5.4vw, 26px)/1.1 var(--font-body); white-space: nowrap; color: var(--ink); }
+.sb-spark { display: block; width: 100%; height: 44px; margin-top: 10px; }
+.sb-ranges { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 18px; }
+.sb-ranges .chip { min-height: 40px; padding: 0 16px; font-size: 14px; border-radius: 999px; border: 1px solid rgba(0,0,0,.08); background: #fff; box-shadow: 0 4px 12px -8px rgba(0,0,0,.4); }
+.sb-ranges .chip.is-on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .sb-seg { display: flex; border: 1px solid var(--ink); margin-bottom: 18px; }
 .sb-seg button { flex: 1; min-height: 44px; background: #fff; border: 0; border-left: 1px solid var(--ink); font-weight: 600; font-size: 14px; color: var(--ink); }
 .sb-seg button:first-child { border-left: 0; }
@@ -1315,3 +1324,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .hx-swipe { animation: hxSwipeIn 1.2s ease-out .6s both; }
 @keyframes hxSwipeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .hx-swipe { animation: none; } }
+/* Sales page: rounded switch and trend box to match the cards */
+.sb-seg { border-radius: 999px; overflow: hidden; border-color: rgba(0,0,0,.12); box-shadow: 0 4px 12px -8px rgba(0,0,0,.4); }
+.sb-seg button { border-left-color: rgba(0,0,0,.08); }
+.sb-chart-card { border-radius: 18px; overflow: hidden; border-color: rgba(0,0,0,.08); box-shadow: 0 10px 28px -18px rgba(0,0,0,.35); }

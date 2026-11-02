@@ -728,12 +728,24 @@ function mount(main, { store, navigate, query }) {
   function salesPage() {
     const T = rangeTotals(sbRange);
     const rows = salesBreakdownRows(sbUnit).slice().reverse();
-    const card = (label, v, neg, cls = '') => `<div class="sb-card ${cls}"><span class="eyebrow">${label}</span><b class="tabnum">${v == null ? '' : (neg ? '-' : '') + money(v)}</b></div>`;
+    // Sparkline of the last 12 periods (oldest left) for one figure, drawn in the card's colour.
+    const series = rows.slice(0, 12).reverse();
+    const spark = (k, color) => {
+      const v = series.map((r) => Math.max(0, r[k] || 0));
+      if (v.length < 2) return '';
+      const W = 200, H = 44, max = Math.max(1, ...v), step = W / (v.length - 1);
+      const pts = v.map((x, i) => [i * step, H - 4 - (H - 10) * (x / max)]);
+      const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+      const id = 'sg-' + k;
+      return `<svg class="sb-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><path d="${line} L${W} ${H} L0 ${H} Z" fill="url(#${id})"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${pts[pts.length - 1][0].toFixed(1)}" cy="${pts[pts.length - 1][1].toFixed(1)}" r="3.2" fill="${color}"/></svg>`;
+    };
+    const trophy = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 20h6M10 17h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const card = (label, v, neg, cls, ic, k, color) => `<div class="sb-card ${cls}"><div class="sb-card-top"><span class="sb-ic">${ic}</span><div><span class="sb-label">${label}</span><b class="tabnum">${v == null ? '' : (neg ? '-' : '') + money(v)}</b></div></div>${spark(k, color)}</div>`;
     main.innerHTML = shell(`
       <div class="sb-cards">
-        ${card('Revenue', T.revenue)}
-        ${card('Expenses', T.expenses, true)}
-        ${card('Profit', T.profit)}
+        ${card('Revenue', T.revenue, false, 'is-rev', icon('chart'), 'revenue', '#6b4ff6')}
+        ${card('Expenses', T.expenses, true, 'is-exp', icon('layers'), 'expenses', '#e5483a')}
+        ${card('Profit', T.profit, false, 'is-pro', trophy, 'profit', '#3cbf5a')}
       </div>
       <div class="sb-ranges" role="group" aria-label="Time range">${SB_RANGES.map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
       <div class="sb-seg" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
