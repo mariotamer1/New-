@@ -45,7 +45,7 @@ export function home() {
           <p class="hx-eyebrow">Brand new products</p>
           <h1 class="hx-title">Something<br>for <span>everyone.</span></h1>
           <p class="hx-lede">Electronics, home goods, tools, appliances, furniture and more — all brand new from top retailers at discounted prices.</p>
-          <a class="btn btn-primary btn-lg hx-cta" href="${href('/products')}">Shop All Deals ${icon('arrow', 'icon-sm')}</a>
+          <a class="btn btn-primary btn-lg hx-cta" href="${href('/products')}">Shop All Items ${icon('arrow', 'icon-sm')}</a>
         </div>
         <p class="hx-swipe" aria-hidden="true">Swipe to see more ${icon('right', 'icon-sm')}</p>
         <div class="hx-orbit" data-hx-orbit aria-roledescription="carousel" aria-label="Featured products — swipe to browse">
