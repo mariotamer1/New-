@@ -758,7 +758,8 @@ function mount(main, { store, navigate, query }) {
         ${card('Expenses', T.expenses, true, 'is-exp', icon('layers'), 'expenses', '#e5483a')}
         ${card('Profit', T.profit, false, 'is-pro', trophy, 'profit', '#3cbf5a')}
       </div>
-      <div class="sb-ranges" role="group" aria-label="Time range">${SB_RANGES.map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
+      <div class="sb-ranges" role="group" aria-label="Time range">${[...SB_RANGES, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
+      ${sbRange === 'custom' ? `<div class="prof-custom sb-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
       <div class="sb-seg" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
       <section class="adm-card sb-chart-card"><div class="adm-card-head"><h2>Trend</h2><span class="muted" style="font-size:13px">By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</span></div>${salesChart(rows)}</section>
       `, 'Sales', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
@@ -1189,7 +1190,7 @@ function mount(main, { store, navigate, query }) {
   main.addEventListener('change', (e) => {
     const t = e.target; if (!t.matches('[data-prof-from], [data-prof-to]') || !t.value) return;
     if (t.matches('[data-prof-from]')) customFrom = t.value; else customTo = t.value;
-    profit();
+    if (tab === 'sales') salesPage(); else profit();
   });
   main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
   const onInput = (e) => {

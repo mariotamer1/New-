@@ -1336,3 +1336,5 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .prof-custom { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 16px; }
 .prof-custom label { display: grid; gap: 4px; font: 600 12px/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
 .prof-custom input { height: 44px; min-width: 150px; border: 1px solid var(--ink); padding: 0 10px; font: 500 16px var(--font-body); color: var(--ink); background: #fff; }
+.sb-custom { justify-content: center; }
+.sb-custom input { border-radius: 12px; border-color: rgba(0,0,0,.15); }
