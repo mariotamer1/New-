@@ -648,6 +648,8 @@ function mount(main, { store, navigate, query }) {
   const SALES_MONTHS = [['2024-04', 471.83], ['2024-05', 481.14], ['2024-06', 292.82], ['2024-07', 1101.99], ['2024-08', 1797.00], ['2024-09', 1592.18], ['2024-10', 446.34], ['2024-11', 396.66], ['2024-12', 1596.93],
     ['2025-01', 2000.00], ['2025-02', 2000.00], ['2025-03', 3000.00], ['2025-04', 3000.00], ['2025-05', 3000.00], ['2025-06', 2037.59], ['2025-07', 3002.21], ['2025-08', 2753.21], ['2025-09', 3184.79], ['2025-10', 3231.09], ['2025-11', 3123.05], ['2025-12', 4516.84]];
   const SALES_AVG_2026 = 2771.49;
+  // When the owner gave the sheet totals (Oct 28, 2026, 2 PM Pacific). Website sales after this are added on top.
+  const SALES_SHEET_CUTOFF = new Date('2026-10-28T21:00:00Z');
   const SALES_AVG_REVENUE = 8436.64;
   const SALES_AVG_EXPENSES = 5665.15;
   // Sales page: revenue, expenses and profit for a range. Site orders are exact; the sheet adds profit for whole months in the range.
@@ -662,7 +664,10 @@ function mount(main, { store, navigate, query }) {
     return { from: new Date(0), to: now };
   }
   function rangeTotals(key) {
-    if (key === 'all') return { revenue: SALES_TOTALS.gross, expenses: SALES_TOTALS.expenses, profit: SALES_TOTALS.profit };
+    // Website sales made after the owner's sheet totals were entered are added on top of them.
+    const newer = profitRows(SALES_SHEET_CUTOFF, new Date());
+    const newerSum = (k) => newer.reduce((t, r) => t + r[k], 0);
+    if (key === 'all') return { revenue: round2(SALES_TOTALS.gross + newerSum('revenue')), expenses: round2(SALES_TOTALS.expenses + newerSum('cost')), profit: round2(SALES_TOTALS.profit + newerSum('profit')) };
     const b = rangeBounds(key); const now = new Date();
     const site = profitRows(b.from, b.to);
     // A month's figure is added once, on its last day, so it counts for a range only if that last day is inside the range.
@@ -677,7 +682,7 @@ function mount(main, { store, navigate, query }) {
     }
     if (key === 'ytd') {
       // YTD: 99,000 from the owner's sheet plus website revenue; profit set by the owner; expenses are revenue minus profit.
-      profit = 30372.38;
+      profit = 30372.38 + newerSum('profit');
       revenue = site.reduce((t, r) => t + r.revenue, 0) + 99000;
       expenses = revenue - profit;
     } else {
