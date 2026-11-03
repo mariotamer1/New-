@@ -628,7 +628,7 @@ function mount(main, { store, navigate, query }) {
       const s = site.get(key); site.delete(key);
       if (s) out.push({ ...s, label: periodLabel(key, 'month'), source: 'Site' });
       else if (sheet.has(key)) out.push({ key, label: periodLabel(key, 'month'), revenue: null, expenses: null, profit: sheet.get(key), source: 'Sheet' });
-      else if (y === 2026) out.push({ key, label: periodLabel(key, 'month'), revenue: null, expenses: null, profit: SALES_AVG_2026, source: 'Average' });
+      else if (y === 2026 && Number(key.slice(5)) <= SALES_AVG_LAST_MONTH) out.push({ key, label: periodLabel(key, 'month'), revenue: null, expenses: null, profit: SALES_AVG_2026, source: 'Average' });
     }
     site.forEach((s) => out.push({ ...s, label: periodLabel(s.key, 'month'), source: 'Site' }));
     if (unit === 'month') return out.sort((a, b) => (a.key < b.key ? -1 : 1));
@@ -649,6 +649,8 @@ function mount(main, { store, navigate, query }) {
   const SALES_MONTHS = [['2024-04', 471.83], ['2024-05', 481.14], ['2024-06', 292.82], ['2024-07', 1101.99], ['2024-08', 1797.00], ['2024-09', 1592.18], ['2024-10', 446.34], ['2024-11', 396.66], ['2024-12', 1596.93],
     ['2025-01', 2000.00], ['2025-02', 2000.00], ['2025-03', 3000.00], ['2025-04', 3000.00], ['2025-05', 3000.00], ['2025-06', 2037.59], ['2025-07', 3002.21], ['2025-08', 2753.21], ['2025-09', 3184.79], ['2025-10', 3231.09], ['2025-11', 3123.05], ['2025-12', 4516.84]];
   const SALES_AVG_2026 = 2771.49;
+  // The 2026 monthly average applies January–September only. From October on, website sales are the real figures.
+  const SALES_AVG_LAST_MONTH = 9;
   // Every website sale is added on top of the owner's sheet totals (the sheet does not include website sales).
   const SALES_SHEET_CUTOFF = new Date(0);
   const SALES_AVG_REVENUE = 8436.64;
@@ -682,7 +684,7 @@ function mount(main, { store, navigate, query }) {
     // Sheet months before 2026: profit only.
     SALES_MONTHS.forEach(([m, v]) => { const [yy, mm] = m.split('-').map(Number); if (lastDayIn(yy, mm)) profit += v; });
     // 2026 months: the sheet averages for revenue, expenses and profit (profit = revenue minus expenses).
-    for (let mo = 1; mo <= now.getMonth() + 1; mo++) {
+    for (let mo = 1; mo <= Math.min(now.getMonth() + 1, SALES_AVG_LAST_MONTH); mo++) {
       if (!lastDayIn(now.getFullYear(), mo)) continue;
       profit += SALES_AVG_2026; revenue += SALES_AVG_REVENUE; expenses += SALES_AVG_EXPENSES;
     }
