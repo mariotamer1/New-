@@ -575,7 +575,8 @@ function mount(main, { store, navigate, query }) {
     const missing = rows.reduce((t, r) => t + r.missing, 0);
     const margin = rev ? Math.round((total / rev) * 100) : 0;
     main.innerHTML = shell(`
-      <div class="rv-periods" role="group" aria-label="Time period">${REV_PERIODS.map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
+      <div class="rv-periods" role="group" aria-label="Time period">${[...REV_PERIODS, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
+      ${profitPeriod === 'custom' ? `<div class="prof-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
       <div class="adm-tiles rv-tiles">
         <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
         <div class="adm-tile"><span class="eyebrow">Margin</span><b class="tabnum">${rev ? margin + '%' : '—'}</b><span class="muted">Profit ÷ revenue</span></div>
@@ -655,7 +656,12 @@ function mount(main, { store, navigate, query }) {
   // Sales page: revenue, expenses and profit for a range. Site orders are exact; the sheet adds profit for whole months in the range.
   let sbRange = 'all';
   const SB_RANGES = [['today', 'Today'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['ytd', 'YTD'], ['lastyear', 'Last year'], ['all', 'All time']];
+  // Custom date range on the Profit page (YYYY-MM-DD, local days, both ends included).
+  const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  let customFrom = dayKey(new Date(Date.now() - 29 * 864e5)); let customTo = dayKey(new Date());
+  const customBounds = () => { const a = new Date(customFrom + 'T00:00:00'), z = new Date(customTo + 'T23:59:59.999'); return a <= z ? [a, z] : [new Date(customTo + 'T00:00:00'), new Date(customFrom + 'T23:59:59.999')]; };
   function rangeBounds(key) {
+    if (key === 'custom') { const [from, to] = customBounds(); return { from, to }; }
     const now = new Date(); const y = now.getFullYear(); const startDay = new Date(y, now.getMonth(), now.getDate());
     if (key === 'today') return { from: startDay, to: now };
     if (key === '7' || key === '30' || key === '90') return { from: new Date(startDay - Number(key) * 864e5), to: now };
@@ -764,6 +770,7 @@ function mount(main, { store, navigate, query }) {
   const isInPerson = (o) => o.customer && o.customer.name === 'In-person sale';
   const qtyOf = (o) => o.items.reduce((t, i) => t + (i.qty || 1), 0);
   function revRange(key, now = new Date()) {
+    if (key === 'custom') return customBounds();
     const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if (key === 'today') return [day, now];
     if (key === 'ytd') return [new Date(now.getFullYear(), 0, 1), now];
@@ -1179,6 +1186,11 @@ function mount(main, { store, navigate, query }) {
     try { const np = await A.patchProduct(id, { inventory: n }); p.inventory = np && np.inventory != null ? np.inventory : n; refreshStore(); invRefresh(id); } catch (ex) { toast(ex.message || 'Could not update stock'); e.target.value = p.inventory; }
   };
   main.addEventListener('change', onInvStock);
+  main.addEventListener('change', (e) => {
+    const t = e.target; if (!t.matches('[data-prof-from], [data-prof-to]') || !t.value) return;
+    if (t.matches('[data-prof-from]')) customFrom = t.value; else customTo = t.value;
+    profit();
+  });
   main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
   const onInput = (e) => {
     if (e.target.matches('[data-ord-q]')) { orderQ = e.target.value; applyOrderSearch(); return; }
