@@ -43,7 +43,7 @@ function mount(main, { store, navigate, query }) {
   async function renderLogin(msg) {
     main.innerHTML = `<div class="adm-login"><form class="adm-login-card" novalidate data-login>
       <a class="logo adm-logo" href="${href('/')}" aria-label="Back to store">${logo()}</a>
-      <div><h1>Admin sign in</h1><p class="muted">Enter the store password to manage listings, orders and offers.</p></div>
+      <div><h1>Admin sign in</h1></div>
       <div class="field"><label for="adm-pw">Password</label><input id="adm-pw" name="pw" type="password" autocomplete="current-password" required autofocus></div>
       <p class="form-error" data-err ${msg ? '' : 'hidden'}>${esc(msg || '')}</p>
       <button class="btn btn-primary btn-lg btn-block" type="submit">${icon('lock', 'icon-sm')} Sign in</button>
