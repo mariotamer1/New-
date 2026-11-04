@@ -1339,3 +1339,6 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .sb-custom { justify-content: center; }
 .sb-custom input { border-radius: 12px; border-color: rgba(0,0,0,.15); }
 .offer-phone { margin-top: 2px; white-space: nowrap; }
+/* Overview: tile numbers stay on one line; admin.js shrinks one only when it doesn't fit */
+.adm-tiles .adm-tile { min-width: 0; }
+.adm-tiles .adm-tile b { display: block; white-space: nowrap; overflow: hidden; }

@@ -142,6 +142,12 @@ function mount(main, { store, navigate, query }) {
   }
 
   // ------------------------------------------------------------ overview
+  // Shrink a tile number only if it is wider than its tile, so it is never cut off.
+  const fitTiles = () => $$('.adm-tiles .adm-tile b', main).forEach((b) => {
+    b.style.fontSize = '';
+    if (b.scrollWidth > b.clientWidth) b.style.fontSize = (parseFloat(getComputedStyle(b).fontSize) * b.clientWidth / b.scrollWidth * 0.97).toFixed(1) + 'px';
+  });
+  window.addEventListener('resize', () => { if (tab === 'overview') fitTiles(); });
   function overview() {
     const P = data.products;
     const live = P.filter((p) => p.published && p.inventory > 0);
@@ -166,6 +172,7 @@ function mount(main, { store, navigate, query }) {
           ${data.offers.length ? `<ul class="adm-list">${data.offers.slice(0, 6).map((o) => `<li><button type="button" data-tab="offers"><span><b>${money(o.amount)}</b> for ${esc(o.productTitle)}<small>${esc(o.name)} · ${esc(o.phone)} · ${fmtDate(o.createdAt, true)}</small></span><span class="status s-${o.status}">${statusLabel(OFFER_STATUS, o.status)}</span></button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No offers yet. Offers from the “Make Offer” button land here.</p>'}
         </section>
       </div>`, 'Overview', `<button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button>`);
+    fitTiles();
   }
   const statusLabel = (list, v) => (list.find(([k]) => k === v) || [v, v])[1];
 
