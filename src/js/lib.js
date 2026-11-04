@@ -131,6 +131,28 @@ export function barcode(code) {
 }
 
 // Resize an uploaded image file to WebP (falls back to JPEG) at a max edge.
+// Decode a photo once and make one resized copy per size (largest side in px). Faster than resizing it once per size.
+export async function resizeImageSizes(file, maxes) {
+  let src; let close = () => {};
+  try { src = await createImageBitmap(file, { imageOrientation: 'from-image' }); close = () => src.close(); }
+  catch {
+    const url = URL.createObjectURL(file);
+    try { src = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; }); }
+    finally { URL.revokeObjectURL(url); }
+  }
+  try {
+    const W = src.naturalWidth || src.width, H = src.naturalHeight || src.height;
+    return await Promise.all(maxes.map(async (max) => {
+      const scale = Math.min(1, max / Math.max(W, H));
+      const w = Math.round(W * scale), h = Math.round(H * scale);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(src, 0, 0, w, h);
+      let blob = await new Promise((r) => c.toBlob(r, 'image/webp', 0.82));
+      if (!blob || blob.type !== 'image/webp') blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.86));
+      return blob;
+    }));
+  } finally { close(); }
+}
 export async function resizeImage(file, max) {
   const url = URL.createObjectURL(file);
   try {

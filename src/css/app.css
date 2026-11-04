@@ -1342,3 +1342,12 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* Overview: tile numbers stay on one line; admin.js shrinks one only when it doesn't fit */
 .adm-tiles .adm-tile { min-width: 0; }
 .adm-tiles .adm-tile b { display: block; white-space: nowrap; overflow: hidden; }
+/* Editor: a photo that is still uploading is dimmed with a spinner */
+.adm-photo.is-uploading { position: relative; }
+.adm-photo.is-uploading img { opacity: .55; }
+.adm-photo.is-uploading::after { content: ''; position: absolute; top: 50%; left: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 2.5px solid rgba(0,0,0,.2); border-top-color: var(--ink); border-radius: 50%; animation: admSpin .8s linear infinite; }
+@keyframes admSpin { to { transform: rotate(360deg); } }
+/* Editor: Paste photo button beside the photos */
+.adm-photos-row { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.adm-photos-row .adm-photos { flex: 1 1 auto; min-width: 0; }
+.adm-paste { flex: none; }

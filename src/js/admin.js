@@ -254,7 +254,7 @@ function mount(main, { store, navigate, query }) {
             <div class="field"><label for="ed-upc">UPC <span class="opt">(optional)</span></label><input id="ed-upc" name="upc" inputmode="numeric" maxlength="14" value="${esc(d.upc || '')}"><span class="hint">8–14 digits from the barcode.</span></div>
           </div></section>
           <section class="adm-card"><div class="adm-card-head"><h2>Photos</h2><span class="muted" style="font-size:13px">First photo is the cover. Drag to reorder.</span></div><div class="adm-card-body">
-            <div class="adm-photos" data-photos>${photosHTML(d)}</div>
+            <div class="adm-photos-row"><div class="adm-photos" data-photos>${photosHTML(d)}</div><button class="btn btn-sm adm-paste" type="button" data-paste-photo>${icon('upload', 'icon-sm')} Paste photo</button></div>
             <label class="adm-drop" data-drop><input type="file" accept="image/*" multiple data-files class="sr-only">${icon('upload')}<span><b>Add photos</b> — click or drop images here</span><small>JPG, PNG, WebP or HEIC-converted. Resized automatically.</small></label>
             <p class="muted" data-upload-status aria-live="polite" style="font-size:13px"></p>
           </div></section>
@@ -298,10 +298,12 @@ function mount(main, { store, navigate, query }) {
     wireEditor();
   }
 
+  // Photos just uploaded keep showing from the phone's own copy, so they don't flash while loading from the web.
+  const previewOf = new Map();
   function photosHTML(d) {
     if (!d.images.length) return '<p class="muted" style="font-size:14px">No photos yet.</p>';
-    return d.images.map((im, i) => `<figure class="adm-photo" draggable="true" data-ph="${i}">
-      <img src="${esc(img(im.sm || im.lg))}" alt="Photo ${i + 1}">
+    return d.images.map((im, i) => `<figure class="adm-photo${im.uploading ? ' is-uploading' : ''}" draggable="true" data-ph="${i}">
+      <img src="${esc(img(previewOf.get(im.sm) || im.sm || im.lg))}" alt="Photo ${i + 1}">
       ${i === 0 ? '<span class="adm-cover">Cover</span>' : ''}
       <figcaption>
         <button type="button" aria-label="Move photo ${i + 1} left" data-ph-move="-1" ${i === 0 ? 'disabled' : ''}>${icon('left', 'icon-sm')}</button>
@@ -334,6 +336,7 @@ function mount(main, { store, navigate, query }) {
     form.addEventListener('click', async (e) => {
       const inv = e.target.closest('[data-ed-inv]');
       if (inv) { f('inventory').value = Math.max(0, (parseInt(f('inventory').value, 10) || 0) + Number(inv.dataset.edInv)); syncDraft(); }
+      if (e.target.closest('[data-paste-photo]')) { pastePhotos(); return; }
       const mv = e.target.closest('[data-ph-move]');
       if (mv) { const i = Number(mv.closest('[data-ph]').dataset.ph), j = i + Number(mv.dataset.phMove); [draft.images[i], draft.images[j]] = [draft.images[j], draft.images[i]]; redrawPhotos(); }
       const del = e.target.closest('[data-ph-del]');
@@ -358,14 +361,38 @@ function mount(main, { store, navigate, query }) {
     const upload = async (files) => {
       files = Array.from(files).filter((x) => x.type.startsWith('image/'));
       if (!files.length) return;
-      for (let i = 0; i < files.length; i++) {
-        status.textContent = `Uploading ${i + 1} of ${files.length}…`;
-        try { const im = await A.uploadImage(files[i]); draft.images.push({ ...im, alt: '' }); redrawPhotos(); }
-        catch (ex) { toast(`Couldn’t upload ${files[i].name}: ${ex.message}`, 'err'); }
-      }
-      status.textContent = `${files.length} photo${files.length > 1 ? 's' : ''} added — remember to save.`;
+      // Show every photo right away from the phone, then upload up to 3 at a time in the background.
+      const slots = files.map((f) => { const u = URL.createObjectURL(f); const im = { lg: u, sm: u, alt: '', uploading: true }; draft.images.push(im); return { f, im }; });
+      redrawPhotos();
+      let done = 0;
+      status.textContent = `Uploading ${files.length} photo${files.length > 1 ? 's' : ''}…`;
+      const work = async ({ f, im }) => {
+        try { const up = await A.uploadImage(f); const i = draft.images.indexOf(im); if (i > -1) draft.images[i] = { ...up, alt: '' }; previewOf.set(up.sm, im.sm); previewOf.set(up.lg, im.lg); }
+        catch (ex) { const i = draft.images.indexOf(im); if (i > -1) draft.images.splice(i, 1); URL.revokeObjectURL(im.lg); toast(`Couldn’t upload ${f.name}: ${ex.message}`, 'err'); }
+        finally { done++; status.textContent = done < files.length ? `Uploaded ${done} of ${files.length}…` : `${files.length} photo${files.length > 1 ? 's' : ''} added — remember to save.`; redrawPhotos(); }
+      };
+      const queue = slots.slice();
+      await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => { while (queue.length) await work(queue.shift()); }));
     };
     $('[data-files]').addEventListener('change', (e) => { upload(e.target.files); e.target.value = ''; });
+    // Paste: only photos on the clipboard are added; copied text is ignored.
+    const asFiles = (blobs) => blobs.map((b, i) => new File([b], `pasted-${Date.now()}-${i}.${(b.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`, { type: b.type }));
+    async function pastePhotos() {
+      if (!navigator.clipboard || !navigator.clipboard.read) { toast('Paste isn’t supported in this browser — use Add photos instead.'); return; }
+      try {
+        const blobs = [];
+        for (const item of await navigator.clipboard.read()) {
+          const t = item.types.find((x) => x.startsWith('image/'));
+          if (t) blobs.push(await item.getType(t));
+        }
+        if (!blobs.length) { toast('No photo copied — copy a photo first, then tap Paste photo.'); return; }
+        upload(asFiles(blobs));
+      } catch { toast('Couldn’t read the clipboard. Allow paste when your phone asks, or use Add photos.'); }
+    }
+    form.addEventListener('paste', (e) => {
+      const blobs = [...(e.clipboardData ? e.clipboardData.items : [])].filter((i) => i.type.startsWith('image/')).map((i) => i.getAsFile()).filter(Boolean);
+      if (blobs.length) { e.preventDefault(); upload(asFiles(blobs)); }
+    });
     const drop = $('[data-drop]');
     drop.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); drop.classList.add('over'); } });
     drop.addEventListener('dragleave', () => drop.classList.remove('over'));
@@ -377,6 +404,7 @@ function mount(main, { store, navigate, query }) {
       const upc = String(draft.upc || '').replace(/\D/g, '');
       const problems = [];
       if (!draft.title.trim()) problems.push(['ed-title', 'Add a title.']);
+      if (draft.images.some((im) => im.uploading)) problems.push(['ed-title', 'Photos are still uploading — wait a moment, then save.']);
       if (String(draft.price ?? '').trim() === '' || !(price >= 0)) problems.push(['ed-price', 'Enter a sale price ($0 or more).']);
       if (!(inv >= 0)) problems.push(['ed-inv', 'Inventory must be 0 or more.']);
       if (!(ship >= 0)) problems.push(['ed-ship', 'Shipping must be 0 or more.']);

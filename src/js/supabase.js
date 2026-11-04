@@ -1,6 +1,6 @@
 // Shared store database (Supabase). Every admin change is written here immediately,
 // so all customers and devices see the same products, orders, offers and messages.
-import { uid, slugify, round2, ls, resizeImage } from './lib.js';
+import { uid, slugify, round2, ls, resizeImage, resizeImageSizes } from './lib.js';
 import { PRODUCTS, CATEGORIES } from './seed.js';
 
 const ADMIN_EMAIL = 'admin@mlgroup.store';
@@ -230,9 +230,10 @@ export function createSupabaseBackend(cfg) {
       async reorderCategories(ids) { for (let i = 0; i < ids.length; i++) await rest('PATCH', `categories?id=eq.${encodeURIComponent(ids[i])}`, { sort: i + 1 }); await loadCatalog(); },
       async saveSettings(s) { const data = { ...cache.settings, ...s }; await rest('PATCH', 'settings?id=eq.1', { data }); cache.settings = data; },
       async uploadImage(file) {
-        const [lg, sm] = await Promise.all([resizeImage(file, 1400), resizeImage(file, 520)]);
+        const [lg, sm] = await resizeImageSizes(file, [1400, 520]);
         const n = uid(); const ext = lg.type === 'image/webp' ? 'webp' : 'jpg';
-        return { lg: await uploadBlob(lg, `${n}.${ext}`), sm: await uploadBlob(sm, `${n}-sm.${ext}`) };
+        const [lgUrl, smUrl] = await Promise.all([uploadBlob(lg, `${n}.${ext}`), uploadBlob(sm, `${n}-sm.${ext}`)]);
+        return { lg: lgUrl, sm: smUrl };
       },
       async removeImage() {}, // photos stay in storage so a cancelled edit never breaks a listing
     },
