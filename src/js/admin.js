@@ -308,9 +308,7 @@ function mount(main, { store, navigate, query }) {
       <img src="${esc(img(previewOf.get(im.sm) || im.sm || im.lg))}" alt="Photo ${i + 1}">
       ${i === 0 ? '<span class="adm-cover">Cover</span>' : ''}
       <figcaption>
-        <button type="button" aria-label="Move photo ${i + 1} left" data-ph-move="-1" ${i === 0 ? 'disabled' : ''}>${icon('left', 'icon-sm')}</button>
         <span class="mono">${i + 1}</span>
-        <button type="button" aria-label="Move photo ${i + 1} right" data-ph-move="1" ${i === d.images.length - 1 ? 'disabled' : ''}>${icon('right', 'icon-sm')}</button>
         <button type="button" aria-label="Delete photo ${i + 1}" data-ph-del>${icon('trash', 'icon-sm')}</button>
       </figcaption></figure>`).join('');
   }
@@ -359,18 +357,54 @@ function mount(main, { store, navigate, query }) {
       const [m] = draft.images.splice(dragFrom, 1); draft.images.splice(to, 0, m); dragFrom = null; redrawPhotos();
     });
     ph.addEventListener('dragend', () => { dragFrom = null; $$('.dragging').forEach((x) => x.classList.remove('dragging')); });
+    // Phones: press and hold a photo, then drag it with your finger to its new spot.
+    let hold = null;
+    const endHold = () => { if (!hold) return; clearTimeout(hold.timer); const h = hold; hold = null; if (h.active) { if (h.to != null && h.to !== h.from) { const [m] = draft.images.splice(h.from, 1); draft.images.splice(h.to, 0, m); } redrawPhotos(); } };
+    ph.addEventListener('touchstart', (e) => {
+      const fig = e.target.closest('[data-ph]'); if (!fig || e.target.closest('button') || e.touches.length > 1) return;
+      const t = e.touches[0];
+      hold = { fig, from: Number(fig.dataset.ph), to: null, x: t.clientX, y: t.clientY, active: false };
+      hold.timer = setTimeout(() => { if (!hold) return; hold.active = true; fig.classList.add('lifting'); if (navigator.vibrate) navigator.vibrate(10); }, 250);
+    }, { passive: true });
+    ph.addEventListener('touchmove', (e) => {
+      if (!hold) return; const t = e.touches[0];
+      if (!hold.active) { if (Math.hypot(t.clientX - hold.x, t.clientY - hold.y) > 8) { clearTimeout(hold.timer); hold = null; } return; }
+      e.preventDefault();
+      hold.fig.style.transform = `translate(${t.clientX - hold.x}px, ${t.clientY - hold.y}px) scale(1.06)`;
+      const over = document.elementFromPoint(t.clientX, t.clientY); const tgt = over && over.closest('[data-ph]');
+      ph.querySelectorAll('.drop-target').forEach((x) => x.classList.remove('drop-target'));
+      if (tgt && tgt !== hold.fig) { tgt.classList.add('drop-target'); hold.to = Number(tgt.dataset.ph); }
+    }, { passive: false });
+    ph.addEventListener('touchend', endHold);
+    ph.addEventListener('touchcancel', endHold);
+    ph.addEventListener('contextmenu', (e) => { if (e.target.closest('[data-ph]')) e.preventDefault(); });
     // uploads
     const status = $('[data-upload-status]');
     const upload = async (files) => {
       files = Array.from(files).filter((x) => x.type.startsWith('image/'));
       if (!files.length) return;
       // Show every photo right away from the phone, then upload up to 3 at a time in the background.
-      const slots = files.map((f) => { const u = URL.createObjectURL(f); const im = { lg: u, sm: u, alt: '', uploading: true }; draft.images.push(im); return { f, im }; });
+      // Order: a product photo is the cover and the online screenshot goes second, without moving them by hand.
+      // A screenshot is a PNG or a tall phone-screen shape; camera photos are JPEG/HEIC and squarer.
+      const isShot = async (f) => { if (f.type === 'image/png') return true; try { const bm = await createImageBitmap(f); const r = bm.width / bm.height; bm.close(); return r < 0.62; } catch { return false; } };
+      const flags = await Promise.all(files.map(isShot));
+      let items = files.map((f, i) => ({ f, shot: flags[i] }));
+      const wasEmpty = !draft.images.length;
+      if (wasEmpty) {
+        const firstPhoto = items.findIndex((x) => !x.shot), firstShot = items.findIndex((x) => x.shot);
+        const lead = [firstPhoto, firstShot].filter((i) => i > -1);
+        items = [...lead.map((i) => items[i]), ...items.filter((_, i) => !lead.includes(i))];
+      }
+      const slots = items.map(({ f, shot }) => { const u = URL.createObjectURL(f); const im = { lg: u, sm: u, alt: '', uploading: true, shot }; draft.images.push(im); return { f, im }; });
+      if (!wasEmpty && !(draft.images[1] && draft.images[1].shot)) {
+        const s = slots.find((x) => x.im.shot);
+        if (s && draft.images.length > 1) { draft.images.splice(draft.images.indexOf(s.im), 1); draft.images.splice(1, 0, s.im); }
+      }
       redrawPhotos();
       let done = 0;
       status.textContent = `Uploading ${files.length} photo${files.length > 1 ? 's' : ''}…`;
       const work = async ({ f, im }) => {
-        try { const up = await A.uploadImage(f); const i = draft.images.indexOf(im); if (i > -1) draft.images[i] = { ...up, alt: '' }; previewOf.set(up.sm, im.sm); previewOf.set(up.lg, im.lg); }
+        try { const up = await A.uploadImage(f); const i = draft.images.indexOf(im); if (i > -1) draft.images[i] = { ...up, alt: '', shot: im.shot }; previewOf.set(up.sm, im.sm); previewOf.set(up.lg, im.lg); }
         catch (ex) { const i = draft.images.indexOf(im); if (i > -1) draft.images.splice(i, 1); URL.revokeObjectURL(im.lg); toast(`Couldn’t upload ${f.name}: ${ex.message}`, 'err'); }
         finally { done++; status.textContent = done < files.length ? `Uploaded ${done} of ${files.length}…` : `${files.length} photo${files.length > 1 ? 's' : ''} added — remember to save.`; redrawPhotos(); }
       };
@@ -418,7 +452,7 @@ function mount(main, { store, navigate, query }) {
         id: isNew ? undefined : editId, title: draft.title.trim(), slug: draft.slug.trim(), brand: draft.brand.trim(), upc,
         condition: draft.condition, categoryId: draft.categoryId || null, description: draft.description.trim(),
         price: round2(price), originalPrice: orig > price ? round2(orig) : null, shipping: round2(ship), inventory: inv,
-        published: draft.published, bestDeal: false, noShipping: !!draft.noShipping, images: draft.images,
+        published: draft.published, bestDeal: false, noShipping: !!draft.noShipping, images: draft.images.map(({ uploading, shot, ...im }) => im),
       };
       const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Saving…';
       try {

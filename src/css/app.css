@@ -1351,3 +1351,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .adm-photos-row { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .adm-photos-row .adm-photos { flex: 1 1 auto; min-width: 0; }
 .adm-paste { flex: none; }
+/* Editor: press-and-hold drag of photos on phones */
+.adm-photo { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.adm-photo.lifting { position: relative; z-index: 20; pointer-events: none; box-shadow: 0 14px 30px -10px rgba(0,0,0,.5); transition: none; }
+.adm-photo.drop-target { outline: 2px dashed var(--ink); outline-offset: 2px; }
