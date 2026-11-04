@@ -881,7 +881,7 @@ function openPickup(p, opts = {}) {
   const max = new Date(today); max.setDate(max.getDate() + 60);
   const timeOpts = (day) => { const sl = slotsFor(day); return sl.length ? sl.map((t) => `<option value="${t}">${fmtSlot(t)}</option>`).join('') : '<option value="">Closed this day — pick another date</option>'; };
   const contactFields = `<div class="field"><label for="pk-name">Name</label><input id="pk-name" name="name" autocomplete="name" required maxlength="80" value="${esc(opts.name || '')}"></div>
-      <div class="field"><label for="pk-phone">Phone number</label><input id="pk-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="(555) 555-5555" maxlength="24" value="${esc(opts.phone || '')}"></div>`;
+      <div class="field"><label for="pk-phone">Phone number</label><input id="pk-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="555-555-5555" maxlength="24" value="${esc(opts.phone || '')}"></div>`;
   dlg.innerHTML = `
     <div class="modal-head"><h2 id="pk-title">${co ? 'Choose a pickup time' : 'Schedule pickup'}</h2><button class="icon-btn" type="button" aria-label="Close" data-close-dialog>${icon('close')}</button></div>
     <form class="modal-body form" novalidate data-pickup-form>

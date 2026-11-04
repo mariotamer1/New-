@@ -127,3 +127,17 @@ boot().catch((e) => {
   const app = document.getElementById('app');
   if (app) app.innerHTML = `<div style="padding:40px;font:16px system-ui">The store could not load. Please refresh the page.</div>`;
 });
+
+// Phone fields type their dashes as you go: 325- then 325-800- then 325-800-9002.
+document.addEventListener('input', (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || el.type !== 'tel') return;
+  let d = el.value.replace(/\D/g, '');
+  if (d.length > 10 && d[0] === '1') d = d.slice(1);
+  d = d.slice(0, 10);
+  const deleting = (e.inputType || '').startsWith('delete');
+  let v = d.slice(0, 3);
+  if (d.length > 3 || (d.length === 3 && !deleting)) v += '-' + d.slice(3, 6);
+  if (d.length > 6 || (d.length === 6 && !deleting)) v += '-' + d.slice(6);
+  if (v !== el.value) el.value = v;
+});
