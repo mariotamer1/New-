@@ -1,0 +1,144 @@
+// Barcode scanner for the admin product editor. Built as its own bundle (assets/scanner.js)
+// and loaded only when the admin taps SCAN. Opens the phone's back camera, reads a UPC/EAN
+// barcode, closes itself and hands back the digits.
+import { BarcodeFormat, BinaryBitmap, DecodeHintType, HybridBinarizer, MultiFormatReader, RGBLuminanceSource } from '@zxing/library';
+
+// Retail barcodes only (UPC/EAN). QR codes and other symbols, like Code 128, are not read.
+const FORMATS = [BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8];
+// Angles (degrees) each frame is turned through, so a barcode works at any angle to the camera.
+const ANGLES = [0, 90, 180, 270, 45, 135, 225, 315, 22, 112, 202, 292, 67, 157, 247, 337];
+
+// Turn a grayscale frame by deg, keeping its size. Pixels that turn in from outside the frame are white.
+function rotate(src, w, h, deg) {
+  const out = new Uint8ClampedArray(w * h).fill(255);
+  const r = (deg * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r), cx = w / 2, cy = h / 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const sx = Math.round((x - cx) * c + (y - cy) * s + cx), sy = Math.round(-(x - cx) * s + (y - cy) * c + cy);
+      if (sx >= 0 && sx < w && sy >= 0 && sy < h) out[y * w + x] = src[sy * w + sx];
+    }
+  }
+  return out;
+}
+
+function open({ onResult, onError, onClose, continuous = false } = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'scan-overlay';
+  wrap.innerHTML = `<video playsinline muted autoplay></video><div class="scan-frame"></div>
+    <p class="scan-hint">Point your camera at a barcode</p>
+    <button class="scan-btn scan-close" type="button" aria-label="Close scanner"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <button class="scan-btn scan-flash" type="button" aria-label="Turn on flash" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" data-slash/></svg></button>`;
+  // Continuous mode (inventory): camera stays open on top, results panel below it.
+  let panel = null;
+  if (continuous) {
+    wrap.classList.add('scan-continuous');
+    const cam = document.createElement('div'); cam.className = 'scan-cam';
+    [...wrap.children].forEach((c) => cam.appendChild(c));
+    panel = document.createElement('div'); panel.className = 'scan-panel';
+    wrap.append(cam, panel);
+  }
+  document.body.appendChild(wrap);
+  const video = wrap.querySelector('video');
+  let controls = null, stream = null, done = false, raf = 0;
+
+  const close = () => {
+    done = true;
+    cancelAnimationFrame(raf);
+    try { controls && controls.stop(); } catch {}
+    try { stream && stream.getTracks().forEach((t) => t.stop()); } catch {}
+    wrap.remove();
+    onClose && onClose();
+  };
+  let last = '', lastAt = 0;
+  const found = (text) => {
+    if (done) return;
+    // A UPC/EAN is all digits, 7 to 14 long. Anything else (QR text, longer codes) is ignored.
+    const digits = String(text || '');
+    if (!/^\d{7,14}$/.test(digits)) return;
+    if (continuous) {
+      // Keep scanning; ignore the same barcode while it stays in view.
+      const now = Date.now();
+      if (digits === last && now - lastAt < 2500) { lastAt = now; return; }
+      last = digits; lastAt = now;
+      if (navigator.vibrate) navigator.vibrate(60);
+      onResult && onResult(digits);
+      return;
+    }
+    if (navigator.vibrate) navigator.vibrate(60);
+    close();
+    onResult && onResult(digits);
+  };
+  wrap.querySelector('.scan-close').onclick = close;
+  // Flash / torch: works where the phone's browser allows it (most Android phones, newer iPhones).
+  let torch = false;
+  wrap.querySelector('.scan-flash').onclick = async (e) => {
+    const b = e.currentTarget;
+    const track = (video.srcObject && video.srcObject.getVideoTracks && video.srcObject.getVideoTracks()[0]) || null;
+    const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+    if (!track || !caps.torch) { hint('Flash isn’t available on this phone’s browser'); return; }
+    try {
+      torch = !torch;
+      await track.applyConstraints({ advanced: [{ torch }] });
+      b.classList.toggle('on', torch); b.setAttribute('aria-pressed', torch); b.setAttribute('aria-label', torch ? 'Turn off flash' : 'Turn on flash');
+    } catch { torch = !torch; hint('Flash couldn’t be turned on'); }
+  };
+  const hintEl = wrap.querySelector('.scan-hint');
+  const hint = (msg) => { hintEl.textContent = msg; clearTimeout(hint.t); hint.t = setTimeout(() => { hintEl.textContent = 'Point your camera at a barcode'; }, 2500); };
+
+  (async () => {
+    try {
+      // Native detector where the browser has one (Android Chrome); otherwise ZXing (iPhone Safari).
+      if ('BarcodeDetector' in window) {
+        const kinds = await window.BarcodeDetector.getSupportedFormats().catch(() => []);
+        const want = ['upc_a', 'upc_e', 'ean_13', 'ean_8'].filter((k) => kinds.includes(k));
+        if (want.length) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+          video.srcObject = stream; await video.play();
+          const det = new window.BarcodeDetector({ formats: want });
+          const tick = async () => {
+            if (done) return;
+            try { const r = await det.detect(video); if (r && r[0]) { found(r[0].rawValue); if (!continuous) return; } } catch {}
+            raf = requestAnimationFrame(tick);
+          };
+          tick();
+          return;
+        }
+      }
+      // Otherwise ZXing (iPhone Safari). Its 1D readers only read rows running straight across the frame,
+      // so each frame is also turned through several angles; the barcode is read at whatever angle it's held.
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      video.srcObject = stream; await video.play();
+      const reader = new MultiFormatReader();
+      reader.setHints(new Map([[DecodeHintType.POSSIBLE_FORMATS, FORMATS], [DecodeHintType.TRY_HARDER, true]]));
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      let step = 0;
+      const tick = () => {
+        if (done) return;
+        if (video.videoWidth) {
+          // Read the centre band of the camera at full resolution: far-away barcodes keep their detail.
+          const sx = Math.round(video.videoWidth * 0.1), sw = Math.round(video.videoWidth * 0.8);
+          const sy = Math.round(video.videoHeight * 0.25), sh = Math.round(video.videoHeight * 0.5);
+          canvas.width = sw; canvas.height = sh;
+          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+          const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          const lum = new Uint8ClampedArray(canvas.width * canvas.height);
+          for (let i = 0, j = 0; j < lum.length; i += 4, j++) lum[j] = (px[i] * 77 + px[i + 1] * 150 + px[i + 2] * 29) >> 8;
+          // Straight-on first (most scans), then one other angle per frame.
+          const attempt = (frame) => { try { found(reader.decode(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(frame, canvas.width, canvas.height)))).getText()); return true; } catch { return false; } };
+          if (!attempt(lum) && !done) attempt(rotate(lum, canvas.width, canvas.height, ANGLES[step++ % ANGLES.length]));
+        }
+        raf = setTimeout(tick, 30);
+      };
+      tick();
+      controls = { stop: () => clearTimeout(raf) };
+    } catch (e) {
+      close();
+      const msg = e && e.name === 'NotAllowedError' ? 'Camera access was blocked. Allow camera access for this site in your phone settings, then try again.' : 'The camera could not be opened on this device.';
+      onError && onError(msg);
+    }
+  })();
+  return continuous ? { close, panel } : close;
+}
+
+window.MLScanner = { open };
