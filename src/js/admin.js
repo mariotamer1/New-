@@ -270,6 +270,7 @@ function mount(main, { store, navigate, query }) {
           </div></section>
           <section class="adm-card"><div class="adm-card-head"><h2>Inventory</h2></div><div class="adm-card-body form">
             <div class="field"><label for="ed-inv">Quantity in stock</label><div class="qty" style="height:46px"><button type="button" aria-label="Decrease" data-ed-inv="-1">${icon('minus', 'icon-sm')}</button><input id="ed-inv" name="inventory" type="number" inputmode="numeric" min="0" step="1" value="${esc(d.inventory)}" style="width:80px"><button type="button" aria-label="Increase" data-ed-inv="1">${icon('plus', 'icon-sm')}</button></div></div>
+            <div class="field"><label for="ed-cost">Cost <span class="opt">(per item)</span></label><div class="money-input"><span>$</span><input id="ed-cost" name="cost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${esc(d.cost ?? '')}"></div></div>
           </div></section>
           <input type="hidden" name="categoryId" value="${esc(d.categoryId || '')}">
           <input type="hidden" name="condition" value="${esc(d.condition || 'New')}">
@@ -292,6 +293,7 @@ function mount(main, { store, navigate, query }) {
     if (!draft || draft._for !== editId) {
       draft = p ? JSON.parse(JSON.stringify(p)) : { title: '', slug: '', brand: '', upc: '', condition: 'New', categoryId: (store.categories()[0] || {}).id || null, description: '', price: '', originalPrice: '', shipping: 9.95, inventory: 1, published: true, bestDeal: false, images: [] };
       draft._for = editId;
+      draft.cost = p && data.costs && data.costs[p.id] != null ? data.costs[p.id] : '';
     }
     const d = draft;
     main.innerHTML = shell(editorForm(d, isNew), `<button class="adm-back" type="button" data-cancel-edit>${icon('left')} Back</button>`, `<button class="adm-scan" type="button" data-scan aria-label="Scan barcode for UPC"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 8v8M9 8v8M11.5 8v8M13 8v8M15.5 8v8M17.5 8v8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>SCAN</span></button>`);
@@ -322,6 +324,7 @@ function mount(main, { store, navigate, query }) {
       ['title', 'description', 'brand', 'upc', 'slug', 'condition', 'categoryId'].forEach((k) => { draft[k] = f(k).value; });
       draft.price = f('price').value; draft.originalPrice = f('originalPrice').value; draft.shipping = f('shipping').value; draft.inventory = f('inventory').value;
       draft.published = f('published').checked; draft.noShipping = f('noShipping').checked;
+      draft.cost = f('cost').value;
     };
     form.addEventListener('input', (e) => {
       const n = e.target.name;
@@ -420,6 +423,9 @@ function mount(main, { store, navigate, query }) {
       const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Saving…';
       try {
         const saved = await A.saveProduct(rec);
+        // Save the cost with the product (blank clears it), so Inventory and profit use it right away.
+        const costRaw = String(draft.cost ?? '').trim(); const pid = (saved && saved.id) || rec.id;
+        if (pid && (costRaw !== '' || (data.costs && data.costs[pid] != null))) await saveCost(pid, costRaw);
         refreshStore();
         toast(isNew ? 'Product created' : 'Changes saved');
         if (opts.onSaved) return opts.onSaved(saved);
