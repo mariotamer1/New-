@@ -383,7 +383,7 @@ function mount(main, { store, navigate, query }) {
     const upload = async (files) => {
       files = Array.from(files).filter((x) => x.type.startsWith('image/'));
       if (!files.length) return;
-      // Show every photo right away from the phone, then upload up to 3 at a time in the background.
+      // Show every photo right away from the phone, then upload them all at once in the background.
       // Order: a product photo is the cover and the online screenshot goes second, without moving them by hand.
       // A screenshot is a PNG or a tall phone-screen shape; camera photos are JPEG/HEIC and squarer.
       const isShot = async (f) => { if (f.type === 'image/png') return true; try { const bm = await createImageBitmap(f); const r = bm.width / bm.height; bm.close(); return r < 0.62; } catch { return false; } };
@@ -408,8 +408,7 @@ function mount(main, { store, navigate, query }) {
         catch (ex) { const i = draft.images.indexOf(im); if (i > -1) draft.images.splice(i, 1); URL.revokeObjectURL(im.lg); toast(`Couldn’t upload ${f.name}: ${ex.message}`, 'err'); }
         finally { done++; status.textContent = done < files.length ? `Uploaded ${done} of ${files.length}…` : `${files.length} photo${files.length > 1 ? 's' : ''} added — remember to save.`; redrawPhotos(); }
       };
-      const queue = slots.slice();
-      await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => { while (queue.length) await work(queue.shift()); }));
+      await Promise.all(slots.map(work)); // every photo uploads at the same time, no limit
     };
     $('[data-files]').addEventListener('change', (e) => { upload(e.target.files); e.target.value = ''; });
     // Paste: only photos on the clipboard are added; copied text is ignored.
