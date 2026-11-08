@@ -1131,20 +1131,12 @@ input.flash { outline: 3px solid #1c8a3a; outline-offset: 1px; transition: outli
 .ord-row[open] .ord-chev { transform: rotate(180deg); }
 .ord-body { border-top: 1px solid var(--hair); padding: 12px 14px 14px; display: grid; position: relative; gap: 12px; }
 .ord-body-img { position: absolute; right: 14px; bottom: 14px; width: 160px; height: 160px; object-fit: contain; border: 1px solid var(--hair); border-radius: 10px; background: #fff; }
-@media (max-width: 759px) { .ord-body-img { right: 8px; width: calc(50% - 20px); height: auto; aspect-ratio: 1 / 1; } }
+@media (max-width: 759px) { .ord-body { min-height: calc(50vw + 115px); align-content: start; } .ord-body-img { right: 8px; width: calc(50% - 20px); height: auto; aspect-ratio: 1 / 1; } }
 .ord-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 16px; }
 .ord-kv dt { font: 600 11px var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
 .ord-kv dd { font-size: 14.5px; margin: 2px 0 0; }
 .ord-status { display: grid; gap: 6px; justify-items: start; }
 .ord-body > .btn { justify-self: start; }
-.ord-st { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none; }
-.ord-st .icon { width: 13px; height: 13px; stroke-width: 2.6; }
-.ord-st.done { background: #e4e4e0; color: #6b6b67; }
-.ord-st.todo { background: #fff; color: var(--ink); border: 1.5px solid var(--ink); }
-.ord-mark { display: flex; gap: 8px; }
-.ord-mark .btn { gap: 6px; }
-.ord-mark .btn.is-on { background: var(--ink); color: #fff; border-color: var(--ink); }
-.ord-mark .btn[data-to="completed"].is-on { background: #6b6b67; border-color: #6b6b67; }
 .ord-swipe { position: relative; overflow: hidden; }
 .ord-swipe .ord-row { position: relative; z-index: 1; transition: transform .22s var(--ease); }
 .ord-swipe.open .ord-row { transform: translateX(-104px); }
