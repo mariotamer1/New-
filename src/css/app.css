@@ -729,7 +729,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width
 .adm-photo { position: relative; margin: 0; border: 1px solid var(--line); background: #fff; cursor: grab; }
 .adm-photo.dragging { opacity: .4; }
 .adm-photo img { width: 100%; aspect-ratio: 1; object-fit: cover; }
-.adm-photo figcaption { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); }
+.adm-photo figcaption { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-top: 1px solid var(--line); }
+.adm-photo figcaption span { grid-column: 2; text-align: center; }
+.adm-photo figcaption button { grid-column: 3; justify-self: end; }
 .adm-photo figcaption button { width: 32px; height: 30px; border: 0; background: #fff; display: grid; place-items: center; }
 .adm-photo figcaption button:hover:not(:disabled) { background: var(--ink); color: #fff; }
 .adm-photo figcaption button:disabled { opacity: .3; }
