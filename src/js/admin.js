@@ -19,6 +19,8 @@ const MSG_STATUS = [['new', 'New'], ['read', 'Read'], ['archived', 'Archived']];
 
 function mount(main, { store, navigate, query }) {
   const A = store.admin;
+  // Admin only: stop iPhone from zooming in when a box is tapped.
+  { const vp = document.querySelector('meta[name="viewport"]'); if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1'; }
   let tab = query.get('tab') || 'overview';
   let editId = query.get('edit') || null;
   let data = { products: [], orders: [], offers: [], inquiries: [] };
@@ -209,9 +211,16 @@ function mount(main, { store, navigate, query }) {
     dlg.showModal();
   }
 
+  const prodMatchesQ = (p, q) => !q || `${p.title} ${p.brand || ''} ${p.upc || ''} ${p.slug}`.toLowerCase().includes(q);
+  // Live search: show/hide the rows already on the page instead of redrawing it, so nothing jumps.
+  function applyProdSearch() {
+    const q = prodFilter.q.toLowerCase(); let shown = 0;
+    main.querySelectorAll('tr[data-row]').forEach((tr) => { const p = data.products.find((x) => x.id === tr.dataset.row); const ok = !!p && prodMatchesQ(p, q); tr.hidden = !ok; if (ok) shown++; });
+    const n = main.querySelector('[data-pf-count]'); if (n) n.textContent = `${shown} of ${data.products.length}`;
+    const em = main.querySelector('[data-pf-empty]'); if (em) em.hidden = shown > 0;
+  }
   function products() {
-    const q = prodFilter.q.toLowerCase();
-    let list = data.products.filter((p) => !q || `${p.title} ${p.brand || ''} ${p.upc || ''} ${p.slug}`.toLowerCase().includes(q));
+    let list = data.products;
     const f = prodFilter.f;
     if (f === 'live') list = list.filter((p) => p.published && p.inventory > 0);
     if (f === 'hidden') list = list.filter((p) => !p.published);
@@ -221,7 +230,7 @@ function mount(main, { store, navigate, query }) {
       <div class="adm-toolbar">
         <div class="search-field adm-search">${icon('search')}<label class="sr-only" for="pf-q">Search products</label><input id="pf-q" type="search" placeholder="Search title, brand, UPC" value="${esc(prodFilter.q)}" data-pf-q></div>
         <div class="select"><label class="sr-only" for="pf-f">Show</label><select id="pf-f" data-pf-f>${[['all', 'All products'], ['live', 'Live'], ['hidden', 'Unpublished'], ['out', 'Sold out']].map(([v, l]) => `<option value="${v}" ${f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div>
-        <span class="muted" style="font-size:14px">${list.length} of ${data.products.length}</span>
+        <span class="muted" style="font-size:14px" data-pf-count>${list.length} of ${data.products.length}</span>
       </div>
       <div class="adm-bulk" data-bulk ${selected.size ? '' : 'hidden'}>
         <b data-bulk-n>${selected.size} selected</b>
@@ -237,8 +246,9 @@ function mount(main, { store, navigate, query }) {
           <td><div class="adm-stock"><button type="button" aria-label="Decrease inventory" data-inv="-1" data-id="${p.id}">${icon('minus', 'icon-sm')}</button><b class="tabnum">${p.inventory}</b><button type="button" aria-label="Increase inventory" data-inv="1" data-id="${p.id}">${icon('plus', 'icon-sm')}</button></div>${p.inventory <= 0 ? '<small>Sold out · hidden</small>' : ''}</td>
           <td><label class="switch"><input type="checkbox" data-pub="${p.id}" ${p.published ? 'checked' : ''}><span>${p.published ? 'Published' : 'Hidden'}</span></label></td>
           <td class="adm-row-actions"><button class="btn btn-sm" type="button" data-edit="${p.id}">${icon('edit', 'icon-sm')} Edit</button>${p.published && p.inventory > 0 ? `<a class="btn btn-sm" href="${href('/products/' + p.slug)}" target="_blank" rel="noopener" aria-label="View ${esc(p.title)} on the store">${icon('eye', 'icon-sm')}</a>` : ''}</td>
-        </tr>`).join('') || '<tr><td colspan="6" class="muted">No products match.</td></tr>'}
+        </tr>`).join('')}<tr data-pf-empty ${list.length ? 'hidden' : ''}><td colspan="6" class="muted">No products match.</td></tr>
       </tbody></table></div>`, 'Products', `<button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button>`);
+    applyProdSearch();
   }
 
   // ------------------------------------------------------------ product editor
@@ -1241,7 +1251,7 @@ function mount(main, { store, navigate, query }) {
     const t = e.target;
     if (t.matches('[data-pf-f]')) { prodFilter.f = t.value; products(); }
     if (t.matches('[data-sel]')) { t.checked ? selected.add(t.dataset.sel) : selected.delete(t.dataset.sel); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
-    if (t.matches('[data-sel-all]')) { $$('[data-sel]').forEach((c) => { c.checked = t.checked; t.checked ? selected.add(c.dataset.sel) : selected.delete(c.dataset.sel); }); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
+    if (t.matches('[data-sel-all]')) { $$('[data-sel]').filter((c) => !c.closest('tr').hidden).forEach((c) => { c.checked = t.checked; t.checked ? selected.add(c.dataset.sel) : selected.delete(c.dataset.sel); }); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
     if (t.matches('[data-pub]')) { await A.patchProduct(t.dataset.pub, { published: t.checked }); refreshStore(); t.nextElementSibling.textContent = t.checked ? 'Published' : 'Hidden'; toast(t.checked ? 'Published' : 'Hidden from store'); }
     if (t.matches('[data-of]')) { orderFilter = t.value; orders(); }
     if (t.matches('[data-order-status]')) { const id = t.dataset.orderStatus; try { await A.updateOrder(id, { status: t.value }); } catch (ex) { toast(ex.message || 'Could not update the order'); await loadAll(); if (tab === 'orders') orders(); return; } if ((data.orders.find((x) => x.id === id) || {}).stockHeld === false && t.value !== 'cancelled') refreshStore(); toast('Order status updated'); await loadAll(); const dlg = $('#order-dlg'); if (dlg && dlg.open) { orders(); openOrder(id); } else if (tab === 'orders') { const was = [...main.querySelectorAll('.ord-row[open]')].map((d) => d.dataset.oid); orders(); was.forEach((x) => { const d = main.querySelector(`.ord-row[data-oid="${x}"]`); if (d) d.open = true; }); } if (t.value === 'shipped') openTracking(id); }
@@ -1273,7 +1283,7 @@ function mount(main, { store, navigate, query }) {
       clearTimeout(onInput.t); onInput.t = setTimeout(() => saveCost(id, v), 600);
       return;
     }
-    if (e.target.matches('[data-pf-q]')) { prodFilter.q = e.target.value; const pos = e.target.selectionStart; products(); const i = $('[data-pf-q]'); i.focus(); i.setSelectionRange(pos, pos); } };
+    if (e.target.matches('[data-pf-q]')) { prodFilter.q = e.target.value; applyProdSearch(); } };
   const onSubmit = async (e) => {
     const f = e.target;
     if (f.matches('[data-login]')) {
