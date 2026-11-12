@@ -3,6 +3,36 @@ import { $, $$, esc, money, pctOff, href, img, imgTag, icon, barcode, telHref, l
 import { store, cart, likes } from './store.js';
 import { cardHTML, priceHTML, mountCarousels, searchProducts, toast, addToCart } from './ui.js';
 
+// "Featured" order: mix price levels (under $100, $100–$300, $300+) and categories so
+// neighbours differ, keep items posted in the last week out of the top spots, and
+// reshuffle once a day so the page keeps changing.
+function featuredMix(list) {
+  const day = new Date().toISOString().slice(0, 10);
+  let seed = [...day].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0;
+  const rnd = () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const weekAgo = Date.now() - 7 * 864e5;
+  const isNew = (p) => p.createdAt && Date.parse(p.createdAt) > weekAgo;
+  const tiers = [[], [], []];
+  list.forEach((p) => tiers[p.price < 100 ? 0 : p.price < 300 ? 1 : 2].push(p));
+  tiers.forEach((t) => {
+    for (let i = t.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [t[i], t[j]] = [t[j], t[i]]; }
+    t.sort((a, b) => isNew(a) - isNew(b)); // stable: older items first, shuffled order kept
+  });
+  const out = []; let k = 0;
+  while (out.length < list.length) {
+    let tier = null;
+    for (let s = 0; s < 3 && !tier; s++) { const t = tiers[(k + s) % 3]; if (t.length) tier = t; }
+    k++;
+    const recent = out.slice(-2).map((p) => p.categoryId);
+    let i = tier.findIndex((p) => !isNew(p) && !recent.includes(p.categoryId));
+    if (i < 0) i = tier.findIndex((p) => !isNew(p));
+    if (i < 0) i = tier.findIndex((p) => !recent.includes(p.categoryId));
+    if (i < 0) i = 0;
+    out.push(tier.splice(i, 1)[0]);
+  }
+  return out;
+}
+
 // Tracking box shown to customers once an order has a tracking number.
 function trackingHTML(o) {
   const t = o.tracking; if (!t || !t.number) return '';
@@ -180,6 +210,7 @@ export function catalog({ query, params = {} }) {
         const mn = parseFloat(state.min), mx = parseFloat(state.max);
         if (!isNaN(mn)) list = list.filter((p) => p.price >= mn);
         if (!isNaN(mx)) list = list.filter((p) => p.price <= mx);
+        if (state.sort === 'featured' && !state.q) return featuredMix(list);
         const by = { featured: () => 0, deals: (a, b) => (pctOff(b) - pctOff(a)), discount: (a, b) => (pctOff(b) - pctOff(a)) || (a.price - b.price), 'price-asc': (a, b) => a.price - b.price, 'price-desc': (a, b) => b.price - a.price, new: (a, b) => String(b.createdAt).localeCompare(String(a.createdAt)) };
         if (!(state.q && state.sort === 'featured')) list.sort(by[state.sort] || by.featured);
         return list;
