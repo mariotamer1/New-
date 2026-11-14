@@ -1426,3 +1426,4 @@ dialog.modal.stmt-dlg[open] { display: flex; }
   @page { margin: 0.4in; }
 }
 .stmt-sum div { display: flex; flex-direction: column; justify-content: space-between; }
+.stmt-sum div { align-items: center; text-align: center; }
