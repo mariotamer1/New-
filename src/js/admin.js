@@ -848,7 +848,127 @@ function mount(main, { store, navigate, query }) {
       ${sbRange === 'custom' ? `<div class="prof-custom sb-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
       <div class="sb-seg" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
       <section class="adm-card sb-chart-card"><div class="adm-card-head"><h2>Trend</h2><span class="muted" style="font-size:13px">By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</span></div>${salesChart(rows)}</section>
+      <div class="sb-more"><button type="button" class="sb-tile" data-stmts><span class="sb-tile-ic">${icon('download')}</span><b>Monthly statements</b><small>Last 12 months</small></button></div>
+      <dialog class="modal stmt-dlg" id="stmt-dlg" aria-labelledby="stmt-title"></dialog>
       `, 'Sales', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+  }
+
+  // ------------------------------------------------------------ monthly statements (Sales page)
+  const monthKeyOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  // Most recent first: this month (in progress), then the 12 full months before it.
+  function statementMonths() {
+    const now = new Date(); const out = [];
+    for (let i = 0; i <= 12; i++) out.push(monthKeyOf(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+    return out;
+  }
+  // Figures and itemized lines for one month: website sales plus the owner's records for that month, if any.
+  function monthStatement(key) {
+    const [y, m] = key.split('-').map(Number);
+    const from = new Date(y, m - 1, 1); const end = new Date(y, m, 0, 23, 59, 59, 999); const now = new Date();
+    const to = end < now ? end : now;
+    const costs = data.costs || {};
+    const rows = profitRows(from, to).sort((a, b) => new Date(a.o.createdAt) - new Date(b.o.createdAt));
+    let sheet = null;
+    if (end <= now) {
+      const sm = SALES_MONTHS.find(([k]) => k === key);
+      if (sm) sheet = { revenue: null, expenses: null, profit: sm[1] };
+      else if (y === 2026 && m <= SALES_AVG_LAST_MONTH) sheet = { revenue: SALES_AVG_REVENUE, expenses: SALES_AVG_EXPENSES, profit: SALES_AVG_2026 };
+    }
+    const lines = [];
+    if (sheet) lines.push({ date: end, order: '', title: 'Sales from ML Group records (monthly summary)', qty: null, price: null, amount: sheet.revenue, cost: sheet.expenses, profit: sheet.profit, sheet: true });
+    rows.forEach((r) => {
+      const o = r.o; const one = o.items.length === 1;
+      o.items.forEach((i) => {
+        const qty = i.qty || 1; const c = costs[i.productId];
+        const amount = one ? r.revenue + refundsOf(o).reduce((t, x) => t + Number(x.amount), 0) : round2(i.price * qty);
+        const cost = c != null ? round2(c * qty) : null;
+        lines.push({ date: new Date(o.createdAt), order: o.number, title: i.title, qty, price: round2(amount / qty), amount: round2(amount), cost, profit: round2(amount - (cost || 0)), missingCost: c == null, how: isInPerson(o) ? 'In person' : o.fulfillment === 'pickup' ? 'Website · pickup' : 'Website · shipped' });
+      });
+      refundsOf(o).forEach((x) => lines.push({ date: new Date(x.createdAt || o.createdAt), order: o.number, title: 'Refund', qty: null, price: null, amount: -Number(x.amount), cost: null, profit: -Number(x.amount), refund: true }));
+    });
+    const site = { revenue: rows.reduce((t, r) => t + r.revenue, 0), expenses: rows.reduce((t, r) => t + r.cost, 0), profit: rows.reduce((t, r) => t + r.profit, 0) };
+    const known = !sheet || sheet.revenue != null || rows.length;
+    const revenue = known ? round2(site.revenue + (sheet && sheet.revenue != null ? sheet.revenue : 0)) : null;
+    const expenses = known ? round2(site.expenses + (sheet && sheet.expenses != null ? sheet.expenses : 0)) : null;
+    const profit = round2(site.profit + (sheet ? sheet.profit : 0));
+    return { key, from, end, to, inProgress: end > now, lines, revenue, expenses, profit, sales: rows.length, units: rows.reduce((t, r) => t + qtyOf(r.o), 0), missing: rows.reduce((t, r) => t + r.missing, 0) };
+  }
+  const monthName = (key) => new Date(key + '-01T12:00:00').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const dShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const dLong = (d) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const mOr = (v) => (v == null ? '—' : (v < 0 ? '-' : '') + money(Math.abs(v)));
+  function statementHTML(S) {
+    const st = store.settings() || {};
+    const name = st.storeName || 'ML Group';
+    const addr = [st.address1, [st.city, [st.state, st.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean);
+    const margin = S.revenue ? Math.round((S.profit / S.revenue) * 100) + '%' : '—';
+    return `<article class="stmt">
+      <header class="stmt-head">
+        <div class="stmt-co"><img src="${esc(img('logo-mark.png'))}" alt="" width="52" height="52"><div><b>${esc(name)}</b>${addr.map((l) => `<span>${esc(l)}</span>`).join('')}${st.phone ? `<span>${esc(st.phone)}</span>` : ''}${st.email ? `<span>${esc(st.email)}</span>` : ''}</div></div>
+        <div class="stmt-meta"><h3>Monthly Statement</h3><dl><div><dt>Period</dt><dd>${dLong(S.from)} – ${dLong(S.inProgress ? S.to : S.end)}</dd></div><div><dt>Statement no.</dt><dd class="mono">ML-${S.key.replace('-', '')}</dd></div><div><dt>Issued</dt><dd>${dLong(new Date())}</dd></div></dl>${S.inProgress ? '<span class="stmt-badge">Month in progress</span>' : ''}</div>
+      </header>
+      <section class="stmt-sum">
+        <div class="is-rev"><span>Revenue</span><b class="tabnum">${mOr(S.revenue)}</b></div>
+        <div class="is-exp"><span>Expenses</span><b class="tabnum">${S.expenses == null ? '—' : (S.expenses > 0 ? '-' : '') + money(S.expenses)}</b></div>
+        <div class="is-pro"><span>Profit</span><b class="tabnum">${mOr(S.profit)}</b></div>
+      </section>
+      <p class="stmt-sub">${S.sales} sale${S.sales === 1 ? '' : 's'} on the website · ${S.units} item${S.units === 1 ? '' : 's'} sold · Margin ${margin}${S.missing ? ` · ${S.missing} item${S.missing === 1 ? '' : 's'} with no cost entered` : ''}</p>
+      <h4 class="stmt-h">Itemized sales</h4>
+      <table class="stmt-tbl"><thead><tr><th>Date</th><th class="c-x">Order</th><th>Item</th><th class="num c-x">Qty</th><th class="num c-x">Price</th><th class="num">Amount</th><th class="num c-x">Cost</th><th class="num">Profit</th></tr></thead><tbody>
+        ${S.lines.length ? S.lines.map((l) => `<tr class="${l.sheet ? 'is-sheet' : ''}${l.refund ? ' is-refund' : ''}"><td>${dShort(l.date)}</td><td class="mono c-x">${l.order ? '#' + l.order : '—'}</td><td class="stmt-item">${esc(l.title)}${l.how || l.order ? `<small>${l.order ? `<span class="c-m-in">#${l.order} · </span>` : ''}${esc(l.how || '')}${l.qty ? ` · ${l.qty} × ${money(l.price)}` : ''}${l.missingCost ? ' · cost not entered' : ''}</small>` : ''}</td><td class="num c-x">${l.qty ?? ''}</td><td class="num c-x">${l.price == null ? '' : money(l.price)}</td><td class="num">${mOr(l.amount)}</td><td class="num c-x">${l.cost == null ? '—' : money(l.cost)}</td><td class="num">${mOr(l.profit)}</td></tr>`).join('') : '<tr><td colspan="8" class="muted">No sales this month.</td></tr>'}
+      </tbody><tfoot><tr><td colspan="5" class="c-x">Totals</td><td class="c-m" colspan="2">Totals</td><td class="num">${mOr(S.revenue)}</td><td class="num c-x">${S.expenses == null ? '—' : money(S.expenses)}</td><td class="num">${mOr(S.profit)}</td></tr></tfoot></table>
+      <footer class="stmt-foot">${esc(name)} · Statement for ${monthName(S.key)} · Amounts in USD. Revenue is item sales after refunds, not including shipping. Expenses are the cost of the items sold.${S.lines.some((l) => l.sheet) ? ' Record summaries come from ML Group’s own books for that month.' : ''}</footer>
+    </article>`;
+  }
+  function openStatements() {
+    const dlg = $('#stmt-dlg'); if (!dlg) return;
+    const list = () => {
+      dlg.innerHTML = `<div class="modal-head"><h2 id="stmt-title">Monthly statements</h2><button class="icon-btn" type="button" aria-label="Close" data-stmt-close>${icon('close')}</button></div>
+        <div class="stmt-list">${statementMonths().map((k) => { const S = monthStatement(k); return `<button type="button" class="stmt-row" data-stmt="${k}"><span><b>${monthName(k)}</b><small>${S.inProgress ? 'In progress · ' : ''}${S.lines.some((l) => l.sheet) && !S.sales ? 'From records' : `${S.sales} sale${S.sales === 1 ? '' : 's'}`}${S.revenue != null ? ' · Revenue ' + money(S.revenue) : ''}</small></span><span class="stmt-row-p tabnum">${mOr(S.profit)}<small>Profit</small></span>${icon('right', 'icon-sm')}</button>`; }).join('')}</div>`;
+    };
+    const view = (k) => {
+      const S = monthStatement(k);
+      dlg.innerHTML = `<div class="modal-head stmt-bar"><button class="btn btn-sm" type="button" data-stmt-back>${icon('left', 'icon-sm')} Back</button><h2 id="stmt-title" class="sr-only">${monthName(k)} statement</h2><div><button class="btn btn-sm btn-primary" type="button" data-stmt-pdf="${k}">${icon('download', 'icon-sm')} Download PDF</button><button class="icon-btn" type="button" aria-label="Close" data-stmt-close>${icon('close')}</button></div></div>
+        <div class="stmt-scroll">${statementHTML(S)}</div>`;
+      dlg.querySelector('.stmt-scroll').scrollTop = 0;
+    };
+    list();
+    if (!dlg.dataset.wired) {
+      dlg.dataset.wired = '1';
+      dlg.addEventListener('click', async (e) => {
+        if (e.target === dlg || e.target.closest('[data-stmt-close]')) { dlg.close(); return; }
+        if (e.target.closest('[data-stmt-back]')) { list(); return; }
+        const r = e.target.closest('[data-stmt]'); if (r) { view(r.dataset.stmt); return; }
+        const pdf = e.target.closest('[data-stmt-pdf]');
+        if (pdf && !pdf.disabled) {
+          const label = pdf.innerHTML; pdf.disabled = true; pdf.textContent = 'Making PDF…';
+          try { await statementPDF(pdf.dataset.stmtPdf); } catch (ex) { toast('Could not make the PDF. Check your connection and try again.'); }
+          pdf.disabled = false; pdf.innerHTML = label;
+        }
+      });
+    }
+    dlg.showModal();
+  }
+  // PDF of a statement, laid out at letter width, made in the browser (html2pdf loads on first use).
+  // If the PDF library can't load, fall back to the phone's print screen (Save as PDF / Share).
+  async function statementPDF(key) {
+    document.querySelectorAll('.stmt-print').forEach((x) => x.remove());
+    const box = document.createElement('div'); box.className = 'stmt-print';
+    box.innerHTML = statementHTML(monthStatement(key));
+    document.body.appendChild(box);
+    if (!window.html2pdf) {
+      try {
+        await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; s.onload = res; s.onerror = rej; setTimeout(rej, 10000); document.head.appendChild(s); });
+      } catch {
+        const done = () => { document.body.classList.remove('printing-stmt'); box.remove(); window.removeEventListener('afterprint', done); };
+        document.body.classList.add('printing-stmt'); window.addEventListener('afterprint', done);
+        await new Promise((r) => setTimeout(r, 300)); window.print(); setTimeout(done, 60000);
+        return;
+      }
+    }
+    try {
+      await window.html2pdf().set({ margin: [0.4, 0.4, 0.5, 0.4], filename: `ML-Group-Statement-${key}.pdf`, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 800 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.stmt-sum', '.stmt-head'] } }).from(box.firstElementChild).save();
+    } finally { box.remove(); }
   }
 
   // ------------------------------------------------------------ revenue report
@@ -1139,6 +1259,7 @@ function mount(main, { store, navigate, query }) {
     if (t.closest('[data-sales-breakdown]')) { tab = 'sales'; editId = null; draft = null; render(); return; }
     const sb = t.closest('[data-sb]');
     if (sb) { sbUnit = sb.dataset.sb; salesPage(); return; }
+    if (t.closest('[data-stmts]')) { openStatements(); return; }
     const sr = t.closest('[data-sbr]');
     if (sr) { sbRange = sr.dataset.sbr; salesPage(); return; }
     const pf = t.closest('[data-prof]');
