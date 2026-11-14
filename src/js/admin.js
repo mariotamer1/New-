@@ -909,23 +909,23 @@ function mount(main, { store, navigate, query }) {
         <div class="stmt-meta"><h3>Monthly Statement</h3><dl><div><dt>Period</dt><dd>${dLong(S.from)} – ${dLong(S.inProgress ? S.to : S.end)}</dd></div><div><dt>Statement no.</dt><dd class="mono">ML-${S.key.replace('-', '')}</dd></div><div><dt>Issued</dt><dd>${dLong(new Date())}</dd></div></dl>${S.inProgress ? '<span class="stmt-badge">Month in progress</span>' : ''}</div>
       </header>
       <section class="stmt-sum">
-        <div class="is-rev"><span>Revenue</span><b class="tabnum">${mOr(S.revenue)}</b></div>
-        <div class="is-exp"><span>Expenses</span><b class="tabnum">${S.expenses == null ? '—' : (S.expenses > 0 ? '-' : '') + money(S.expenses)}</b></div>
-        <div class="is-pro"><span>Profit</span><b class="tabnum">${mOr(S.profit)}</b></div>
+        <div class="is-rev"><span>Gross</span><b class="tabnum">${mOr(S.revenue)}</b></div>
+        <div class="is-exp"><span>Cost of goods</span><b class="tabnum">${S.expenses == null ? '—' : (S.expenses > 0 ? '-' : '') + money(S.expenses)}</b></div>
+        <div class="is-pro"><span>Net operating income</span><b class="tabnum">${mOr(S.profit)}</b></div>
       </section>
       <p class="stmt-sub">${S.sales} sale${S.sales === 1 ? '' : 's'} on the website · ${S.units} item${S.units === 1 ? '' : 's'} sold · Margin ${margin}${S.missing ? ` · ${S.missing} item${S.missing === 1 ? '' : 's'} with no cost entered` : ''}</p>
       <h4 class="stmt-h">Itemized sales</h4>
-      <table class="stmt-tbl"><thead><tr><th>Date</th><th class="c-x">Order</th><th>Item</th><th class="num c-x">Qty</th><th class="num c-x">Price</th><th class="num">Amount</th><th class="num c-x">Cost</th><th class="num">Profit</th></tr></thead><tbody>
-        ${S.lines.length ? S.lines.map((l) => `<tr class="${l.sheet ? 'is-sheet' : ''}${l.refund ? ' is-refund' : ''}"><td>${dShort(l.date)}</td><td class="mono c-x">${l.order ? '#' + l.order : '—'}</td><td class="stmt-item">${esc(l.title)}${l.how || l.order ? `<small>${l.order ? `<span class="c-m-in">#${l.order} · </span>` : ''}${esc(l.how || '')}${l.qty ? ` · ${l.qty} × ${money(l.price)}` : ''}${l.missingCost ? ' · cost not entered' : ''}</small>` : ''}</td><td class="num c-x">${l.qty ?? ''}</td><td class="num c-x">${l.price == null ? '' : money(l.price)}</td><td class="num">${mOr(l.amount)}</td><td class="num c-x">${l.cost == null ? '—' : money(l.cost)}</td><td class="num">${mOr(l.profit)}</td></tr>`).join('') : '<tr><td colspan="8" class="muted">No sales this month.</td></tr>'}
-      </tbody><tfoot><tr><td colspan="5" class="c-x">Totals</td><td class="c-m" colspan="2">Totals</td><td class="num">${mOr(S.revenue)}</td><td class="num c-x">${S.expenses == null ? '—' : money(S.expenses)}</td><td class="num">${mOr(S.profit)}</td></tr></tfoot></table>
-      <footer class="stmt-foot">${esc(name)} · Statement for ${monthName(S.key)} · Amounts in USD. Revenue is item sales after refunds, not including shipping. Expenses are the cost of the items sold.${S.lines.some((l) => l.sheet) ? ' Record summaries come from ML Group’s own books for that month.' : ''}</footer>
+      <table class="stmt-tbl"><thead><tr><th>Date</th><th class="c-x">Order</th><th>Item</th><th class="num c-x">Qty</th><th class="num c-x">Price</th><th class="num">Revenue</th><th class="num">Cost</th></tr></thead><tbody>
+        ${S.lines.length ? S.lines.map((l) => `<tr class="${l.sheet ? 'is-sheet' : ''}${l.refund ? ' is-refund' : ''}"><td>${dShort(l.date)}</td><td class="mono c-x">${l.order ? '#' + l.order : '—'}</td><td class="stmt-item">${esc(l.title)}${l.how || l.order ? `<small>${l.order ? `<span class="c-m-in">#${l.order} · </span>` : ''}${esc(l.how || '')}${l.qty ? ` · ${l.qty} × ${money(l.price)}` : ''}${l.missingCost ? ' · cost not entered' : ''}</small>` : ''}</td><td class="num c-x">${l.qty ?? ''}</td><td class="num c-x">${l.price == null ? '' : money(l.price)}</td><td class="num">${mOr(l.amount)}</td><td class="num">${l.cost == null ? '—' : money(l.cost)}</td></tr>`).join('') : '<tr><td colspan="7" class="muted">No sales this month.</td></tr>'}
+      </tbody><tfoot><tr><td colspan="5" class="c-x">Totals</td><td class="c-m" colspan="2">Totals</td><td class="num">${mOr(S.revenue)}</td><td class="num">${S.expenses == null ? '—' : money(S.expenses)}</td></tr></tfoot></table>
+      <footer class="stmt-foot">${esc(name)} · Statement for ${monthName(S.key)} · Amounts in USD. Gross is item sales after refunds, not including shipping. Cost of goods is what the items sold cost. Net operating income is gross minus cost of goods.${S.lines.some((l) => l.sheet) ? ' Record summaries come from ML Group’s own books for that month.' : ''}</footer>
     </article>`;
   }
   function openStatements() {
     const dlg = $('#stmt-dlg'); if (!dlg) return;
     const list = () => {
       dlg.innerHTML = `<div class="modal-head"><h2 id="stmt-title">Monthly statements</h2><button class="icon-btn" type="button" aria-label="Close" data-stmt-close>${icon('close')}</button></div>
-        <div class="stmt-list">${statementMonths().map((k) => { const S = monthStatement(k); return `<button type="button" class="stmt-row" data-stmt="${k}"><span><b>${monthName(k)}</b><small>${S.inProgress ? 'In progress · ' : ''}${S.lines.some((l) => l.sheet) && !S.sales ? 'From records' : `${S.sales} sale${S.sales === 1 ? '' : 's'}`}${S.revenue != null ? ' · Revenue ' + money(S.revenue) : ''}</small></span><span class="stmt-row-p tabnum">${mOr(S.profit)}<small>Profit</small></span>${icon('right', 'icon-sm')}</button>`; }).join('')}</div>`;
+        <div class="stmt-list">${statementMonths().map((k) => { const S = monthStatement(k); return `<button type="button" class="stmt-row" data-stmt="${k}"><span><b>${monthName(k)}</b><small>${S.inProgress ? 'In progress · ' : ''}${S.lines.some((l) => l.sheet) && !S.sales ? 'From records' : `${S.sales} sale${S.sales === 1 ? '' : 's'}`}${S.revenue != null ? ' · Gross ' + money(S.revenue) : ''}</small></span><span class="stmt-row-p tabnum">${mOr(S.profit)}<small>Net income</small></span>${icon('right', 'icon-sm')}</button>`; }).join('')}</div>`;
     };
     const view = (k) => {
       const S = monthStatement(k);
