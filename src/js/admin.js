@@ -900,7 +900,8 @@ function mount(main, { store, navigate, query }) {
   function statementHTML(S) {
     const st = store.settings() || {};
     const name = st.storeName || 'ML Group';
-    const addr = [st.address1, [st.city, [st.state, st.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean);
+    // Statements use the business mailing address (the website only shows the city).
+    const addr = ['MTM Group (DBA)', '814 Pike St NE, Apt D10', 'Auburn, WA 98002'];
     const margin = S.revenue ? Math.round((S.profit / S.revenue) * 100) + '%' : '—';
     return `<article class="stmt">
       <header class="stmt-head">
