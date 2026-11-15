@@ -129,7 +129,18 @@ function mount(main, { store, navigate, query }) {
   }
 
   // Pull fresh data without holding up the tab. Repaint only when something changed and nothing is being typed.
-  let refreshing = false;
+  let refreshing = false; let pendingPaint = false;
+  main.addEventListener('focusout', () => setTimeout(() => { if (!pendingPaint || editId) return; if (main.contains(document.activeElement) && document.activeElement.matches('input, textarea, select')) return; pendingPaint = false; paintTab(); }, 0));
+  // Products list: update price, stock and status in the rows on screen without redrawing (keeps the search box focused).
+  function updateProductRows() {
+    if (tab !== 'products') return;
+    main.querySelectorAll('tr[data-row]').forEach((tr) => {
+      const p = data.products.find((x) => x.id === tr.dataset.row); if (!p) return;
+      const pr = tr.children[2]; if (pr) pr.innerHTML = `<b>${money(p.price)}</b>${pctOff(p) ? `<small><s>${money(p.originalPrice)}</s> · -${pctOff(p)}%</small>` : ''}`;
+      const n = tr.querySelector('.adm-stock b'); if (n) n.textContent = p.inventory;
+      const sw = tr.querySelector('[data-pub]'); if (sw) { sw.checked = !!p.published; const l = sw.nextElementSibling; if (l) l.textContent = p.published ? 'Published' : 'Hidden'; }
+    });
+  }
   const snapshot = () => JSON.stringify([data.orders.map((o) => o.id + o.status), data.inquiries.map((m) => m.id + m.status), data.offers.map((o) => o.id + o.status), data.products.map((p) => p.id + p.inventory + p.price + p.published)]);
   async function refreshInBackground() {
     if (refreshing) return;
@@ -139,7 +150,11 @@ function mount(main, { store, navigate, query }) {
       await loadAll();
       paintBadges();
       const typing = main.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
-      if (snapshot() !== before && !typing && !editId) paintTab();
+      if (snapshot() !== before && !editId) {
+        if (!typing) paintTab();
+        else if (tab === 'products') updateProductRows();
+        else pendingPaint = true; // repaint once the box is left
+      }
     } catch {} finally { refreshing = false; }
   }
 
@@ -469,6 +484,8 @@ function mount(main, { store, navigate, query }) {
         // Save the cost with the product (blank clears it), so Inventory and profit use it right away.
         const costRaw = String(draft.cost ?? '').trim(); const pid = (saved && saved.id) || rec.id;
         if (pid && (costRaw !== '' || (data.costs && data.costs[pid] != null))) await saveCost(pid, costRaw);
+        // Put the saved product into the admin's copy right away, so the Products list shows the new price/stock.
+        if (saved && saved.id && data) { const i = data.products.findIndex((x) => x.id === saved.id); if (i >= 0) data.products[i] = { ...data.products[i], ...saved }; else data.products.unshift(saved); }
         refreshStore();
         toast(isNew ? 'Product created' : 'Changes saved');
         if (opts.onSaved) return opts.onSaved(saved);
