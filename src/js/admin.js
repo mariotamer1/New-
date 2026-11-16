@@ -661,6 +661,7 @@ function mount(main, { store, navigate, query }) {
   // who: 'main' (Mario's / the store's Profit and Sales pages) or 'lorena'. A sale saved "for Lorena" counts only for her;
   // "Add to both" splits its revenue, cost and profit between the two: 50/50 unless the order has its own Lorena share (e.g. 0.3).
   const shareOf = (o, who) => {
+    if (who === 'all') return 1; // Sales page: the whole store, every sale in full
     const ow = o.profitOwner || 'main';
     if (ow === 'both') { const ls = o.lorenaShare != null ? o.lorenaShare : 0.5; return who === 'lorena' ? ls : 1 - ls; }
     return ow === who ? 1 : 0;
@@ -743,11 +744,11 @@ function mount(main, { store, navigate, query }) {
     return unit === 'week' ? `Week of ${day}` : day;
   }
   // Rows per period. Site = orders on this website (revenue, expenses, profit). Sheet and Average = profit only.
-  function salesBreakdownRows(unit) {
+  function salesBreakdownRows(unit, who = 'main') {
     const now = new Date();
     const bucket = (u) => {
       const m = new Map();
-      profitRows(new Date(0), now).forEach((r) => {
+      profitRows(new Date(0), now, who).forEach((r) => {
         const k = periodOf(r.o.createdAt, u);
         const x = m.get(k) || { key: k, revenue: 0, expenses: 0, profit: 0 };
         x.revenue = round2(x.revenue + r.revenue); x.expenses = round2(x.expenses + r.cost); x.profit = round2(x.profit + r.profit);
@@ -807,13 +808,13 @@ function mount(main, { store, navigate, query }) {
     if (key === 'lastyear') return { from: new Date(y - 1, 0, 1), to: new Date(y - 1, 11, 31, 23, 59, 59, 999) };
     return { from: new Date(0), to: now };
   }
-  function rangeTotals(key) {
+  function rangeTotals(key, who = 'main') {
     // Website sales made after the owner's sheet totals were entered are added on top of them.
-    const newer = profitRows(SALES_SHEET_CUTOFF, new Date());
+    const newer = profitRows(SALES_SHEET_CUTOFF, new Date(), who);
     const newerSum = (k) => newer.reduce((t, r) => t + r[k], 0);
     if (key === 'all') return { revenue: round2(SALES_TOTALS.gross + newerSum('revenue')), expenses: round2(SALES_TOTALS.expenses + newerSum('cost')), profit: round2(SALES_TOTALS.profit + newerSum('profit')) };
     const b = rangeBounds(key); const now = new Date();
-    const site = profitRows(b.from, b.to);
+    const site = profitRows(b.from, b.to, who);
     // A month's figure is added once, on its last day, so it counts for a range only if that last day is inside the range.
     const lastDayIn = (yy, mm) => { const me = new Date(yy, mm, 0, 23, 59, 59, 999); return me >= b.from && me <= b.to; };
     let profit = 0, revenue = 0, expenses = 0;
@@ -875,8 +876,9 @@ function mount(main, { store, navigate, query }) {
     <div class="sb-legend"><span><i style="background:#d4d4d4"></i>Revenue</span><span><i style="background:#6b6b6b"></i>Expenses</span><span><i style="background:#0b0b0c"></i>Profit</span></div>`;
   }
   function salesPage() {
-    const T = rangeTotals(sbRange);
-    const rows = salesBreakdownRows(sbUnit).slice().reverse();
+    // Sales page = the whole store: Mario's and Lorena's sales together, every sale counted in full.
+    const T = rangeTotals(sbRange, 'all');
+    const rows = salesBreakdownRows(sbUnit, 'all').slice().reverse();
     // Sparkline of the last 12 periods (oldest left) for one figure, drawn in the card's colour.
     const series = rows.slice(0, 12).reverse();
     const spark = (k, color) => {
@@ -919,7 +921,7 @@ function mount(main, { store, navigate, query }) {
     const from = new Date(y, m - 1, 1); const end = new Date(y, m, 0, 23, 59, 59, 999); const now = new Date();
     const to = end < now ? end : now;
     const costs = data.costs || {};
-    const rows = profitRows(from, to).sort((a, b) => new Date(a.o.createdAt) - new Date(b.o.createdAt));
+    const rows = profitRows(from, to, 'all').sort((a, b) => new Date(a.o.createdAt) - new Date(b.o.createdAt));
     let sheet = null;
     if (end <= now) {
       const sm = SALES_MONTHS.find(([k]) => k === key);
