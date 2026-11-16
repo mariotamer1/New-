@@ -1440,3 +1440,5 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .own-btn.is-lorena { background: #fff4f8; border-color: #c2185b; color: #8a1240; }
 .own-btn.is-mario.is-on { background: #2fa24c; color: #fff; }
 .own-btn.is-lorena.is-on { background: #c2185b; color: #fff; }
+/* Admin on phones/tablets: the black menu keeps its size; short pages leave the extra space below the content. */
+@media (max-width: 959px) { .admin { grid-template-rows: auto 1fr; align-content: start; } .adm-side { align-content: flex-start; } }
