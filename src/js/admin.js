@@ -102,7 +102,7 @@ function mount(main, { store, navigate, query }) {
       <aside class="adm-side on-ink">
         <a class="logo" href="${href('/')}" aria-label="View store">${logo()}</a>
         <span class="adm-tag">Admin</span>
-        <nav aria-label="Admin"><ul>${TABS.map(([k, l, ic]) => `<li><button type="button" data-tab="${k}" ${tab === k ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${badge[k] ? `<b class="adm-badge">${badge[k]}</b>` : ''}</button></li>`).join('')}</ul></nav>
+        <nav aria-label="Admin"><ul>${TABS.map(([k, l, ic]) => `<li><button type="button" data-tab="${k}" ${tab === k || (tab === 'lorena' && k === 'profit') ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${badge[k] ? `<b class="adm-badge">${badge[k]}</b>` : ''}</button></li>`).join('')}</ul></nav>
         <div class="adm-side-foot"><a href="${href('/')}">${icon('eye', 'icon-sm')} View store</a><button type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button></div>
       </aside>
       <section class="adm-main">
@@ -672,6 +672,8 @@ function mount(main, { store, navigate, query }) {
       return { o, cost, revenue, profit: round2(revenue - cost), missing, share };
     });
   }
+  // Mario's Profit (the store overall) / Lorena's Profit switch, shown at the top of both pages.
+  const ownerSwitch = (on) => `<div class="own-switch" role="group" aria-label="Whose profit"><button type="button" class="own-btn is-mario${on === 'profit' ? ' is-on' : ''}" data-tab="profit" aria-pressed="${on === 'profit'}">Mario</button><button type="button" class="own-btn is-lorena${on === 'lorena' ? ' is-on' : ''}" data-tab="lorena" aria-pressed="${on === 'lorena'}">Lorena</button></div>`;
   function profit() {
     const [from, to] = revRange(profitPeriod);
     const rows = profitRows(from, to);
@@ -682,7 +684,7 @@ function mount(main, { store, navigate, query }) {
     const missing = rows.reduce((t, r) => t + r.missing, 0);
     const margin = rev ? Math.round((total / rev) * 100) : 0;
     main.innerHTML = shell(`
-      <div class="rv-periods" role="group" aria-label="Time period">${[...REV_PERIODS, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}<button type="button" class="chip chip-lorena" data-tab="lorena">Lorena’s Profit</button></div>
+      <div class="rv-periods" role="group" aria-label="Time period">${[...REV_PERIODS, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
       ${profitPeriod === 'custom' ? `<div class="prof-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
       <div class="adm-tiles rv-tiles">
         <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
@@ -692,7 +694,7 @@ function mount(main, { store, navigate, query }) {
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
         ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
       </section>
-      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Profit', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Mario’s Profit', ownerSwitch('profit'));
   }
 
   // Lorena's Profit: only her sales ("Save sale for Lorena") plus her half of "Add to both" sales.
@@ -714,7 +716,7 @@ function mount(main, { store, navigate, query }) {
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
         ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${r.share < 1 ? ' <small class="muted">· 50% share</small>' : ''}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales for Lorena in this period yet.</p>'}
       </section>
-      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Lorena’s Profit', `<button class="btn btn-sm" type="button" data-tab="profit">${icon('left', 'icon-sm')} Profit</button>`);
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Lorena’s Profit', ownerSwitch('lorena'));
   }
 
   // ------------------------------------------------------------ sales breakdown (pop-up from Overview)

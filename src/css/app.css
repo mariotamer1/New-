@@ -1433,3 +1433,10 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .sale-owner .btn { white-space: normal; line-height: 1.2; padding-inline: 8px; min-width: 0; }
 .chip.chip-lorena { background: #fff4f8; border-color: #c2185b; color: #8a1240; font-weight: 700; }
 .chip.chip-lorena:hover { background: #c2185b; color: #fff; }
+/* Profit pages: Mario / Lorena switch */
+.own-switch { display: flex; gap: 8px; }
+.own-btn { min-height: 40px; padding: 0 16px; border-radius: 999px; font: 700 14px var(--font-body); cursor: pointer; border: 1.5px solid; transition: background .15s, color .15s; }
+.own-btn.is-mario { background: #effaf2; border-color: #2fa24c; color: #1d7a36; }
+.own-btn.is-lorena { background: #fff4f8; border-color: #c2185b; color: #8a1240; }
+.own-btn.is-mario.is-on { background: #2fa24c; color: #fff; }
+.own-btn.is-lorena.is-on { background: #c2185b; color: #fff; }
