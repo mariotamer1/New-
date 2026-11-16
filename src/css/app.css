@@ -1435,10 +1435,10 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .chip.chip-lorena:hover { background: #c2185b; color: #fff; }
 /* Profit pages: Mario / Lorena switch */
 .own-switch { display: flex; gap: 8px; }
-.own-btn { min-height: 40px; padding: 0 16px; border-radius: 999px; font: 700 14px var(--font-body); cursor: pointer; border: 1.5px solid; transition: background .15s, color .15s; }
-.own-btn.is-mario { background: #effaf2; border-color: #2fa24c; color: #1d7a36; }
-.own-btn.is-lorena { background: #fff4f8; border-color: #c2185b; color: #8a1240; }
-.own-btn.is-mario.is-on { background: #2fa24c; color: #fff; }
-.own-btn.is-lorena.is-on { background: #c2185b; color: #fff; }
+.own-btn { min-height: 40px; padding: 0 16px; border-radius: 0; font: 700 14px var(--font-body); cursor: pointer; border: 1px solid; transition: box-shadow .15s; }
+.own-btn.is-mario { background: rgba(47, 162, 76, .08); border-color: #2fa24c; color: #1d7a36; }
+.own-btn.is-lorena { background: rgba(194, 24, 91, .06); border-color: #c2185b; color: #8a1240; }
+.own-btn.is-mario.is-on { background: rgba(47, 162, 76, .16); box-shadow: inset 0 0 0 1px #2fa24c; }
+.own-btn.is-lorena.is-on { background: rgba(194, 24, 91, .13); box-shadow: inset 0 0 0 1px #c2185b; }
 /* Admin on phones/tablets: the black menu keeps its size; short pages leave the extra space below the content. */
 @media (max-width: 959px) { .admin { grid-template-rows: auto 1fr; align-content: start; } .adm-side { align-content: flex-start; } }
