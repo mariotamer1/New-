@@ -658,9 +658,14 @@ function mount(main, { store, navigate, query }) {
   // ------------------------------------------------------------ profit
   let profitPeriod = '30';
   // One row per sale: revenue (items, excluding shipping, minus refunds) minus the cost of what sold.
-  // who: 'main' (the regular Profit/Sales pages) or 'lorena'. A sale saved "for Lorena" counts only for her;
-  // "Add to both" splits its revenue, cost and profit 50/50 between the two.
-  const shareOf = (o, who) => { const ow = o.profitOwner || 'main'; return ow === 'both' ? 0.5 : (ow === who ? 1 : 0); };
+  // who: 'main' (Mario's / the store's Profit and Sales pages) or 'lorena'. A sale saved "for Lorena" counts only for her;
+  // "Add to both" splits its revenue, cost and profit between the two: 50/50 unless the order has its own Lorena share (e.g. 0.3).
+  const shareOf = (o, who) => {
+    const ow = o.profitOwner || 'main';
+    if (ow === 'both') { const ls = o.lorenaShare != null ? o.lorenaShare : 0.5; return who === 'lorena' ? ls : 1 - ls; }
+    return ow === who ? 1 : 0;
+  };
+  const shareTag = (r) => (r.share < 1 ? ` <small class="muted">· ${Math.round(r.share * 100)}% share</small>` : '');
   function profitRows(from, to, who = 'main') {
     const costs = data.costs || {};
     return data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) >= from && new Date(o.createdAt) <= to && shareOf(o, who) > 0).map((o) => {
@@ -692,7 +697,7 @@ function mount(main, { store, navigate, query }) {
         ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
       </div>
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
-        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${shareTag(r)}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
       </section>
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Mario’s Profit', ownerSwitch('profit'));
   }
@@ -714,7 +719,7 @@ function mount(main, { store, navigate, query }) {
         ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
       </div>
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
-        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${r.share < 1 ? ' <small class="muted">· 50% share</small>' : ''}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales for Lorena in this period yet.</p>'}
+        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${shareTag(r)}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales for Lorena in this period yet.</p>'}
       </section>
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Lorena’s Profit', ownerSwitch('lorena'));
   }
@@ -929,7 +934,7 @@ function mount(main, { store, navigate, query }) {
         const qty = i.qty || 1; const c = costs[i.productId];
         const amount = sh * (one ? r.revenue / sh + refundsOf(o).reduce((t, x) => t + Number(x.amount), 0) : i.price * qty);
         const cost = c != null ? round2(sh * c * qty) : null;
-        lines.push({ date: new Date(o.createdAt), order: o.number, title: i.title, qty, price: round2(amount / qty), amount: round2(amount), cost, profit: round2(amount - (cost || 0)), missingCost: c == null, how: (isInPerson(o) ? 'In person' : o.fulfillment === 'pickup' ? 'Website · pickup' : 'Website · shipped') + (sh < 1 ? ' · 50% share' : '') });
+        lines.push({ date: new Date(o.createdAt), order: o.number, title: i.title, qty, price: round2(amount / qty), amount: round2(amount), cost, profit: round2(amount - (cost || 0)), missingCost: c == null, how: (isInPerson(o) ? 'In person' : o.fulfillment === 'pickup' ? 'Website · pickup' : 'Website · shipped') + (sh < 1 ? ` · ${Math.round(sh * 100)}% share` : '') });
       });
       refundsOf(o).forEach((x) => lines.push({ date: new Date(x.createdAt || o.createdAt), order: o.number, title: 'Refund', qty: null, price: null, amount: round2(-sh * Number(x.amount)), cost: null, profit: round2(-sh * Number(x.amount)), refund: true }));
     });
