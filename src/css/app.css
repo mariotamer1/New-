@@ -1442,3 +1442,8 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .own-btn.is-lorena.is-on { background: rgba(194, 24, 91, .13); box-shadow: inset 0 0 0 1px #c2185b; }
 /* Admin on phones/tablets: the black menu keeps its size; short pages leave the extra space below the content. */
 @media (max-width: 959px) { .admin { grid-template-rows: auto 1fr; align-content: start; } .adm-side { align-content: flex-start; } }
+.adm-top:has(.own-switch) { flex-wrap: nowrap; }
+.own-switch { flex: none; }
+.adm-top:has(.own-switch) { gap: 10px; }
+.adm-top:has(.own-switch) h1 { flex: 1; min-width: 0; white-space: nowrap; font-size: clamp(15px, 4.6vw, 32px); }
+@media (max-width: 420px) { .own-btn { padding: 0 12px; } }
