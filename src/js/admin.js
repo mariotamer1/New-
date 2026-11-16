@@ -715,7 +715,7 @@ function mount(main, { store, navigate, query }) {
       ${profitPeriod === 'custom' ? `<div class="prof-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
       <div class="adm-tiles rv-tiles">
         <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
-        <div class="adm-tile"><span class="eyebrow">Revenue</span><b class="tabnum">${money(rev)}</b><span class="muted">Margin ${rev ? margin + '%' : '—'}</span></div>
+        <div class="adm-tile"><span class="eyebrow">Margin</span><b class="tabnum">${rev ? margin + '%' : '—'}</b><span class="muted">Profit ÷ revenue</span></div>
         ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
       </div>
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
