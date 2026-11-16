@@ -124,7 +124,7 @@ function mount(main, { store, navigate, query }) {
     refreshInBackground();
   }
   const paintTab = () => {
-    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, sales: salesPage, inventory };
+    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, lorena, sales: salesPage, inventory };
     (views[tab] || overview)();
   }
 
@@ -204,7 +204,7 @@ function mount(main, { store, navigate, query }) {
         <div class="field"><label for="sale-qty">Quantity sold</label><input id="sale-qty" name="qty" type="number" inputmode="numeric" min="1" step="1" value="1" required></div>
         <div class="field"><label for="sale-total">Total sold for</label><div class="money-input"><span>$</span><input id="sale-total" name="total" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="0.00"></div></div>
         <p class="form-error" data-sale-err hidden></p>
-        <div class="adm-ed-actions"><button class="btn btn-primary btn-lg" type="submit">Save sale</button><button class="btn btn-lg" type="button" data-sale-close>Cancel</button></div>
+        <div class="adm-ed-actions"><button class="btn btn-primary btn-lg" type="submit" data-owner="main">Save sale</button><div class="sale-owner"><button class="btn btn-lg" type="submit" data-owner="lorena">Save sale for Lorena</button><button class="btn btn-lg" type="submit" data-owner="both">Add to both</button></div><button class="btn btn-lg" type="button" data-sale-close>Cancel</button></div>
       </form>`;
     document.body.appendChild(dlg);
     const close = () => { dlg.close(); dlg.remove(); };
@@ -216,12 +216,14 @@ function mount(main, { store, navigate, query }) {
       const qty = parseInt(form.elements.qty.value, 10); const raw = form.elements.total.value;
       if (!(qty >= 1)) { err.textContent = 'Enter a quantity of at least 1.'; err.hidden = false; return; }
       if (raw === '' || !(Number(raw) >= 0)) { err.textContent = 'Enter the total sold for.'; err.hidden = false; return; }
-      const btn = form.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = 'Saving…';
+      const btn = (e.submitter && e.submitter.matches('[data-owner]')) ? e.submitter : form.querySelector('[data-owner="main"]');
+      const owner = btn.dataset.owner; const label = btn.textContent;
+      form.querySelectorAll('[data-owner]').forEach((b) => { b.disabled = true; }); btn.textContent = 'Saving…';
       try {
-        await A.recordSale(p, qty, Number(raw));
+        await A.recordSale(p, qty, Number(raw), owner);
         selected.clear(); close(); toast('Sale recorded');
         await loadAll(); refreshStore(); products();
-      } catch (ex) { err.textContent = ex.message || 'Could not save the sale'; err.hidden = false; btn.disabled = false; btn.textContent = 'Save sale'; }
+      } catch (ex) { err.textContent = ex.message || 'Could not save the sale'; err.hidden = false; form.querySelectorAll('[data-owner]').forEach((b) => { b.disabled = false; }); btn.textContent = label; }
     });
     dlg.showModal();
   }
@@ -656,14 +658,18 @@ function mount(main, { store, navigate, query }) {
   // ------------------------------------------------------------ profit
   let profitPeriod = '30';
   // One row per sale: revenue (items, excluding shipping, minus refunds) minus the cost of what sold.
-  function profitRows(from, to) {
+  // who: 'main' (the regular Profit/Sales pages) or 'lorena'. A sale saved "for Lorena" counts only for her;
+  // "Add to both" splits its revenue, cost and profit 50/50 between the two.
+  const shareOf = (o, who) => { const ow = o.profitOwner || 'main'; return ow === 'both' ? 0.5 : (ow === who ? 1 : 0); };
+  function profitRows(from, to, who = 'main') {
     const costs = data.costs || {};
-    return data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) >= from && new Date(o.createdAt) <= to).map((o) => {
-      const cost = round2(o.items.reduce((t, i) => t + (costs[i.productId] != null ? costs[i.productId] * (i.qty || 1) : 0), 0));
+    return data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) >= from && new Date(o.createdAt) <= to && shareOf(o, who) > 0).map((o) => {
+      const share = shareOf(o, who);
+      const cost = round2(share * o.items.reduce((t, i) => t + (costs[i.productId] != null ? costs[i.productId] * (i.qty || 1) : 0), 0));
       const missing = o.items.filter((i) => costs[i.productId] == null).length;
       const refunds = refundsOf(o).reduce((t, r) => t + Number(r.amount), 0);
-      const revenue = round2((o.subtotal != null ? o.subtotal : o.total) - refunds);
-      return { o, cost, revenue, profit: round2(revenue - cost), missing };
+      const revenue = round2(share * ((o.subtotal != null ? o.subtotal : o.total) - refunds));
+      return { o, cost, revenue, profit: round2(revenue - cost), missing, share };
     });
   }
   function profit() {
@@ -676,7 +682,7 @@ function mount(main, { store, navigate, query }) {
     const missing = rows.reduce((t, r) => t + r.missing, 0);
     const margin = rev ? Math.round((total / rev) * 100) : 0;
     main.innerHTML = shell(`
-      <div class="rv-periods" role="group" aria-label="Time period">${[...REV_PERIODS, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
+      <div class="rv-periods" role="group" aria-label="Time period">${[...REV_PERIODS, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}<button type="button" class="chip chip-lorena" data-tab="lorena">Lorena’s Profit</button></div>
       ${profitPeriod === 'custom' ? `<div class="prof-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
       <div class="adm-tiles rv-tiles">
         <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
@@ -687,6 +693,28 @@ function mount(main, { store, navigate, query }) {
         ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
       </section>
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Profit', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+  }
+
+  // Lorena's Profit: only her sales ("Save sale for Lorena") plus her half of "Add to both" sales.
+  function lorena() {
+    const [from, to] = revRange(profitPeriod);
+    const rows = profitRows(from, to, 'lorena');
+    const total = round2(rows.reduce((t, r) => t + r.profit, 0));
+    const rev = round2(rows.reduce((t, r) => t + r.revenue, 0));
+    const missing = rows.reduce((t, r) => t + r.missing, 0);
+    const margin = rev ? Math.round((total / rev) * 100) : 0;
+    main.innerHTML = shell(`
+      <div class="rv-periods" role="group" aria-label="Time period">${[...REV_PERIODS, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
+      ${profitPeriod === 'custom' ? `<div class="prof-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
+      <div class="adm-tiles rv-tiles">
+        <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
+        <div class="adm-tile"><span class="eyebrow">Revenue</span><b class="tabnum">${money(rev)}</b><span class="muted">Margin ${rev ? margin + '%' : '—'}</span></div>
+        ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
+      </div>
+      <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
+        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${r.share < 1 ? ' <small class="muted">· 50% share</small>' : ''}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales for Lorena in this period yet.</p>'}
+      </section>
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Lorena’s Profit', `<button class="btn btn-sm" type="button" data-tab="profit">${icon('left', 'icon-sm')} Profit</button>`);
   }
 
   // ------------------------------------------------------------ sales breakdown (pop-up from Overview)
@@ -894,14 +922,14 @@ function mount(main, { store, navigate, query }) {
     const lines = [];
     if (sheet) lines.push({ date: end, order: '', title: 'Sales from ML Group records (monthly summary)', qty: null, price: null, amount: sheet.revenue, cost: sheet.expenses, profit: sheet.profit, sheet: true });
     rows.forEach((r) => {
-      const o = r.o; const one = o.items.length === 1;
+      const o = r.o; const one = o.items.length === 1; const sh = r.share;
       o.items.forEach((i) => {
         const qty = i.qty || 1; const c = costs[i.productId];
-        const amount = one ? r.revenue + refundsOf(o).reduce((t, x) => t + Number(x.amount), 0) : round2(i.price * qty);
-        const cost = c != null ? round2(c * qty) : null;
-        lines.push({ date: new Date(o.createdAt), order: o.number, title: i.title, qty, price: round2(amount / qty), amount: round2(amount), cost, profit: round2(amount - (cost || 0)), missingCost: c == null, how: isInPerson(o) ? 'In person' : o.fulfillment === 'pickup' ? 'Website · pickup' : 'Website · shipped' });
+        const amount = sh * (one ? r.revenue / sh + refundsOf(o).reduce((t, x) => t + Number(x.amount), 0) : i.price * qty);
+        const cost = c != null ? round2(sh * c * qty) : null;
+        lines.push({ date: new Date(o.createdAt), order: o.number, title: i.title, qty, price: round2(amount / qty), amount: round2(amount), cost, profit: round2(amount - (cost || 0)), missingCost: c == null, how: (isInPerson(o) ? 'In person' : o.fulfillment === 'pickup' ? 'Website · pickup' : 'Website · shipped') + (sh < 1 ? ' · 50% share' : '') });
       });
-      refundsOf(o).forEach((x) => lines.push({ date: new Date(x.createdAt || o.createdAt), order: o.number, title: 'Refund', qty: null, price: null, amount: -Number(x.amount), cost: null, profit: -Number(x.amount), refund: true }));
+      refundsOf(o).forEach((x) => lines.push({ date: new Date(x.createdAt || o.createdAt), order: o.number, title: 'Refund', qty: null, price: null, amount: round2(-sh * Number(x.amount)), cost: null, profit: round2(-sh * Number(x.amount)), refund: true }));
     });
     const site = { revenue: rows.reduce((t, r) => t + r.revenue, 0), expenses: rows.reduce((t, r) => t + r.cost, 0), profit: rows.reduce((t, r) => t + r.profit, 0) };
     const known = !sheet || sheet.revenue != null || rows.length;
@@ -1281,7 +1309,7 @@ function mount(main, { store, navigate, query }) {
     const sr = t.closest('[data-sbr]');
     if (sr) { sbRange = sr.dataset.sbr; salesPage(); return; }
     const pf = t.closest('[data-prof]');
-    if (pf) { profitPeriod = pf.dataset.prof; profit(); return; }
+    if (pf) { profitPeriod = pf.dataset.prof; if (tab === 'lorena') lorena(); else profit(); return; }
     const rv = t.closest('[data-rev]');
     if (rv) { revPeriod = rv.dataset.rev; revenue(); return; }
     const tb = t.closest('[data-tab]');
@@ -1408,7 +1436,7 @@ function mount(main, { store, navigate, query }) {
   main.addEventListener('change', (e) => {
     const t = e.target; if (!t.matches('[data-prof-from], [data-prof-to]') || !t.value) return;
     if (t.matches('[data-prof-from]')) customFrom = t.value; else customTo = t.value;
-    if (tab === 'sales') salesPage(); else profit();
+    if (tab === 'sales') salesPage(); else if (tab === 'lorena') lorena(); else profit();
   });
   main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
   const onInput = (e) => {

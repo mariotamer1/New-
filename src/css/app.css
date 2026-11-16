@@ -1427,3 +1427,9 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 }
 .stmt-sum div { display: flex; flex-direction: column; justify-content: space-between; }
 .stmt-sum div { align-items: center; text-align: center; }
+/* Add sale: owner buttons (Lorena / both) side by side under Save sale */
+.adm-add-body .adm-ed-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.sale-owner { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sale-owner .btn { white-space: normal; line-height: 1.2; padding-inline: 8px; min-width: 0; }
+.chip.chip-lorena { background: #fff4f8; border-color: #c2185b; color: #8a1240; font-weight: 700; }
+.chip.chip-lorena:hover { background: #c2185b; color: #fff; }

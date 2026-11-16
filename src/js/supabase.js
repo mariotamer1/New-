@@ -27,7 +27,7 @@ const toProduct = (p) => {
   return o;
 };
 const fromOffer = (r) => ({ id: r.id, productId: r.product_id, productTitle: r.product_title, productSlug: r.product_slug, productImage: r.product_image, listPrice: Number(r.list_price), name: r.name, phone: r.phone, amount: Number(r.amount), status: r.status, createdAt: r.created_at });
-const fromOrder = (r) => ({ id: r.id, number: r.number, createdAt: r.created_at, status: r.status, fulfillment: r.fulfillment, payment: r.payment, customer: r.customer, address: r.address, notes: r.notes || '', items: r.items, subtotal: Number(r.subtotal), shippingTotal: Number(r.shipping_total), total: Number(r.total), customerId: r.customer_id, paidAt: r.paid_at || null, paypalCaptureId: (r.paypal && r.paypal.captureId) || null, tracking: r.tracking || null, stockHeld: r.stock_held !== false, paypalRefunds: r.paypal ? (r.paypal.refunds || (r.paypal.refund ? [r.paypal.refund] : [])) : [] });
+const fromOrder = (r) => ({ id: r.id, number: r.number, createdAt: r.created_at, status: r.status, fulfillment: r.fulfillment, payment: r.payment, customer: r.customer, address: r.address, notes: r.notes || '', items: r.items, subtotal: Number(r.subtotal), shippingTotal: Number(r.shipping_total), total: Number(r.total), customerId: r.customer_id, paidAt: r.paid_at || null, paypalCaptureId: (r.paypal && r.paypal.captureId) || null, tracking: r.tracking || null, profitOwner: r.profit_owner || 'main', stockHeld: r.stock_held !== false, paypalRefunds: r.paypal ? (r.paypal.refunds || (r.paypal.refund ? [r.paypal.refund] : [])) : [] });
 const fromInquiry = (r) => ({ id: r.id, type: r.type, name: r.name, email: r.email, phone: r.phone, company: r.company, message: r.message, status: r.status, createdAt: r.created_at });
 
 export function createSupabaseBackend(cfg) {
@@ -191,8 +191,8 @@ export function createSupabaseBackend(cfg) {
       async costs() { const rows = await rest('GET', 'product_costs?select=product_id,cost'); const m = {}; rows.forEach((r) => { if (r.cost != null) m[r.product_id] = Number(r.cost); }); return m; },
       async setCost(id, cost) { await rest('POST', 'product_costs?on_conflict=product_id', { product_id: id, cost: cost == null ? null : Number(cost), updated_at: new Date().toISOString() }, 'resolution=merge-duplicates'); },
       // In-person sale: records the order, takes the stock (never below 0) and marks the order completed.
-      async recordSale(p, qty, total) {
-        const [o] = await rest('POST', 'orders', { status: 'new', fulfillment: 'pickup', payment: 'pickup', customer: { name: 'In-person sale', email: '', phone: '' }, items: [{ productId: p.id, slug: p.slug, title: p.title, image: p.images[0] || null, price: round2(total / qty), qty, shipping: 0 }], subtotal: round2(total), shipping_total: 0, total: round2(total), notes: `Sold in person (added by admin) - ${qty} unit${qty === 1 ? '' : 's'} for $${round2(total).toFixed(2)}`, stock_held: false }, 'return=representation');
+      async recordSale(p, qty, total, owner = 'main') {
+        const [o] = await rest('POST', 'orders', { status: 'new', fulfillment: 'pickup', payment: 'pickup', customer: { name: 'In-person sale', email: '', phone: '' }, items: [{ productId: p.id, slug: p.slug, title: p.title, image: p.images[0] || null, price: round2(total / qty), qty, shipping: 0 }], subtotal: round2(total), shipping_total: 0, total: round2(total), notes: `Sold in person (added by admin) - ${qty} unit${qty === 1 ? '' : 's'} for $${round2(total).toFixed(2)}`, stock_held: false, profit_owner: owner }, 'return=representation');
         await rpc('admin_confirm_order', { p_id: o.id });
         await rest('PATCH', `orders?id=eq.${encodeURIComponent(o.id)}`, { status: 'completed' });
       },
