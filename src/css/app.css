@@ -1449,3 +1449,8 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 @media (max-width: 420px) { .own-btn { padding: 0 12px; } }
 /* Profit lists: small item photo before the order number */
 .prof-thumb { display: inline-block; width: 30px; height: 30px; margin: -6px 8px -6px 0; vertical-align: middle; object-fit: cover; border: 1px solid var(--hair); border-radius: 4px; background: var(--paper-2); }
+.prof-thumb[data-full] { cursor: zoom-in; }
+.photo-peek { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: rgba(11,11,12,.45); animation: peekIn .15s ease; }
+.photo-peek img { width: 75vw; height: 75vh; object-fit: contain; background: #fff; border-radius: 10px; box-shadow: 0 24px 60px -20px rgba(0,0,0,.6); }
+.photo-peek.is-out { opacity: 0; transition: opacity .2s; }
+@keyframes peekIn { from { opacity: 0; } to { opacity: 1; } }

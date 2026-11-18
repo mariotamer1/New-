@@ -666,11 +666,23 @@ function mount(main, { store, navigate, query }) {
     if (ow === 'both') { const ls = o.lorenaShare != null ? o.lorenaShare : 0.5; return who === 'lorena' ? ls : 1 - ls; }
     return ow === who ? 1 : 0;
   };
+  // Tap a sale's photo: show it large (about 75% of the screen) for 1 second, then it closes itself.
+  function photoPeek(src) {
+    document.querySelectorAll('.photo-peek').forEach((x) => x.remove());
+    const box = document.createElement('div'); box.className = 'photo-peek';
+    box.innerHTML = `<img src="${esc(src)}" alt="">`;
+    document.body.appendChild(box);
+    const close = () => { box.classList.add('is-out'); setTimeout(() => box.remove(), 200); };
+    box.addEventListener('click', close);
+    const im = box.querySelector('img');
+    const start = () => setTimeout(close, 1000); // 1 second once the photo is showing
+    if (im.complete) start(); else { im.addEventListener('load', start); im.addEventListener('error', close); }
+  }
   // Small photo of the (first) item sold, for the Profit lists. Falls back to the product's current photo.
   const saleThumb = (o) => {
     const i = o.items[0] || {}; const p = data.products.find((x) => x.id === i.productId);
     const im = i.image || (p && p.images[0]);
-    return im ? `<img class="prof-thumb" src="${esc(img(im.sm || im.lg))}" alt="" width="30" height="30" loading="lazy">` : '<span class="prof-thumb"></span>';
+    return im ? `<img class="prof-thumb" src="${esc(img(im.sm || im.lg))}" data-full="${esc(img(im.lg || im.sm))}" alt="" width="30" height="30" loading="lazy" role="button" tabindex="0" aria-label="Show photo">` : '<span class="prof-thumb"></span>';
   };
   const shareTag = (r) => (r.share < 1 ? ` <small class="muted">· ${Math.round(r.share * 100)}% share</small>` : '');
   function profitRows(from, to, who = 'main') {
@@ -1321,6 +1333,7 @@ function mount(main, { store, navigate, query }) {
     const sb = t.closest('[data-sb]');
     if (sb) { sbUnit = sb.dataset.sb; salesPage(); return; }
     if (t.closest('[data-stmts]')) { openStatements(); return; }
+    if (t.matches('img.prof-thumb[data-full]')) { photoPeek(t.dataset.full); return; }
     const sr = t.closest('[data-sbr]');
     if (sr) { sbRange = sr.dataset.sbr; salesPage(); return; }
     const pf = t.closest('[data-prof]');
