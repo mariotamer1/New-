@@ -674,9 +674,7 @@ function mount(main, { store, navigate, query }) {
     document.body.appendChild(box);
     const close = () => { box.classList.add('is-out'); setTimeout(() => box.remove(), 200); };
     box.addEventListener('click', close);
-    const im = box.querySelector('img');
-    const start = () => setTimeout(close, 1000); // 1 second once the photo is showing
-    if (im.complete) start(); else { im.addEventListener('load', start); im.addEventListener('error', close); }
+    setTimeout(close, 1000); // closes 1 second after the tap
   }
   // Small photo of the (first) item sold, for the Profit lists. Falls back to the product's current photo.
   const saleThumb = (o) => {
