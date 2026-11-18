@@ -1447,3 +1447,5 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .adm-top:has(.own-switch) { gap: 10px; }
 .adm-top:has(.own-switch) h1 { flex: 1; min-width: 0; white-space: nowrap; font-size: clamp(15px, 4.6vw, 32px); }
 @media (max-width: 420px) { .own-btn { padding: 0 12px; } }
+/* Profit lists: small item photo before the order number */
+.prof-thumb { display: inline-block; width: 30px; height: 30px; margin: -6px 8px -6px 0; vertical-align: middle; object-fit: cover; border: 1px solid var(--hair); border-radius: 4px; background: var(--paper-2); }
