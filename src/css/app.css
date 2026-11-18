@@ -1454,3 +1454,4 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .photo-peek img { display: block; width: auto; height: auto; max-width: 75vw; max-height: 75vh; background: none; border: 0; border-radius: 8px; box-shadow: 0 24px 60px -20px rgba(0,0,0,.6); }
 .photo-peek.is-out { opacity: 0; transition: opacity .2s; }
 @keyframes peekIn { from { opacity: 0; } to { opacity: 1; } }
+.prof-qty { display: inline-block; min-width: 22px; margin-right: 4px; font-size: 12px; font-weight: 500; color: var(--mute); vertical-align: middle; text-align: right; }

@@ -714,7 +714,7 @@ function mount(main, { store, navigate, query }) {
         ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
       </div>
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
-        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td>${saleThumb(r.o)}<button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${shareTag(r)}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><span class="prof-qty tabnum">${qtyOf(r.o)}x</span>${saleThumb(r.o)}<button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${shareTag(r)}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
       </section>
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Mario’s Profit', ownerSwitch('profit'));
   }
@@ -736,7 +736,7 @@ function mount(main, { store, navigate, query }) {
         ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
       </div>
       <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
-        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td>${saleThumb(r.o)}<button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${shareTag(r)}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales for Lorena in this period yet.</p>'}
+        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><span class="prof-qty tabnum">${qtyOf(r.o)}x</span>${saleThumb(r.o)}<button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${shareTag(r)}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales for Lorena in this period yet.</p>'}
       </section>
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Lorena’s Profit', ownerSwitch('lorena'));
   }
