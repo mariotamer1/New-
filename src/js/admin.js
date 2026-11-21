@@ -102,7 +102,7 @@ function mount(main, { store, navigate, query }) {
       <aside class="adm-side on-ink">
         <a class="logo" href="${href('/')}" aria-label="View store">${logo()}</a>
         <span class="adm-tag">Admin</span>
-        <nav aria-label="Admin"><ul>${TABS.map(([k, l, ic]) => `<li><button type="button" data-tab="${k}" ${tab === k || (tab === 'lorena' && k === 'profit') ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${badge[k] ? `<b class="adm-badge">${badge[k]}</b>` : ''}</button></li>`).join('')}</ul></nav>
+        <nav aria-label="Admin"><ul>${TABS.map(([k, l, ic]) => `<li><button type="button" data-tab="${k}" ${tab === k || (tab === 'lorena' && k === 'profit') || (tab === 'shipments' && k === 'inventory') ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${badge[k] ? `<b class="adm-badge">${badge[k]}</b>` : ''}</button></li>`).join('')}</ul></nav>
         <div class="adm-side-foot"><a href="${href('/')}">${icon('eye', 'icon-sm')} View store</a><button type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button></div>
       </aside>
       <section class="adm-main">
@@ -124,7 +124,7 @@ function mount(main, { store, navigate, query }) {
     refreshInBackground();
   }
   const paintTab = () => {
-    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, lorena, sales: salesPage, inventory };
+    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, lorena, sales: salesPage, inventory, shipments };
     (views[tab] || overview)();
   }
 
@@ -544,12 +544,15 @@ function mount(main, { store, navigate, query }) {
     const t = invTotals();
     main.innerHTML = shell(`
       <div class="adm-tiles inv-tiles">
-        <div class="adm-tile"><span class="eyebrow">Inventory value (cost)</span><b class="tabnum" data-inv-costval>${money(t.costVal)}</b><span class="muted" data-inv-missing>${t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost'}</span></div>
-        <div class="adm-tile"><span class="eyebrow">Retail value</span><b class="tabnum">${money(t.retail)}</b><span class="muted">At your website prices</span></div>
+        <div class="adm-tile is-cost"><span class="eyebrow">Inventory value (cost)</span><b class="tabnum" data-inv-costval>${money(t.costVal)}</b><span class="muted" data-inv-missing>${t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost'}</span></div>
+        <div class="adm-tile is-retail"><span class="eyebrow">Retail value</span><b class="tabnum">${money(t.retail)}</b><span class="muted">At your website prices</span></div>
         <div class="adm-tile"><span class="eyebrow">Units in stock</span><b class="tabnum">${t.units}</b><span class="muted">${data.products.filter((p) => p.inventory > 0).length} items in stock</span></div>
+        <button type="button" class="adm-tile inv-ship-btn" data-tab="shipments"><span class="inv-ship-ic">${icon('truck')}</span><b>Check incoming shipments</b><span class="muted">${shipList ? `${shipList.filter((x) => !x.delivered).length} on the way` : 'Track your packages'}</span></button>
       </div>
       <div class="inv-tools"><input type="search" placeholder="Search by name or UPC" value="${esc(invQ)}" data-inv-q aria-label="Search inventory"><div class="select"><label class="sr-only" for="inv-sort">Sort inventory</label><select id="inv-sort" data-inv-sort>${INV_SORTS.map(([v, l]) => `<option value="${v}" ${invSort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div></div>
       <ul class="inv-list">${invRowsHTML()}</ul>`, 'Inventory', `<button class="btn btn-primary" type="button" data-inv-scan>${icon('camera', 'icon-sm')} Scan</button>`);
+    fitTiles();
+    if (!shipList) loadShipments().then(() => { const el = $('.inv-ship-btn .muted', main); if (el && shipList) el.textContent = `${shipList.filter((x) => !x.delivered).length} on the way`; });
   }
   // Update tiles and one row in place (no re-render, so typing and scrolling aren't interrupted).
   function invRefresh(id) {
@@ -653,6 +656,68 @@ function mount(main, { store, navigate, query }) {
       const tot = $('[data-sp-total]', panel); if (tot) tot.textContent = v === '' ? '—' : money(Number(v) * Math.max(0, p.inventory));
       clearTimeout(invScan.t); invScan.t = setTimeout(() => saveCost(p.id, v), 500);
     });
+  }
+
+  // ------------------------------------------------------------ incoming shipments
+  let shipList = null;
+  const detectCarrier = (n) => {
+    const t = n.replace(/\s+/g, '').toUpperCase();
+    if (/^1Z[0-9A-Z]{16}$/.test(t)) return 'ups';
+    if (/^(94|93|92|95|82)\d{18,20}$/.test(t) || /^[A-Z]{2}\d{9}US$/.test(t) || /^\d{20,22}$/.test(t)) return 'usps';
+    if (/^\d{12}$/.test(t) || /^\d{15}$/.test(t) || /^\d{34}$/.test(t)) return 'fedex';
+    return '';
+  };
+  async function loadShipments() { try { shipList = A.shipments ? await A.shipments() : []; } catch { shipList = shipList || []; } }
+  async function shipments() {
+    if (!shipList) { main.innerHTML = shell('<p class="muted adm-empty">Loading shipments…</p>', 'Incoming shipments'); await loadShipments(); if (tab !== 'shipments') return; }
+    const coming = shipList.filter((x) => !x.delivered);
+    main.innerHTML = shell(`
+      <section class="ship-hero"><span class="ship-hero-ic">${icon('truck')}</span><div><h2>You have ${coming.length} package${coming.length === 1 ? '' : 's'} coming your way</h2><p class="muted">Add a tracking number from USPS, UPS or FedEx. Live tracking updates are coming next.</p></div></section>
+      <form class="ship-add" data-ship-add>
+        <label class="sr-only" for="ship-num">Tracking number</label>
+        <input id="ship-num" name="tracking" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste or type a tracking number" required>
+        <button class="btn" type="button" data-ship-paste>Paste</button>
+        <label class="sr-only" for="ship-label">What's in it (optional)</label>
+        <input id="ship-label" name="label" type="text" autocomplete="off" placeholder="What's in it? (optional)">
+        <div class="select"><label class="sr-only" for="ship-carrier">Carrier</label><select id="ship-carrier" name="carrier"><option value="">Carrier: auto-detect</option>${CARRIERS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>${icon('down')}</div>
+        <button class="btn btn-primary" type="submit">${icon('plus', 'icon-sm')} Add package</button>
+      </form>
+      <section class="adm-card"><div class="adm-card-head"><h2>Packages</h2><span class="muted" style="font-size:13px">${shipList.length} total</span></div>
+        ${shipList.length ? `<ul class="ship-list">${shipList.map((x) => `<li><button type="button" class="ship-row" data-ship="${x.id}"><span class="ship-car">${esc(carrierName(x.carrier) || '—')}</span><span class="ship-main"><b>${esc(x.label || 'Package')}</b><small class="mono">${esc(x.tracking)}</small></span><span class="ship-st">${x.delivered ? 'Delivered' : 'On the way'}<small>Added ${fmtDate(x.createdAt)}</small></span>${icon('right', 'icon-sm')}</button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No packages yet. Paste a tracking number above to start.</p>'}
+      </section>
+      <dialog class="modal" id="ship-dlg" aria-labelledby="ship-title"></dialog>`, 'Incoming shipments', `<button class="btn btn-sm" type="button" data-tab="inventory">${icon('left', 'icon-sm')} Inventory</button>`);
+    const form = $('[data-ship-add]', main);
+    const num = form.elements.tracking; const car = form.elements.carrier;
+    num.addEventListener('input', () => { const c = detectCarrier(num.value); if (c) car.value = c; });
+    $('[data-ship-paste]', main).addEventListener('click', async () => {
+      try { const t = (await navigator.clipboard.readText()).trim(); if (!t) { toast('Clipboard is empty'); return; } num.value = t; num.dispatchEvent(new Event('input')); }
+      catch { num.focus(); toast('Press and hold in the box, then tap Paste'); }
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const tracking = num.value.replace(/\s+/g, '').toUpperCase(); if (tracking.length < 8) { toast('Enter a full tracking number'); return; }
+      if (shipList.some((x) => x.tracking === tracking)) { toast('That package is already on the list'); return; }
+      const btn = form.querySelector('[type="submit"]'); btn.disabled = true;
+      try { await A.addShipment({ tracking, carrier: car.value || detectCarrier(tracking), label: form.elements.label.value.trim() }); await loadShipments(); toast('Package added'); shipments(); }
+      catch (ex) { toast(ex.message || 'Could not add the package'); btn.disabled = false; }
+    });
+    main.querySelectorAll('[data-ship]').forEach((b) => b.addEventListener('click', () => openShipment(b.dataset.ship)));
+  }
+  function openShipment(id) {
+    const x = shipList.find((s) => s.id === id); const dlg = $('#ship-dlg'); if (!x || !dlg) return;
+    const url = trackUrl(x.carrier, x.tracking);
+    dlg.innerHTML = `<div class="modal-head"><h2 id="ship-title">${esc(x.label || 'Package')}</h2><button class="icon-btn" type="button" aria-label="Close" data-ship-close>${icon('close')}</button></div>
+      <div class="ship-detail">
+        <dl class="kv"><div><dt>Tracking number</dt><dd class="mono">${esc(x.tracking)}</dd></div><div><dt>Carrier</dt><dd>${esc(carrierName(x.carrier) || 'Unknown')}</dd></div><div><dt>Status</dt><dd>${x.delivered ? 'Delivered' : 'On the way'}</dd></div><div><dt>Added</dt><dd>${fmtDate(x.createdAt, true)}</dd></div></dl>
+        <p class="muted" style="font-size:13px">Live tracking details (location, delivery date) will show here soon.</p>
+        <div class="ship-actions"><button class="btn" type="button" data-ship-copy>Copy number</button>${url ? `<a class="btn btn-primary" href="${esc(url)}" target="_blank" rel="noopener">Track on ${esc(carrierName(x.carrier))}</a>` : ''}<button class="btn adm-danger" type="button" data-ship-del>Remove</button></div>
+      </div>`;
+    dlg.onclick = async (e) => {
+      if (e.target === dlg || e.target.closest('[data-ship-close]')) { dlg.close(); return; }
+      if (e.target.closest('[data-ship-copy]')) { try { await navigator.clipboard.writeText(x.tracking); toast('Copied'); } catch { toast('Press and hold the number to copy'); } return; }
+      if (e.target.closest('[data-ship-del]')) { if (!confirm('Remove this package from the list?')) return; try { await A.deleteShipment(x.id); dlg.close(); await loadShipments(); shipments(); } catch (ex) { toast(ex.message || 'Could not remove'); } }
+    };
+    dlg.showModal();
   }
 
   // ------------------------------------------------------------ profit
