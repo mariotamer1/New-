@@ -671,21 +671,24 @@ function mount(main, { store, navigate, query }) {
   async function shipments() {
     if (!shipList) { main.innerHTML = shell('<p class="muted adm-empty">Loading shipments…</p>', 'Incoming shipments'); await loadShipments(); if (tab !== 'shipments') return; }
     const coming = shipList.filter((x) => !x.delivered);
-    main.innerHTML = shell(`
+    const box = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 20.5 7v10L12 21.2 3.5 17V7z M3.5 7 12 11.2 20.5 7 M12 11.2v10 M7.8 4.9l8.5 4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    const badge = (c) => `<span class="ship-badge is-${esc(c || 'none')}">${c === 'usps' ? '<svg viewBox="0 0 24 14" aria-hidden="true"><path d="M2 3h17l3 2-15 7H4l9-4H5z" fill="currentColor"/></svg>' : ''}<b>${esc(carrierName(c) || '—')}</b></span>`;
+    main.innerHTML = shell(`<div class="ship-page">
+      <button class="ship-back" type="button" data-tab="inventory">${icon('left', 'icon-sm')} Inventory</button>
       <section class="ship-hero"><span class="ship-hero-ic">${icon('truck')}</span><div><h2>You have ${coming.length} package${coming.length === 1 ? '' : 's'} coming your way</h2><p class="muted">Add a tracking number from USPS, UPS or FedEx. Live tracking updates are coming next.</p></div></section>
       <form class="ship-add" data-ship-add>
         <label class="sr-only" for="ship-num">Tracking number</label>
-        <input id="ship-num" name="tracking" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste or type a tracking number" required>
-        <button class="btn" type="button" data-ship-paste>Paste</button>
+        <span class="ship-field">${icon('search', 'icon-sm')}<input id="ship-num" name="tracking" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste or type a tracking number" required></span>
+        <button class="ship-paste" type="button" data-ship-paste>Paste</button>
         <label class="sr-only" for="ship-label">What's in it (optional)</label>
-        <input id="ship-label" name="label" type="text" autocomplete="off" placeholder="What's in it? (optional)">
-        <div class="select"><label class="sr-only" for="ship-carrier">Carrier</label><select id="ship-carrier" name="carrier"><option value="">Carrier: auto-detect</option>${CARRIERS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>${icon('down')}</div>
-        <button class="btn btn-primary" type="submit">${icon('plus', 'icon-sm')} Add package</button>
+        <span class="ship-field is-wide">${icon('tag', 'icon-sm')}<input id="ship-label" name="label" type="text" autocomplete="off" placeholder="What’s in it? (optional)"></span>
+        <span class="ship-field is-wide is-select">${icon('truck', 'icon-sm')}<label class="sr-only" for="ship-carrier">Carrier</label><select id="ship-carrier" name="carrier"><option value="">Carrier: auto-detect</option>${CARRIERS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>${icon('down', 'icon-sm')}</span>
+        <button class="ship-submit" type="submit">${icon('plus', 'icon-sm')} Add package</button>
       </form>
-      <section class="adm-card"><div class="adm-card-head"><h2>Packages</h2><span class="muted" style="font-size:13px">${shipList.length} total</span></div>
-        ${shipList.length ? `<ul class="ship-list">${shipList.map((x) => `<li><button type="button" class="ship-row" data-ship="${x.id}"><span class="ship-car">${esc(carrierName(x.carrier) || '—')}</span><span class="ship-main"><b>${esc(x.label || 'Package')}</b><small class="mono">${esc(x.tracking)}</small></span><span class="ship-st">${x.delivered ? 'Delivered' : 'On the way'}<small>Added ${fmtDate(x.createdAt)}</small></span>${icon('right', 'icon-sm')}</button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No packages yet. Paste a tracking number above to start.</p>'}
+      <section class="ship-card"><div class="ship-card-head"><h2>Packages</h2><span>${shipList.length} total</span></div>
+        ${shipList.length ? `<ul class="ship-list">${shipList.map((x) => `<li><button type="button" class="ship-row" data-ship="${x.id}">${badge(x.carrier)}<span class="ship-main"><b>${esc(x.label || 'Package')}</b><small>${esc(x.tracking)}</small></span><span class="ship-st"><span class="ship-pill${x.delivered ? ' is-done' : ''}">${x.delivered ? 'Delivered' : 'On the way'}</span><small>Added ${fmtDate(x.createdAt)}</small></span>${icon('right', 'icon-sm')}</button></li>`).join('')}</ul>` : '<p class="ship-empty">No packages yet. Paste a tracking number above to start.</p>'}
       </section>
-      <dialog class="modal" id="ship-dlg" aria-labelledby="ship-title"></dialog>`, 'Incoming shipments', `<button class="btn btn-sm" type="button" data-tab="inventory">${icon('left', 'icon-sm')} Inventory</button>`);
+      <dialog class="modal" id="ship-dlg" aria-labelledby="ship-title"></dialog></div>`, `<span class="ship-title">${box}Incoming Shipments</span>`);
     const form = $('[data-ship-add]', main);
     const num = form.elements.tracking; const car = form.elements.carrier;
     num.addEventListener('input', () => { const c = detectCarrier(num.value); if (c) car.value = c; });
