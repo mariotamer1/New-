@@ -1515,3 +1515,7 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .ship-detail dt { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
 .ship-detail dd { margin: 2px 0 0; word-break: break-all; }
 .ship-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ship-name { padding: 14px 20px 0; display: grid; gap: 6px; }
+.ship-name label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.ship-name > div { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.ship-name input { height: 44px; border: 1px solid var(--ink); padding: 0 12px; font-size: 16px; min-width: 0; }

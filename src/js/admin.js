@@ -710,15 +710,21 @@ function mount(main, { store, navigate, query }) {
     const x = shipList.find((s) => s.id === id); const dlg = $('#ship-dlg'); if (!x || !dlg) return;
     const url = trackUrl(x.carrier, x.tracking);
     dlg.innerHTML = `<div class="modal-head"><h2 id="ship-title">${esc(x.label || 'Package')}</h2><button class="icon-btn" type="button" aria-label="Close" data-ship-close>${icon('close')}</button></div>
+      <form class="ship-name" data-ship-name><label for="ship-name-in">Package name</label><div><input id="ship-name-in" type="text" value="${esc(x.label)}" placeholder="What’s in it?" autocomplete="off"><button class="btn btn-primary" type="submit">${icon('edit', 'icon-sm')} Save name</button></div></form>
       <div class="ship-detail">
         <dl class="kv"><div><dt>Tracking number</dt><dd class="mono">${esc(x.tracking)}</dd></div><div><dt>Carrier</dt><dd>${esc(carrierName(x.carrier) || 'Unknown')}</dd></div><div><dt>Status</dt><dd>${x.delivered ? 'Delivered' : 'On the way'}</dd></div><div><dt>Added</dt><dd>${fmtDate(x.createdAt, true)}</dd></div></dl>
         <p class="muted" style="font-size:13px">Live tracking details (location, delivery date) will show here soon.</p>
-        <div class="ship-actions"><button class="btn" type="button" data-ship-copy>Copy number</button>${url ? `<a class="btn btn-primary" href="${esc(url)}" target="_blank" rel="noopener">Track on ${esc(carrierName(x.carrier))}</a>` : ''}<button class="btn adm-danger" type="button" data-ship-del>Remove</button></div>
+        <div class="ship-actions"><button class="btn" type="button" data-ship-copy>Copy number</button>${url ? `<a class="btn btn-primary" href="${esc(url)}" target="_blank" rel="noopener">Track on ${esc(carrierName(x.carrier))}</a>` : ''}<button class="btn" type="button" data-ship-deliv>${x.delivered ? 'Mark as on the way' : 'Mark as delivered'}</button><button class="btn adm-danger" type="button" data-ship-del>Remove</button></div>
       </div>`;
     dlg.onclick = async (e) => {
       if (e.target === dlg || e.target.closest('[data-ship-close]')) { dlg.close(); return; }
       if (e.target.closest('[data-ship-copy]')) { try { await navigator.clipboard.writeText(x.tracking); toast('Copied'); } catch { toast('Press and hold the number to copy'); } return; }
+      if (e.target.closest('[data-ship-deliv]')) { try { await A.updateShipment(x.id, { delivered: !x.delivered, status: x.delivered ? 'pending' : 'delivered' }); await loadShipments(); shipments(); openShipment(x.id); toast(x.delivered ? 'Marked as on the way' : 'Marked as delivered'); } catch (ex) { toast(ex.message || 'Could not update'); } return; }
       if (e.target.closest('[data-ship-del]')) { if (!confirm('Remove this package from the list?')) return; try { await A.deleteShipment(x.id); dlg.close(); await loadShipments(); shipments(); } catch (ex) { toast(ex.message || 'Could not remove'); } }
+    };
+    dlg.querySelector('[data-ship-name]').onsubmit = async (e) => {
+      e.preventDefault(); const v = dlg.querySelector('#ship-name-in').value.trim();
+      try { await A.updateShipment(x.id, { label: v }); await loadShipments(); shipments(); openShipment(x.id); toast('Name saved'); } catch (ex) { toast(ex.message || 'Could not save the name'); }
     };
     dlg.showModal();
   }

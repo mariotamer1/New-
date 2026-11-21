@@ -192,6 +192,7 @@ export function createSupabaseBackend(cfg) {
       // Incoming shipments (admin only): tracking numbers to watch.
       async shipments() { return (await rest('GET', 'shipments?select=*&order=created_at.desc')).map((r) => ({ id: r.id, tracking: r.tracking, carrier: r.carrier, label: r.label || '', status: r.status, details: r.details, delivered: r.delivered, createdAt: r.created_at })); },
       async addShipment(s) { const [r] = await rest('POST', 'shipments', { tracking: s.tracking, carrier: s.carrier || null, label: s.label || '' }, 'return=representation'); return r; },
+      async updateShipment(id, patch) { await rest('PATCH', `shipments?id=eq.${encodeURIComponent(id)}`, { ...patch, updated_at: new Date().toISOString() }); },
       async deleteShipment(id) { await rest('DELETE', `shipments?id=eq.${encodeURIComponent(id)}`); },
       async setCost(id, cost) { await rest('POST', 'product_costs?on_conflict=product_id', { product_id: id, cost: cost == null ? null : Number(cost), updated_at: new Date().toISOString() }, 'resolution=merge-duplicates'); },
       // In-person sale: records the order, takes the stock (never below 0) and marks the order completed.
