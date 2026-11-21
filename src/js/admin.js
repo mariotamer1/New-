@@ -687,7 +687,7 @@ function mount(main, { store, navigate, query }) {
     const badge = (c) => `<span class="ship-badge is-${esc(c || 'none')}">${c === 'usps' ? '<svg viewBox="0 0 24 14" aria-hidden="true"><path d="M2 3h17l3 2-15 7H4l9-4H5z" fill="currentColor"/></svg>' : ''}<b>${esc(carrierName(c) || '—')}</b></span>`;
     main.innerHTML = shell(`<div class="ship-page">
       <button class="ship-back" type="button" data-tab="inventory">${icon('left', 'icon-sm')} Inventory</button>
-      <section class="ship-hero"><span class="ship-hero-ic">${icon('truck')}</span><div><h2>You have ${coming.length} package${coming.length === 1 ? '' : 's'} coming your way</h2><p class="muted">Add a tracking number from USPS, UPS or FedEx. Updates come straight from the carrier.</p><p class="ship-live" data-ship-live>${shipChecking ? 'Checking with carriers…' : shipCheckedAt ? 'Updated ' + fmtWhen(shipCheckedAt) : ''}</p></div></section>
+      <section class="ship-hero"><span class="ship-hero-ic">${icon('truck')}</span><div><h2>${coming.length} package${coming.length === 1 ? '' : 's'}</h2><p class="muted">Add a tracking number from USPS, UPS or FedEx. Updates come straight from the carrier.</p><p class="ship-live" data-ship-live>${shipChecking ? 'Checking with carriers…' : shipCheckedAt ? 'Updated ' + fmtWhen(shipCheckedAt) : ''}</p></div></section>
       <form class="ship-add" data-ship-add>
         <label class="sr-only" for="ship-num">Tracking number</label>
         <span class="ship-field">${icon('search', 'icon-sm')}<input id="ship-num" name="tracking" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste or type a tracking number" required></span>
