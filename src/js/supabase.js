@@ -206,6 +206,7 @@ export function createSupabaseBackend(cfg) {
         const p = cache.products.find((x) => x.id === id); if (p) p.inventory = n; return p;
       },
       async orders() { return (await rest('GET', 'orders?select=*&order=created_at.desc')).map(fromOrder); },
+      trackShipments: (id) => raw('POST', '/functions/v1/track', { action: 'refresh', id: id || undefined }),
       refundOrder: (id, amount) => raw('POST', '/functions/v1/paypal', { action: 'refund', orderId: id, amount: amount == null ? undefined : amount }),
       async setTracking(id, tracking) { await rest('PATCH', `orders?id=eq.${id}`, { tracking }); },
       async deleteOrder(o) {
