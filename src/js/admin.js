@@ -684,7 +684,7 @@ function mount(main, { store, navigate, query }) {
     if (!shipList) { main.innerHTML = shell('<p class="muted adm-empty">Loading shipments…</p>', 'Incoming shipments'); await loadShipments(); if (tab !== 'shipments') return; }
     const coming = shipList.filter((x) => !x.delivered);
     const box = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 20.5 7v10L12 21.2 3.5 17V7z M3.5 7 12 11.2 20.5 7 M12 11.2v10 M7.8 4.9l8.5 4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
-    const badge = (c) => `<span class="ship-badge is-${esc(c || 'none')}">${c === 'usps' ? '<svg viewBox="0 0 24 14" aria-hidden="true"><path d="M2 3h17l3 2-15 7H4l9-4H5z" fill="currentColor"/></svg>' : ''}<b>${esc(carrierName(c) || '—')}</b></span>`;
+    const badge = (c) => (['usps', 'ups', 'fedex'].includes(c) ? `<img class="ship-badge" src="${esc(img('img/carriers/' + c + '.webp'))}" alt="${esc(carrierName(c))}" width="54" height="42">` : `<span class="ship-badge is-none"><b>${esc(carrierName(c) || '—')}</b></span>`);
     main.innerHTML = shell(`<div class="ship-page">
       <button class="ship-back" type="button" data-tab="inventory">${icon('left', 'icon-sm')} Inventory</button>
       <section class="ship-hero"><span class="ship-hero-ic">${icon('truck')}</span><div><h2>${coming.length} package${coming.length === 1 ? '' : 's'}</h2><p class="muted">Add a tracking number from USPS, UPS or FedEx. Updates come straight from the carrier.</p><p class="ship-live" data-ship-live>${shipChecking ? 'Checking with carriers…' : shipCheckedAt ? 'Updated ' + fmtWhen(shipCheckedAt) : ''}</p></div></section>

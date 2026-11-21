@@ -1528,3 +1528,4 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .ship-events li.is-latest::before { background: #13294b; }
 .ship-events li b { font-size: 14px; font-weight: 600; }
 .ship-events li small { font-size: 12px; color: var(--mute); }
+img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
