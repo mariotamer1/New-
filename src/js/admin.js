@@ -4,8 +4,8 @@ import { toast } from './ui.js';
 
 const TABS = [
   ['overview', 'Overview', 'chart'],
-  ['products', 'Products', 'tag'],
   ['orders', 'Orders', 'box'],
+  ['products', 'Sales', 'tag'],
   ['inventory', 'Inventory', 'layers'],
   ['offers', 'Offers', 'cash'],
   ['messages', 'Messages', 'msg'],
