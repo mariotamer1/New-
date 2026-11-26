@@ -1550,3 +1550,11 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .inv-sum.inv-pro { background: #eefaf1; border-color: #2fa24c; }
 .inv-sum.inv-pro b { color: #1d7a36; }
 .inv-sums[hidden] { display: none; }
+/* Inventory search totals: same-width rows, label left, amount right-aligned */
+.inv-sums { align-items: stretch; width: min(100%, 320px); }
+.inv-sums .inv-sum { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 12px; }
+.inv-sum .lbl { font-size: 13px; font-weight: 600; color: var(--ink); }
+.inv-sum b.tabnum { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.inv-sum.inv-pro .lbl { color: #1d7a36; }
+.inv-note { color: var(--mute); font-size: 12px; }
+.inv-note .link { font-size: 12px; }
