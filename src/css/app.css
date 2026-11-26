@@ -1529,3 +1529,8 @@ dialog.modal.stmt-dlg[open] { display: flex; }
 .ship-events li b { font-size: 14px; font-weight: 600; }
 .ship-events li small { font-size: 12px; color: var(--mute); }
 img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0,0,0,.06); }
+/* Products: floating bar (back to top + Add product) once the title scrolls away */
+.prod-float { position: fixed; z-index: 15; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px var(--gutter); background: #fff; border-bottom: 1px solid var(--line); box-shadow: 0 6px 16px -12px rgba(0,0,0,.35); transform: translateY(-8px); opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; }
+.prod-float.is-on { opacity: 1; transform: none; pointer-events: auto; }
+.prod-float-up { width: 48px; height: 48px; display: grid; place-items: center; background: #fff; border: 1px solid var(--ink); cursor: pointer; color: var(--ink); }
+.prod-float-up .icon { width: 22px; height: 22px; }

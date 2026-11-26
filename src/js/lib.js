@@ -63,6 +63,7 @@ const P = {
   menu: '<path d="M3.5 7h17M3.5 12h17M3.5 17h17"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
+  up: '<path d="m6 15 6-6 6 6"/>',
   left: '<path d="m15 18-6-6 6-6"/>',
   right: '<path d="m9 18 6-6-6-6"/>',
   arrow: '<path d="M4 12h15M13 6l6 6-6 6"/>',

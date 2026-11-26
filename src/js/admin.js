@@ -236,6 +236,19 @@ function mount(main, { store, navigate, query }) {
     const n = main.querySelector('[data-pf-count]'); if (n) n.textContent = `${shown} of ${data.products.length}`;
     const em = main.querySelector('[data-pf-empty]'); if (em) em.hidden = shown > 0;
   }
+  // Products page: once the page title scrolls away, a white bar sticks under the admin menu with "back to top" and "Add product".
+  function placeProdFloat() {
+    const bar = $('[data-prod-float]', main); if (!bar) return;
+    const top = $('.adm-top', main); const side = $('.adm-side', main); const m = $('.adm-main', main);
+    if (!top || !m) return;
+    const sideB = side && getComputedStyle(side).position === 'sticky' && side.getBoundingClientRect().width >= window.innerWidth - 2 ? side.getBoundingClientRect().bottom : 0;
+    const show = top.getBoundingClientRect().bottom < sideB + 4;
+    const r = m.getBoundingClientRect();
+    bar.style.top = sideB + 'px'; bar.style.left = r.left + 'px'; bar.style.width = r.width + 'px';
+    bar.classList.toggle('is-on', show); bar.setAttribute('aria-hidden', show ? 'false' : 'true');
+  }
+  window.addEventListener('scroll', () => { if (tab === 'products') placeProdFloat(); }, { passive: true });
+  window.addEventListener('resize', () => { if (tab === 'products') placeProdFloat(); });
   function products() {
     let list = data.products;
     const f = prodFilter.f;
@@ -264,7 +277,9 @@ function mount(main, { store, navigate, query }) {
           <td><label class="switch"><input type="checkbox" data-pub="${p.id}" ${p.published ? 'checked' : ''}><span>${p.published ? 'Published' : 'Hidden'}</span></label></td>
           <td class="adm-row-actions"><button class="btn btn-sm" type="button" data-edit="${p.id}">${icon('edit', 'icon-sm')} Edit</button>${p.published && p.inventory > 0 ? `<a class="btn btn-sm" href="${href('/products/' + p.slug)}" target="_blank" rel="noopener" aria-label="View ${esc(p.title)} on the store">${icon('eye', 'icon-sm')}</a>` : ''}</td>
         </tr>`).join('')}<tr data-pf-empty ${list.length ? 'hidden' : ''}><td colspan="6" class="muted">No products match.</td></tr>
-      </tbody></table></div>`, 'Products', `<button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button>`);
+      </tbody></table></div>
+      <div class="prod-float" data-prod-float aria-hidden="true"><button class="prod-float-up" type="button" aria-label="Back to top" data-scroll-top>${icon('up')}</button><button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button></div>`, 'Products', `<button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button>`);
+    placeProdFloat();
     applyProdSearch();
   }
 
@@ -1419,6 +1434,7 @@ function mount(main, { store, navigate, query }) {
     if (t.closest('[data-sales-breakdown]')) { tab = 'sales'; editId = null; draft = null; render(); return; }
     const sb = t.closest('[data-sb]');
     if (sb) { sbUnit = sb.dataset.sb; salesPage(); return; }
+    if (t.closest('[data-scroll-top]')) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (t.closest('[data-stmts]')) { openStatements(); return; }
     if (t.matches('img.prof-thumb[data-full]')) { photoPeek(t.dataset.full); return; }
     const sr = t.closest('[data-sbr]');
