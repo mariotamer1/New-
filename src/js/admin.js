@@ -547,14 +547,16 @@ function mount(main, { store, navigate, query }) {
   const invSel = new Set();
   const invMatches = () => { const q = invQ.trim().toLowerCase(); const qd = upcKey(invQ); return data.products.filter((p) => !q || p.title.toLowerCase().includes(q) || (qd && upcKey(p.upc).includes(qd))); };
   function updateInvSum() {
-    const box = $('[data-inv-sum]', main); if (!box) return; const rev = $('[data-inv-rev]', main);
+    const box = $('[data-inv-sum]', main); if (!box) return; const rev = $('[data-inv-rev]', main); const pro = $('[data-inv-pro]', main);
     const list = invMatches(); const picked = list.filter((p) => invSel.has(p.id));
     const use = picked.length ? picked : list;
-    if (!invQ.trim() && !picked.length) { box.classList.add('is-empty'); box.innerHTML = '<b>&nbsp;</b>'; if (rev) { rev.classList.add('is-empty'); rev.innerHTML = '<b>&nbsp;</b>'; } return; }
+    if (!invQ.trim() && !picked.length) { box.classList.add('is-empty'); box.innerHTML = '<b>&nbsp;</b>'; [rev, pro].forEach((x) => { if (x) { x.classList.add('is-empty'); x.innerHTML = '<b>&nbsp;</b>'; } }); return; }
     const total = round2(use.reduce((t, p) => t + (costOf(p) != null ? costOf(p) * Math.max(0, p.inventory) : 0), 0));
     box.innerHTML = `<b>Cost: <span class="tabnum">${money(total)}</span></b><small>${picked.length ? `${picked.length} selected` : `${list.length} item${list.length === 1 ? '' : 's'} found`}</small>${picked.length ? '<button type="button" class="link" data-inv-clear>Clear</button>' : ''}`;
     box.classList.remove('is-empty');
-    if (rev) { const r = round2(use.reduce((t, p) => t + p.price * Math.max(0, p.inventory), 0)); rev.innerHTML = `<b>Est. revenue: <span class="tabnum">${money(r)}</span></b>`; rev.classList.remove('is-empty'); }
+    const r = round2(use.reduce((t, p) => t + p.price * Math.max(0, p.inventory), 0));
+    if (rev) { rev.innerHTML = `<b>Est. revenue: <span class="tabnum">${money(r)}</span></b>`; rev.classList.remove('is-empty'); }
+    if (pro) { const pr = round2(r - total); pro.innerHTML = `<b>Est. profit: <span class="tabnum">${pr < 0 ? '-' : ''}${money(Math.abs(pr))}</span></b>`; pro.classList.remove('is-empty'); }
   }
   let invSumT = 0; const invSumSoon = () => { clearTimeout(invSumT); invSumT = setTimeout(updateInvSum, 450); };
   function invRow(p) {
@@ -585,7 +587,7 @@ function mount(main, { store, navigate, query }) {
         <button type="button" class="adm-tile inv-ship-btn" data-tab="shipments"><span class="inv-ship-ic">${icon('truck')}</span><b>Check incoming shipments</b><span class="muted">${shipList ? `${shipList.filter((x) => !x.delivered).length} on the way` : 'Track your packages'}</span></button>
       </div>
       <div class="inv-tools"><input type="search" placeholder="Search by name or UPC" value="${esc(invQ)}" data-inv-q aria-label="Search inventory"><div class="select"><label class="sr-only" for="inv-sort">Sort inventory</label><select id="inv-sort" data-inv-sort>${INV_SORTS.map(([v, l]) => `<option value="${v}" ${invSort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div></div>
-      <div class="inv-sums"><div class="inv-sum is-empty" data-inv-sum><b>&nbsp;</b></div><div class="inv-sum inv-rev is-empty" data-inv-rev><b>&nbsp;</b></div></div>
+      <div class="inv-sums"><div class="inv-sum is-empty" data-inv-sum><b>&nbsp;</b></div><div class="inv-sum inv-rev is-empty" data-inv-rev><b>&nbsp;</b></div><div class="inv-sum inv-pro is-empty" data-inv-pro><b>&nbsp;</b></div></div>
       <ul class="inv-list">${invRowsHTML()}</ul>`, 'Inventory', `<button class="btn btn-primary" type="button" data-inv-scan>${icon('camera', 'icon-sm')} Scan</button>`);
     fitTiles();
     updateInvSum();
