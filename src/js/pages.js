@@ -811,8 +811,16 @@ export function account() {
         if (me) {
           box.innerHTML = `<div style="display:grid;gap:20px"><div class="info-card"><h2>${esc(me.name || 'Welcome back')}</h2><p class="muted">${esc(me.email)}${me.phone ? ' · ' + esc(me.phone) : ''}</p>${me.address && me.address.line1 ? `<p class="muted">${icon('truck', 'icon-sm')} ${esc(me.address.line1)}${me.address.line2 ? ', ' + esc(me.address.line2) : ''}, ${esc(me.address.city)}, ${esc(me.address.state)} ${esc(me.address.zip)}</p>` : ''}<div class="acct-actions"><button class="btn btn-sm" type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button><button class="btn btn-sm btn-primary" type="button" data-profile>${icon('user', 'icon-sm')} View profile</button></div></div>
           <dialog class="modal" id="profile-dlg" aria-labelledby="pf-title"><div class="modal-head"><h2 id="pf-title">My profile</h2><button class="icon-btn" type="button" aria-label="Close" data-pf-close>${icon('close')}</button></div>
-            <dl class="profile-kv"><div><dt>Name</dt><dd>${esc(me.name || '—')}</dd></div><div><dt>Email</dt><dd>${esc(me.email)}</dd></div><div><dt>Phone</dt><dd>${esc(me.phone || '—')}</dd></div><div><dt>Address</dt><dd>${me.address && me.address.line1 ? `${esc(me.address.line1)}${me.address.line2 ? ', ' + esc(me.address.line2) : ''}<br>${esc(me.address.city)}, ${esc(me.address.state)} ${esc(me.address.zip)}` : '—'}</dd></div><div><dt>Orders</dt><dd>${me.orders.length}</dd></div></dl>
-            ${me.phone ? '' : '<p class="muted" style="padding:0 20px 20px;font-size:13px">Add a phone number to see counter offers on items you made offers on.</p>'}</dialog>
+            <form class="form profile-form" data-profile-form novalidate>
+              <div class="field"><label for="pf-name">Name</label><input id="pf-name" name="name" autocomplete="name" maxlength="80" value="${esc(me.name || '')}" required></div>
+              <div class="field"><label for="pf-email">Email</label><input id="pf-email" name="email" type="email" autocomplete="email" value="${esc(me.email || '')}" required></div>
+              <div class="field"><label for="pf-phone">Phone number</label><input id="pf-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="555-555-5555" maxlength="24" value="${esc(me.phone || '')}"></div>
+              <div class="field"><label for="pf-line1">Address</label><input id="pf-line1" name="line1" autocomplete="address-line1" placeholder="Street address" value="${esc((me.address && me.address.line1) || '')}"></div>
+              <div class="field"><label class="sr-only" for="pf-line2">Apartment, suite</label><input id="pf-line2" name="line2" autocomplete="address-line2" placeholder="Apt, suite (optional)" value="${esc((me.address && me.address.line2) || '')}"></div>
+              <div class="profile-row"><div class="field"><label for="pf-city">City</label><input id="pf-city" name="city" autocomplete="address-level2" value="${esc((me.address && me.address.city) || '')}"></div><div class="field"><label for="pf-state">State</label><input id="pf-state" name="state" autocomplete="address-level1" maxlength="2" value="${esc((me.address && me.address.state) || '')}"></div><div class="field"><label for="pf-zip">ZIP</label><input id="pf-zip" name="zip" autocomplete="postal-code" inputmode="numeric" maxlength="10" value="${esc((me.address && me.address.zip) || '')}"></div></div>
+              <p class="form-error" data-pf-err hidden></p>
+              <button class="btn btn-primary btn-lg btn-block" type="submit">Save changes</button>
+            </form></dialog>
           <h2 class="display" style="font-size:26px">Order history</h2>
           ${me.orders.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Delivery</th><th>Total</th></tr></thead><tbody>${me.orders.map((o) => `<tr><td><a href="${href('/order/' + o.id)}" class="mono"><b>#${o.number}</b></a></td><td>${new Date(o.createdAt).toLocaleDateString()}</td><td><span class="status s-${o.status}">${esc(o.status)}</span></td><td>${o.fulfillment === 'pickup' ? 'Pickup' : 'Shipping'}</td><td class="tabnum">${money(o.total)}</td></tr>${o.tracking && o.tracking.number ? `<tr class="track-row"><td colspan="5">${trackingHTML(o)}</td></tr>` : ''}`).join('')}</tbody></table></div>` : '<p class="muted">No orders yet.</p>'}</div>`;
           return;
@@ -854,6 +862,16 @@ export function account() {
         }
       });
       box.addEventListener('submit', async (e) => {
+        if (e.target.matches('[data-profile-form]')) {
+          e.preventDefault(); const f = e.target; const d = Object.fromEntries(new FormData(f)); const err = $('[data-pf-err]', f);
+          const phoneDigits = String(d.phone || '').replace(/\D/g, '');
+          if (!String(d.name).trim() || !/^\S+@\S+\.\S+$/.test(String(d.email).trim()) || (phoneDigits && phoneDigits.length < 10)) { err.textContent = 'Enter your name, a valid email and a 10-digit phone number (or leave phone blank).'; err.hidden = false; return; }
+          const b = f.querySelector('[type="submit"]'); b.disabled = true; b.textContent = 'Saving…'; err.hidden = true;
+          const address = d.line1.trim() ? { line1: d.line1.trim(), line2: d.line2.trim(), city: d.city.trim(), state: d.state.trim().toUpperCase(), zip: d.zip.trim() } : {};
+          try { await store.account.updateProfile({ name: d.name.trim(), email: d.email.trim(), phone: d.phone.trim(), address }); toast('Profile saved'); draw(); }
+          catch (ex) { err.textContent = ex.message || 'Could not save your profile'; err.hidden = false; b.disabled = false; b.textContent = 'Save changes'; }
+          return;
+        }
         if (e.target.matches('[data-counter-form]')) {
           e.preventDefault(); const f = e.target; const amt = Number(f.elements.amount.value);
           if (!(amt > 0)) { toast('Enter your price'); return; }

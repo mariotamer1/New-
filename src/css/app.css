@@ -1587,3 +1587,7 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .my-counter-st { font-weight: 600; }
 .my-counter-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .offer-history { display: grid; gap: 12px; }
+.profile-form { padding: 16px 20px 20px; display: grid; gap: 12px; max-height: 70vh; overflow-y: auto; }
+.profile-row { display: grid; grid-template-columns: 1.4fr .6fr 1fr; gap: 8px; }
+.offer-as { font-size: 14px; color: var(--mute); margin: 0; }
+.offer-as b { color: var(--ink); }

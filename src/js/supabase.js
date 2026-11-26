@@ -138,7 +138,7 @@ export function createSupabaseBackend(cfg) {
       return o;
     },
     async getOrder(id) { try { return await rpc('get_order', { p_id: id }); } catch { return null; } },
-    async submitOffer(o) { await rpc('submit_offer', { p_product_id: o.productId, p_name: o.name, p_phone: o.phone, p_amount: o.amount }); },
+    async submitOffer(o) { const t = ls.get(CUST_KEY, null); const args = { p_product_id: o.productId, p_name: o.name, p_phone: o.phone, p_amount: o.amount }; await (t ? rpc('submit_offer_v2', { ...args, p_token: t }) : rpc('submit_offer', args)); },
     async submitInquiry(q) { await rpc('submit_inquiry', { p: q }); },
     cancelOrder: (id) => raw('POST', '/functions/v1/paypal', { action: 'customer_cancel', orderId: id }),
     lookupOrders: (email, ref) => rpc('lookup_orders', { p_email: email, p_ref: ref }),
@@ -155,6 +155,7 @@ export function createSupabaseBackend(cfg) {
     offersGet: () => rpc('customer_offers', { p_token: ls.get(CUST_KEY, null) }),
     offerRespond: (id, accept) => rpc('customer_offer_respond', { p_token: ls.get(CUST_KEY, null), p_offer: id, p_accept: !!accept }),
     offerCounter: (id, amount) => rpc('customer_offer_counter', { p_token: ls.get(CUST_KEY, null), p_offer: id, p_amount: Number(amount) }),
+    updateProfile: (d) => rpc('customer_update_profile', { p_token: ls.get(CUST_KEY, null), p_name: d.name ?? null, p_email: d.email ?? null, p_phone: d.phone ?? null, p_address: d.address ?? null }),
     async me() { const t = ls.get(CUST_KEY, null); if (!t) return null; const r = await rpc('customer_me', { p_token: t }).catch(() => null); if (!r) ls.del(CUST_KEY); return r; },
 
     admin: {

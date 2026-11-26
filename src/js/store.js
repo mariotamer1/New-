@@ -281,6 +281,8 @@ export const store = {
     login: (x) => backend.login(x).then(() => likes.onSignIn()),
     logout: () => backend.logout().then(() => likes.onSignOut()),
     me: () => backend.me(),
+    get signedIn() { return !!(backend && backend.signedIn); },
+    updateProfile: (d) => backend.updateProfile(d),
     offers: () => (backend.offersGet ? backend.offersGet() : Promise.resolve([])),
     offerRespond: (id, accept) => backend.offerRespond(id, accept),
     offerCounter: (id, amount) => backend.offerCounter(id, amount),

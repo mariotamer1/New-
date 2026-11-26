@@ -404,16 +404,20 @@ export function addToCart(id, qty = 1) {
 }
 
 // ---------------------------------------------------------------- make offer dialog
-export function openOffer(id) {
+export async function openOffer(id) {
   const p = store.productById(id); if (!p) return;
+  // Signed-in customers with a name and phone on their profile only enter a price. Guests always enter all three.
+  let me = null; if (store.account.signedIn) { try { me = await store.account.me(); } catch {} }
+  const quick = !!(me && String(me.name || '').trim() && String(me.phone || '').replace(/\D/g, '').length >= 10);
   let dlg = $('#offer-dialog');
   if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'offer-dialog'; dlg.className = 'modal'; dlg.setAttribute('aria-labelledby', 'offer-title'); document.body.appendChild(dlg); }
   dlg.innerHTML = `
     <div class="modal-head"><h2 id="offer-title">Make an offer</h2><button class="icon-btn" type="button" aria-label="Close" data-close-dialog>${icon('close')}</button></div>
     <form class="modal-body form" novalidate data-offer-form>
       <div class="offer-item">${imgTag(p.images[0], { alt: '', sizes: '64px' })}<div><b>${esc(p.title)}</b><span>Listed at <b class="tabnum" style="display:inline">${money(p.price)}</b> · ${esc(p.condition)}</span></div></div>
-      <div class="field"><label for="of-name">Name</label><input id="of-name" name="name" autocomplete="name" required maxlength="80"></div>
-      <div class="field"><label for="of-phone">Phone number</label><input id="of-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="555-555-5555" maxlength="24"></div>
+      ${quick ? `<input type="hidden" id="of-name" name="name" value="${esc(me.name)}"><input type="hidden" id="of-phone" name="phone" value="${esc(me.phone)}"><p class="offer-as">Sending as <b>${esc(me.name)}</b> · ${esc(me.phone)}</p>`
+        : `<div class="field"><label for="of-name">Name</label><input id="of-name" name="name" autocomplete="name" required maxlength="80" value="${esc(me && me.name ? me.name : '')}"></div>
+      <div class="field"><label for="of-phone">Phone number</label><input id="of-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="555-555-5555" maxlength="24" value="${esc(me && me.phone ? me.phone : '')}"></div>`}
       <div class="field"><label for="of-amount">Your offer</label><div class="money-input"><span>$</span><input id="of-amount" name="amount" type="number" inputmode="decimal" min="1" step="0.01" required placeholder="${Math.round(p.price * 0.85)}"></div><span class="hint">Our team responds to offers within 2–3 hours, you can Expect a Text from us.</span></div>
       <div class="hp" aria-hidden="true"><label for="of-web">Website</label><input id="of-web" name="website" tabindex="-1" autocomplete="off"></div>
       <p class="form-error" data-err hidden></p>
@@ -431,12 +435,14 @@ export function openOffer(id) {
     const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Sending…';
     try {
       if (!f.get('website')) await store.submitOffer({ productId: p.id, name, phone, amount });
+      // First offer while signed in: keep the name and phone on their profile, so next time only the price is asked.
+      if (me && !quick) store.account.updateProfile({ name, phone }).catch(() => {});
       form.innerHTML = `<div class="success"><span class="check">${icon('check')}</span><p class="offer-thanks">We have received your offer, and we will text you later today. The text will come from our number:</p><p class="offer-thanks offer-phone"><b>${esc(store.settings().phone || '(425) 757-2554')}</b></p><p class="offer-thanks"><b>Thank you.</b></p><button class="btn btn-primary" type="button" data-close-dialog>Done</button></div>`;
     } catch (ex) { err.textContent = ex.message || 'Something went wrong. Please try again.'; err.hidden = false; btn.disabled = false; btn.textContent = 'Submit offer'; }
   });
   dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('[data-close-dialog]')) dlg.close(); });
   if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
-  setTimeout(() => { const i = $('#of-name', dlg); if (i) i.focus(); }, 50);
+  setTimeout(() => { const i = quick ? $('#of-amount', dlg) : $('#of-name', dlg); if (i) i.focus(); }, 50);
 }
 
 // ---------------------------------------------------------------- global wiring
