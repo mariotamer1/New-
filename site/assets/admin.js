@@ -223,7 +223,7 @@
       <div class="prod-float" data-prod-float aria-hidden="true"><button class="prod-float-up" type="button" aria-label="Back to top" data-scroll-top>${$("up")}</button><button class="btn btn-primary" type="button" data-new>${$("plus","icon-sm")} Add product</button></div>`,"Products",`<button class="btn btn-primary" type="button" data-new>${$("plus","icon-sm")} Add product</button>`),ce(),Ue()}function Fe(e,t){let a=e.originalPrice&&e.price&&Number(e.originalPrice)>Number(e.price)?Math.round((1-e.price/e.originalPrice)*100):"";return`      <form class="adm-editor" novalidate data-editor>
         <div class="adm-ed-main">
           <section class="adm-card"><div class="adm-card-head"><h2>Details</h2></div><div class="adm-card-body form">
-            <div class="field"><label for="ed-title">Title</label><input id="ed-title" name="title" required maxlength="140" value="${d(e.title)}" placeholder="e.g. 55&quot; 4K Smart TV \u2013 Open Box"></div>
+            <div class="field"><label for="ed-title">Title</label><input id="ed-title" name="title" required value="${d(e.title)}" placeholder="e.g. 55&quot; 4K Smart TV \u2013 Open Box"></div>
             <div class="field"><label for="ed-desc">Description</label><textarea id="ed-desc" name="description" rows="8" placeholder="What it is, condition notes, what\u2019s included. Start lines with \u2022 for bullet points.">${d(e.description)}</textarea></div>
             <input type="hidden" id="ed-brand" name="brand" value="${d(e.brand||"")}">
             <div class="field"><label for="ed-upc">UPC <span class="opt">(optional)</span></label><input id="ed-upc" name="upc" inputmode="numeric" maxlength="14" value="${d(e.upc||"")}"><span class="hint">8\u201314 digits from the barcode.</span></div>

@@ -296,7 +296,7 @@ function mount(main, { store, navigate, query }) {
     return `      <form class="adm-editor" novalidate data-editor>
         <div class="adm-ed-main">
           <section class="adm-card"><div class="adm-card-head"><h2>Details</h2></div><div class="adm-card-body form">
-            <div class="field"><label for="ed-title">Title</label><input id="ed-title" name="title" required maxlength="140" value="${esc(d.title)}" placeholder="e.g. 55&quot; 4K Smart TV – Open Box"></div>
+            <div class="field"><label for="ed-title">Title</label><input id="ed-title" name="title" required value="${esc(d.title)}" placeholder="e.g. 55&quot; 4K Smart TV – Open Box"></div>
             <div class="field"><label for="ed-desc">Description</label><textarea id="ed-desc" name="description" rows="8" placeholder="What it is, condition notes, what’s included. Start lines with • for bullet points.">${esc(d.description)}</textarea></div>
             <input type="hidden" id="ed-brand" name="brand" value="${esc(d.brand || '')}">
             <div class="field"><label for="ed-upc">UPC <span class="opt">(optional)</span></label><input id="ed-upc" name="upc" inputmode="numeric" maxlength="14" value="${esc(d.upc || '')}"><span class="hint">8–14 digits from the barcode.</span></div>
