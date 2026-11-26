@@ -1358,7 +1358,7 @@ function mount(main, { store, navigate, query }) {
         <td class="tabnum"><b>${money(o.amount)}</b><small>${ratio}% of list</small></td>
         <td>${esc(o.name)}<small><a href="${telHref(o.phone)}">${esc(o.phone)}</a> · <a href="sms:${esc(o.phone.replace(/[^\d+]/g, ''))}">Text</a></small></td>
         <td><label class="sr-only" for="ofs-${o.id}">Status</label><select id="ofs-${o.id}" class="adm-status" data-offer-status="${o.id}">${OFFER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-        <td>${p && o.status !== 'accepted' ? `<button class="btn btn-sm" type="button" data-accept-price="${o.id}" title="Set the product price to this offer">Use as price</button>` : ''} <button class="btn btn-sm adm-danger" type="button" data-offer-del="${o.id}">${icon('trash', 'icon-sm')} Delete</button></td></tr>`; }).join('')}
+        <td><button class="btn btn-sm adm-danger" type="button" data-offer-del="${o.id}">${icon('trash', 'icon-sm')} Delete</button></td></tr>`; }).join('')}
       </tbody></table></div>` : '<div class="empty"><h2>No offers yet</h2><p class="muted">When a customer taps “Make Offer”, their name, phone and amount appear here.</p></div>', 'Offers');
   }
 
