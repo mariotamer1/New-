@@ -128,6 +128,12 @@ function mount(main, { store, navigate, query }) {
     if (!e.target.matches('input[type="search"], [data-inv-q], [data-pf-q], [data-ord-q]')) return;
     main.style.minHeight = Math.max(main.offsetHeight, parseFloat(main.style.minHeight) || 0) + 'px';
   });
+  // Done searching (keyboard closed): drop the held height so no blank space stays under the results.
+  main.addEventListener('focusout', (e) => {
+    if (!e.target.matches('input[type="search"], [data-inv-q], [data-pf-q], [data-ord-q]')) return;
+    setTimeout(() => { const a = document.activeElement; if (!(a && main.contains(a) && a.matches('input[type="search"], [data-inv-q], [data-pf-q], [data-ord-q]'))) main.style.minHeight = ''; }, 150);
+  });
+  main.addEventListener('input', (e) => { if (e.target.matches('input[type="search"], [data-inv-q], [data-pf-q], [data-ord-q]') && !e.target.value) main.style.minHeight = ''; });
   const paintTab = () => {
     main.style.minHeight = '';
     const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, lorena, sales: salesPage, inventory, shipments };
