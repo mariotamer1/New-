@@ -513,7 +513,8 @@ function mount(main, { store, navigate, query }) {
         toast(isNew ? 'Product created' : 'Changes saved');
         if (opts.onSaved) return opts.onSaved(saved);
         editId = null; draft = null; tab = 'products';
-        render();
+        await render();
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); // back to the top of Products after saving
         return saved;
       } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; btn.textContent = isNew ? 'List product' : 'Save changes'; }
     });
