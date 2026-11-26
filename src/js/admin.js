@@ -1,0 +1,1656 @@
+// ML Group admin dashboard. Mounted by main.js at /admin with the shared store instance.
+import { $, $$, esc, money, pctOff, href, img, imgTag, icon, logo, telHref, fmtDate, round2, slugify, ENV, CARRIERS, carrierName, trackUrl } from './lib.js';
+import { toast } from './ui.js';
+
+const TABS = [
+  ['overview', 'Overview', 'chart'],
+  ['orders', 'Orders', 'box'],
+  ['products', 'Products', 'tag'],
+  ['inventory', 'Inventory', 'layers'],
+  ['offers', 'Offers', 'cash'],
+  ['messages', 'Messages', 'msg'],
+  ['settings', 'Settings', 'gear'],
+  ['profit', 'Profit', 'percent'],
+];
+const CONDITIONS = ['New', 'Open Box', 'Like New', 'Refurbished', 'Used – Good', 'Used – Fair', 'Scratch & Dent'];
+const ORDER_STATUS = [['new', 'New'], ['processing', 'Processing'], ['ready', 'Ready for pickup'], ['shipped', 'Shipped'], ['completed', 'Completed'], ['cancelled', 'Cancelled']];
+const OFFER_STATUS = [['new', 'New'], ['contacted', 'Contacted'], ['accepted', 'Accepted'], ['declined', 'Declined']];
+const MSG_STATUS = [['new', 'New'], ['read', 'Read'], ['archived', 'Archived']];
+
+function mount(main, { store, navigate, query }) {
+  const A = store.admin;
+  // Admin only: stop iPhone from zooming in when a box is tapped.
+  { const vp = document.querySelector('meta[name="viewport"]'); if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1'; }
+  let tab = query.get('tab') || 'overview';
+  let editId = query.get('edit') || null;
+  let data = { products: [], orders: [], offers: [], inquiries: [] };
+  let prodFilter = { q: '', f: 'all' };
+  let selected = new Set();
+  let draft = null; // product being edited
+  const setURL = () => {
+    const q = new URLSearchParams(); if (tab !== 'overview') q.set('tab', tab); if (editId) q.set('edit', editId);
+    const path = '/admin' + (q.toString() ? '?' + q : '');
+    if (ENV.routing === 'path') history.replaceState({}, '', href(path)); else if (ENV.routing === 'hash') history.replaceState(null, '', '#' + path);
+  };
+  const catName = (id) => (store.category(id) || {}).name || '—';
+  const refreshStore = () => { store.refresh(); window.dispatchEvent(new CustomEvent('cart:change')); };
+
+  async function loadAll() {
+    const [products, orders, offers, inquiries] = await Promise.all([A.products(), A.orders(), A.offers(), A.inquiries()]);
+    const costs = await (A.costs ? A.costs().catch(() => ({})) : {});
+    data = { products, orders, offers, inquiries, costs };
+  }
+
+  // ------------------------------------------------------------ login
+  async function renderLogin(msg) {
+    main.innerHTML = `<div class="adm-login"><form class="adm-login-card" novalidate data-login>
+      <a class="logo adm-logo" href="${href('/')}" aria-label="Back to store">${logo()}</a>
+      <div><h1>Admin sign in</h1></div>
+      <div class="field"><label for="adm-pw">Password</label><input id="adm-pw" name="pw" type="password" autocomplete="current-password" required autofocus></div>
+      <p class="form-error" data-err ${msg ? '' : 'hidden'}>${esc(msg || '')}</p>
+      <button class="btn btn-primary btn-lg btn-block" type="submit">${icon('lock', 'icon-sm')} Sign in</button>
+      ${store.kind === 'local' ? `<p class="form-note">${store.offline ? 'Store database unreachable — using this browser’s copy.' : 'Preview mode: changes are saved in this browser.'}</p>` : ''}
+      <a class="link" href="${href('/')}" style="justify-self:center;font-size:14px">← Back to store</a>
+    </form></div>`;
+    setTimeout(() => { const i = $('#adm-pw'); if (i) i.focus(); }, 30);
+  }
+
+  // ------------------------------------------------------------ nav badges (unseen items)
+  // "Seen" = the tab was opened in this browser. Messages count people, so several messages from one person show as 1.
+  const SEEN_KEY = 'mlgroup-admin-seen-v1';
+  const seenIds = () => { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); } catch { return new Set(); } };
+  const saveSeen = (set) => { try { localStorage.setItem(SEEN_KEY, JSON.stringify([...set].slice(-3000))); } catch {} };
+  const isPickupReq = (m) => m.type === 'pickup' && m.status === 'new';
+  const isMsgReq = (m) => m.type !== 'pickup' && m.status === 'new';
+  function unseenBadge(k) {
+    const seen = seenIds();
+    if (k === 'orders') return data.orders.filter((o) => o.status === 'new' && !seen.has('o:' + o.id)).length + data.inquiries.filter((m) => isPickupReq(m) && !seen.has('m:' + m.id)).length;
+    if (k === 'offers') return data.offers.filter((o) => o.status === 'new' && !seen.has('f:' + o.id)).length;
+    if (k === 'messages') return new Set(data.inquiries.filter((m) => isMsgReq(m) && !seen.has('m:' + m.id)).map((m) => String(m.email || m.phone || m.name || m.id).toLowerCase())).size;
+    return 0;
+  }
+  function markSeen(k) {
+    const seen = seenIds();
+    if (k === 'orders') { data.orders.filter((o) => o.status === 'new').forEach((o) => seen.add('o:' + o.id)); data.inquiries.filter(isPickupReq).forEach((m) => seen.add('m:' + m.id)); }
+    if (k === 'offers') data.offers.filter((o) => o.status === 'new').forEach((o) => seen.add('f:' + o.id));
+    if (k === 'messages') data.inquiries.filter(isMsgReq).forEach((m) => seen.add('m:' + m.id));
+    saveSeen(seen);
+  }
+  // Update the badge circles on the nav in place (no page redraw).
+  function paintBadges() {
+    $$('nav[aria-label="Admin"] [data-tab]').forEach((b) => {
+      const k = b.dataset.tab; const n = k === tab ? 0 : unseenBadge(k);
+      let el = b.querySelector('.adm-badge');
+      if (!n) { if (el) el.remove(); return; }
+      if (!el) { el = document.createElement('b'); el.className = 'adm-badge'; b.appendChild(el); }
+      el.textContent = n;
+    });
+  }
+  if (!window.__admBadgePoll) {
+    window.__admBadgePoll = setInterval(async () => {
+      if (document.hidden || !data || !$('nav[aria-label="Admin"]')) return;
+      try { await loadAll(); paintBadges(); } catch {}
+    }, 30000);
+  }
+
+  // ------------------------------------------------------------ shell
+  function shell(body, title, actions = '') {
+    const nNew = (k, st = 'new') => data[k].filter((x) => x.status === st).length;
+    const badge = {};
+    ['orders', 'offers', 'messages'].forEach((k) => { badge[k] = k === tab ? 0 : unseenBadge(k); });
+    return `<div class="admin">
+      <aside class="adm-side on-ink">
+        <a class="logo" href="${href('/')}" aria-label="View store">${logo()}</a>
+        <span class="adm-tag">Admin</span>
+        <nav aria-label="Admin"><ul>${TABS.map(([k, l, ic]) => `<li><button type="button" data-tab="${k}" ${tab === k || (tab === 'lorena' && k === 'profit') || (tab === 'shipments' && k === 'inventory') ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span>${badge[k] ? `<b class="adm-badge">${badge[k]}</b>` : ''}</button></li>`).join('')}</ul></nav>
+        <div class="adm-side-foot"><a href="${href('/')}">${icon('eye', 'icon-sm')} View store</a><button type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button></div>
+      </aside>
+      <section class="adm-main">
+        <header class="adm-top"><h1>${title}</h1><div class="adm-actions">${actions}</div></header>
+        ${store.kind === 'local' ? `<p class="adm-note">${icon('lock', 'icon-sm')} ${store.offline ? 'The store database could not be reached, so changes are saved only in this browser.' : 'Preview mode — changes are saved in this browser. Connect the store database to publish changes to every customer.'}</p>` : ''}
+        <div class="adm-body">${body}</div>
+      </section>
+    </div>`;
+  }
+
+  async function render() {
+    if (!(await A.session())) { renderLogin(); return; }
+    // Show the tab at once from data already loaded; refresh from the database in the background.
+    if (!data) await loadAll();
+    markSeen(tab);
+    setURL();
+    if (tab === 'products' && editId) return renderEditor();
+    paintTab();
+    refreshInBackground();
+  }
+  // While searching, keep the page at least as tall as it was, so fewer results never make the page jump up.
+  main.addEventListener('focusin', (e) => {
+    if (!e.target.matches('input[type="search"], [data-inv-q], [data-pf-q], [data-ord-q]')) return;
+    main.style.minHeight = Math.max(main.offsetHeight, parseFloat(main.style.minHeight) || 0) + 'px';
+  });
+  const paintTab = () => {
+    main.style.minHeight = '';
+    const views = { overview, products, orders, offers, requests: orders, messages, categories: overview, settings, revenue, profit, lorena, sales: salesPage, inventory, shipments };
+    (views[tab] || overview)();
+  }
+
+  // Pull fresh data without holding up the tab. Repaint only when something changed and nothing is being typed.
+  let refreshing = false; let pendingPaint = false;
+  main.addEventListener('focusout', () => setTimeout(() => { if (!pendingPaint || editId) return; if (main.contains(document.activeElement) && document.activeElement.matches('input, textarea, select')) return; pendingPaint = false; paintTab(); }, 0));
+  // Products list: update price, stock and status in the rows on screen without redrawing (keeps the search box focused).
+  function updateProductRows() {
+    if (tab !== 'products') return;
+    main.querySelectorAll('tr[data-row]').forEach((tr) => {
+      const p = data.products.find((x) => x.id === tr.dataset.row); if (!p) return;
+      const pr = tr.children[2]; if (pr) pr.innerHTML = `<b>${money(p.price)}</b>${pctOff(p) ? `<small><s>${money(p.originalPrice)}</s> · -${pctOff(p)}%</small>` : ''}`;
+      const n = tr.querySelector('.adm-stock b'); if (n) n.textContent = p.inventory;
+      const sw = tr.querySelector('[data-pub]'); if (sw) { sw.checked = !!p.published; const l = sw.nextElementSibling; if (l) l.textContent = p.published ? 'Published' : 'Hidden'; }
+    });
+  }
+  const snapshot = () => JSON.stringify([data.orders.map((o) => o.id + o.status), data.inquiries.map((m) => m.id + m.status), data.offers.map((o) => o.id + o.status), data.products.map((p) => p.id + p.inventory + p.price + p.published)]);
+  async function refreshInBackground() {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      const before = snapshot();
+      await loadAll();
+      paintBadges();
+      const typing = main.contains(document.activeElement) && document.activeElement.matches('input, textarea, select');
+      if (snapshot() !== before && !editId) {
+        if (!typing) paintTab();
+        else if (tab === 'products') updateProductRows();
+        else pendingPaint = true; // repaint once the box is left
+      }
+    } catch {} finally { refreshing = false; }
+  }
+
+  // ------------------------------------------------------------ overview
+  // Shrink a tile number only if it is wider than its tile, so it is never cut off.
+  const fitTiles = () => $$('.adm-tiles .adm-tile b', main).forEach((b) => {
+    b.style.fontSize = '';
+    if (b.scrollWidth > b.clientWidth) b.style.fontSize = (parseFloat(getComputedStyle(b).fontSize) * b.clientWidth / b.scrollWidth * 0.97).toFixed(1) + 'px';
+  });
+  window.addEventListener('resize', () => { if (tab === 'overview') fitTiles(); });
+  function overview() {
+    const P = data.products;
+    const live = P.filter((p) => p.published && p.inventory > 0);
+    const out = P.filter((p) => p.inventory <= 0);
+    const since = Date.now() - 30 * 864e5;
+    const rev = data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) > since).reduce((s, o) => s + o.total, 0);
+    const tiles = [
+      ['Live listings', live.length, 'Published and in stock'],
+      ['New orders', data.orders.filter((o) => o.status === 'new').length, `${data.orders.length} total`],
+      ['Units in stock', P.reduce((s, p) => s + Math.max(0, p.inventory), 0), `${out.length} sold out (hidden)`],
+      ['New offers', data.offers.filter((o) => o.status === 'new').length, `${data.offers.length} total`],
+      ['Sales · 30 days', money(rev), 'Tap for sales breakdown'],
+      ['Messages', data.inquiries.filter((o) => o.status === 'new').length, 'Contact + wholesale'],
+    ];
+    main.innerHTML = shell(`
+      <div class="adm-tiles">${tiles.map(([l, v, s]) => l.startsWith('Sales') ? `<button type="button" class="adm-tile adm-tile-link" data-sales-breakdown aria-label="Open sales breakdown"><span class="eyebrow">${l} ${icon('right', 'icon-sm')}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></button>` : `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${s}</span></div>`).join('')}</div>
+      <div class="adm-cols two">
+        <section class="adm-card"><div class="adm-card-head"><h2>Recent orders</h2><button class="link" type="button" data-tab="orders">All orders</button></div>
+          ${data.orders.length ? `<ul class="adm-list">${data.orders.slice(0, 6).map((o) => `<li><button type="button" data-open-order="${o.id}"><span><b class="mono">#${o.number}</b> ${esc(o.customer.name)}<small>${fmtDate(o.createdAt, true)} · ${(() => { const n = o.items.reduce((t, i) => t + (i.qty || 1), 0); return `${n} item${n === 1 ? '' : 's'}`; })()} · ${o.fulfillment === 'pickup' ? 'Pickup' : 'Ship'}</small></span><span class="tabnum">${money(o.total)}</span>${needsConfirm(o) ? '<span class="adm-needs">Confirm</span>' : ''}${(() => { const im = o.items[0] && o.items[0].image; return im ? `<img class="adm-ord-img" src="${esc(img(im.sm || im.lg))}" alt="${esc(o.items[0].title)}" width="52" height="52" loading="lazy">` : '<span class="adm-ord-img adm-noimg"></span>'; })()}</button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No orders yet. They appear here as soon as a customer checks out.</p>'}
+        </section>
+        <section class="adm-card"><div class="adm-card-head"><h2>Latest offers</h2><button class="link" type="button" data-tab="offers">All offers</button></div>
+          ${data.offers.length ? `<ul class="adm-list">${data.offers.slice(0, 6).map((o) => `<li><button type="button" data-tab="offers"><span><b>${money(o.amount)}</b> for ${esc(o.productTitle)}<small>${esc(o.name)} · ${esc(o.phone)} · ${fmtDate(o.createdAt, true)}</small></span><span class="status s-${o.status}">${statusLabel(OFFER_STATUS, o.status)}</span></button></li>`).join('')}</ul>` : '<p class="muted adm-empty">No offers yet. Offers from the “Make Offer” button land here.</p>'}
+        </section>
+      </div>`, 'Overview', `<button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button>`);
+    fitTiles();
+  }
+  const statusLabel = (list, v) => (list.find(([k]) => k === v) || [v, v])[1];
+
+  // ------------------------------------------------------------ products list
+  // Add sale: quantity and total sold for, for one product. Saves the sale (revenue and profit) and takes the stock.
+  function openSaleDialog(p) {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'modal adm-add-dlg';
+    dlg.innerHTML = `<div class="adm-add-head"><h2>Add sale</h2><button class="btn btn-sm" type="button" data-sale-close aria-label="Close">${icon('close', 'icon-sm')}</button></div>
+      <form class="adm-add-body form" data-sale-form novalidate>
+        <p class="muted" style="margin:0 0 12px">${esc(p.title)}</p>
+        <div class="field"><label for="sale-qty">Quantity sold</label><input id="sale-qty" name="qty" type="number" inputmode="numeric" min="1" step="1" value="1" required></div>
+        <div class="field"><label for="sale-total">Total sold for</label><div class="money-input"><span>$</span><input id="sale-total" name="total" type="number" inputmode="decimal" min="0" step="0.01" required placeholder="0.00"></div></div>
+        <p class="form-error" data-sale-err hidden></p>
+        <div class="adm-ed-actions"><button class="btn btn-primary btn-lg" type="submit" data-owner="main">Save sale</button><div class="sale-owner"><button class="btn btn-lg" type="submit" data-owner="lorena">Save sale for Lorena</button><button class="btn btn-lg" type="submit" data-owner="both">Add to both</button></div><button class="btn btn-lg" type="button" data-sale-close>Cancel</button></div>
+      </form>`;
+    document.body.appendChild(dlg);
+    const close = () => { dlg.close(); dlg.remove(); };
+    dlg.querySelectorAll('[data-sale-close]').forEach((b) => b.addEventListener('click', close));
+    const form = dlg.querySelector('[data-sale-form]');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = dlg.querySelector('[data-sale-err]');
+      const qty = parseInt(form.elements.qty.value, 10); const raw = form.elements.total.value;
+      if (!(qty >= 1)) { err.textContent = 'Enter a quantity of at least 1.'; err.hidden = false; return; }
+      if (raw === '' || !(Number(raw) >= 0)) { err.textContent = 'Enter the total sold for.'; err.hidden = false; return; }
+      const btn = (e.submitter && e.submitter.matches('[data-owner]')) ? e.submitter : form.querySelector('[data-owner="main"]');
+      const owner = btn.dataset.owner; const label = btn.textContent;
+      form.querySelectorAll('[data-owner]').forEach((b) => { b.disabled = true; }); btn.textContent = 'Saving…';
+      try {
+        await A.recordSale(p, qty, Number(raw), owner);
+        selected.clear(); close(); toast('Sale recorded');
+        await loadAll(); refreshStore(); products();
+      } catch (ex) { err.textContent = ex.message || 'Could not save the sale'; err.hidden = false; form.querySelectorAll('[data-owner]').forEach((b) => { b.disabled = false; }); btn.textContent = label; }
+    });
+    dlg.showModal();
+  }
+
+  const prodMatchesQ = (p, q) => !q || `${p.title} ${p.brand || ''} ${p.upc || ''} ${p.slug}`.toLowerCase().includes(q);
+  // Live search: show/hide the rows already on the page instead of redrawing it, so nothing jumps.
+  function applyProdSearch() {
+    const q = prodFilter.q.toLowerCase(); let shown = 0;
+    main.querySelectorAll('tr[data-row]').forEach((tr) => { const p = data.products.find((x) => x.id === tr.dataset.row); const ok = !!p && prodMatchesQ(p, q); tr.hidden = !ok; if (ok) shown++; });
+    const n = main.querySelector('[data-pf-count]'); if (n) n.textContent = `${shown} of ${data.products.length}`;
+    const em = main.querySelector('[data-pf-empty]'); if (em) em.hidden = shown > 0;
+  }
+  // Products page: once the page title scrolls away, a white bar sticks under the admin menu with "back to top" and "Add product".
+  function placeProdFloat() {
+    const bar = $('[data-prod-float]', main); if (!bar) return;
+    const top = $('.adm-top', main); const side = $('.adm-side', main); const m = $('.adm-main', main);
+    if (!top || !m) return;
+    const sideB = side && getComputedStyle(side).position === 'sticky' && side.getBoundingClientRect().width >= window.innerWidth - 2 ? side.getBoundingClientRect().bottom : 0;
+    const show = top.getBoundingClientRect().bottom < sideB + 4;
+    const r = m.getBoundingClientRect();
+    bar.style.top = sideB + 'px'; bar.style.left = r.left + 'px'; bar.style.width = r.width + 'px';
+    bar.classList.toggle('is-on', show); bar.setAttribute('aria-hidden', show ? 'false' : 'true');
+  }
+  window.addEventListener('scroll', () => { if (tab === 'products') placeProdFloat(); }, { passive: true });
+  window.addEventListener('resize', () => { if (tab === 'products') placeProdFloat(); });
+  function products() {
+    let list = data.products;
+    const f = prodFilter.f;
+    if (f === 'live') list = list.filter((p) => p.published && p.inventory > 0);
+    if (f === 'hidden') list = list.filter((p) => !p.published);
+    if (f === 'out') list = list.filter((p) => p.inventory <= 0);
+    selected = new Set([...selected].filter((id) => data.products.some((p) => p.id === id)));
+    main.innerHTML = shell(`
+      <div class="adm-toolbar">
+        <div class="search-field adm-search">${icon('search')}<label class="sr-only" for="pf-q">Search products</label><input id="pf-q" type="search" placeholder="Search title, brand, UPC" value="${esc(prodFilter.q)}" data-pf-q></div>
+        <div class="select"><label class="sr-only" for="pf-f">Show</label><select id="pf-f" data-pf-f>${[['all', 'All products'], ['live', 'Live'], ['hidden', 'Unpublished'], ['out', 'Sold out']].map(([v, l]) => `<option value="${v}" ${f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div>
+        <span class="muted" style="font-size:14px" data-pf-count>${list.length} of ${data.products.length}</span>
+      </div>
+      <div class="adm-bulk" data-bulk ${selected.size ? '' : 'hidden'}>
+        <b data-bulk-n>${selected.size} selected</b>
+        <button class="btn btn-sm btn-primary" type="button" data-bulk="sale">Add sale</button>
+      </div>
+      <div class="table-wrap"><table class="tbl adm-table"><thead><tr>
+        <th><input type="checkbox" aria-label="Select all" data-sel-all ${list.length && list.every((p) => selected.has(p.id)) ? 'checked' : ''}></th>
+        <th>Product</th><th>Price</th><th>Inventory</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
+        ${list.map((p) => `<tr data-row="${p.id}" class="${p.inventory <= 0 || !p.published ? 'dim' : ''}">
+          <td><input type="checkbox" aria-label="Select ${esc(p.title)}" data-sel="${p.id}" ${selected.has(p.id) ? 'checked' : ''}></td>
+          <td><div class="adm-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="" width="48" height="48" loading="lazy">` : '<span class="adm-noimg"></span>'}<div><button class="adm-title" type="button" data-edit="${p.id}">${esc(p.title)}</button><small>${esc(catName(p.categoryId))} · ${esc(p.condition)}${p.noShipping ? ' · Pick up only' : ''}${p.upc ? ' · ' + esc(p.upc) : ''}</small></div></div></td>
+          <td class="tabnum"><b>${money(p.price)}</b>${pctOff(p) ? `<small><s>${money(p.originalPrice)}</s> · -${pctOff(p)}%</small>` : ''}</td>
+          <td><div class="adm-stock"><button type="button" aria-label="Decrease inventory" data-inv="-1" data-id="${p.id}">${icon('minus', 'icon-sm')}</button><b class="tabnum">${p.inventory}</b><button type="button" aria-label="Increase inventory" data-inv="1" data-id="${p.id}">${icon('plus', 'icon-sm')}</button></div>${p.inventory <= 0 ? '<small>Sold out · hidden</small>' : ''}</td>
+          <td><label class="switch"><input type="checkbox" data-pub="${p.id}" ${p.published ? 'checked' : ''}><span>${p.published ? 'Published' : 'Hidden'}</span></label></td>
+          <td class="adm-row-actions"><button class="btn btn-sm" type="button" data-edit="${p.id}">${icon('edit', 'icon-sm')} Edit</button>${p.published && p.inventory > 0 ? `<a class="btn btn-sm" href="${href('/products/' + p.slug)}" target="_blank" rel="noopener" aria-label="View ${esc(p.title)} on the store">${icon('eye', 'icon-sm')}</a>` : ''}</td>
+        </tr>`).join('')}<tr data-pf-empty ${list.length ? 'hidden' : ''}><td colspan="6" class="muted">No products match.</td></tr>
+      </tbody></table></div>
+      <div class="prod-float" data-prod-float aria-hidden="true"><button class="prod-float-up" type="button" aria-label="Back to top" data-scroll-top>${icon('up')}</button><button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button></div>`, 'Products', `<button class="btn btn-primary" type="button" data-new>${icon('plus', 'icon-sm')} Add product</button>`);
+    placeProdFloat();
+    applyProdSearch();
+  }
+
+  // ------------------------------------------------------------ product editor
+  // The product form, shared by the Products editor and the scanner's Add popup.
+  function editorForm(d, isNew) {
+    const pct = d.originalPrice && d.price && Number(d.originalPrice) > Number(d.price) ? Math.round((1 - d.price / d.originalPrice) * 100) : '';
+    return `      <form class="adm-editor" novalidate data-editor>
+        <div class="adm-ed-main">
+          <section class="adm-card"><div class="adm-card-head"><h2>Details</h2></div><div class="adm-card-body form">
+            <div class="field"><label for="ed-title">Title</label><input id="ed-title" name="title" required value="${esc(d.title)}" placeholder="e.g. 55&quot; 4K Smart TV – Open Box"></div>
+            <div class="field"><label for="ed-desc">Description</label><textarea id="ed-desc" name="description" rows="8" placeholder="What it is, condition notes, what’s included. Start lines with • for bullet points.">${esc(d.description)}</textarea></div>
+            <input type="hidden" id="ed-brand" name="brand" value="${esc(d.brand || '')}">
+            <div class="field"><label for="ed-upc">UPC <span class="opt">(optional)</span></label><input id="ed-upc" name="upc" inputmode="numeric" maxlength="14" value="${esc(d.upc || '')}"><span class="hint">8–14 digits from the barcode.</span></div>
+          </div></section>
+          <section class="adm-card"><div class="adm-card-head"><h2>Photos</h2><span class="muted" style="font-size:13px">First photo is the cover. Drag to reorder.</span></div><div class="adm-card-body">
+            <div class="adm-photos-row"><div class="adm-photos" data-photos>${photosHTML(d)}</div><button class="btn btn-sm adm-paste" type="button" data-paste-photo>${icon('upload', 'icon-sm')} Paste photo</button></div>
+            <label class="adm-drop" data-drop><input type="file" accept="image/*" multiple data-files class="sr-only">${icon('upload')}<span><b>Add photos</b> — click or drop images here</span><small>JPG, PNG, WebP or HEIC-converted. Resized automatically.</small></label>
+            <p class="muted" data-upload-status aria-live="polite" style="font-size:13px"></p>
+          </div></section>
+        </div>
+        <div class="adm-ed-side">
+          <input type="checkbox" name="published" hidden ${d.published ? 'checked' : ''}>
+          <section class="adm-card"><div class="adm-card-head"><h2>Pricing</h2></div><div class="adm-card-body form">
+            <div class="field"><label for="ed-orig">Original / retail price</label><div class="money-input"><span>$</span><input id="ed-orig" name="originalPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(d.originalPrice ?? '')}"></div></div>
+            <input type="hidden" id="ed-pct" name="pct" value="${pct}">
+            <div class="field"><label for="ed-price">Sale price</label><div class="money-input"><span>$</span><input id="ed-price" name="price" type="number" inputmode="decimal" min="0" step="0.01" required value="${esc(d.price ?? '')}"></div></div>
+            <div class="field"><label for="ed-ship">Shipping price</label><div class="money-input"><span>$</span><input id="ed-ship" name="shipping" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(d.shipping ?? 0)}"></div><span class="hint">Local pickup is always free.</span></div>
+            <label class="check-row"><input type="checkbox" name="noShipping" ${d.noShipping ? 'checked' : ''}> <span><b>Not available for shipping</b><br><span class="hint">The store will only show “Available for pick up”.</span></span></label>
+          </div></section>
+          <section class="adm-card"><div class="adm-card-head"><h2>Inventory</h2></div><div class="adm-card-body form">
+            <div class="field"><label for="ed-inv">Quantity in stock</label><div class="qty" style="height:46px"><button type="button" aria-label="Decrease" data-ed-inv="-1">${icon('minus', 'icon-sm')}</button><input id="ed-inv" name="inventory" type="number" inputmode="numeric" min="0" step="1" value="${esc(d.inventory)}" style="width:80px"><button type="button" aria-label="Increase" data-ed-inv="1">${icon('plus', 'icon-sm')}</button></div></div>
+            <div class="field"><label for="ed-cost">Cost <span class="opt">(per item)</span></label><div class="money-input"><span>$</span><input id="ed-cost" name="cost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${esc(d.cost ?? '')}"></div></div>
+          </div></section>
+          <input type="hidden" name="categoryId" value="${esc(d.categoryId || '')}">
+          <input type="hidden" name="condition" value="${esc(d.condition || 'New')}">
+          <input type="hidden" name="slug" value="${esc(d.slug || '')}">
+          <p class="form-error" data-err hidden></p>
+          <div class="adm-ed-actions">
+            <button class="btn btn-primary btn-lg" type="submit">${isNew ? 'List product' : 'Save changes'}</button>
+            <button class="btn btn-lg" type="button" data-cancel-edit>Cancel</button>
+            ${isNew ? '' : `<button class="btn btn-lg adm-danger" type="button" data-delete-product>${icon('trash', 'icon-sm')} Delete</button>`}
+          </div>
+          <div class="adm-confirm" data-confirm hidden><p><b>Delete this product?</b> This can’t be undone.</p><div><button class="btn btn-sm adm-danger" type="button" data-confirm-delete>Delete</button><button class="btn btn-sm" type="button" data-confirm-cancel>Keep it</button></div></div>
+        </div>
+      </form>`;
+  }
+
+  function renderEditor() {
+    const isNew = editId === 'new';
+    const p = isNew ? null : data.products.find((x) => x.id === editId);
+    if (!isNew && !p) { editId = null; return products(); }
+    if (!draft || draft._for !== editId) {
+      draft = p ? JSON.parse(JSON.stringify(p)) : { title: '', slug: '', brand: '', upc: '', condition: 'New', categoryId: (store.categories()[0] || {}).id || null, description: '', price: '', originalPrice: '', shipping: 9.95, inventory: 1, published: true, bestDeal: false, images: [] };
+      draft._for = editId;
+      draft.cost = p && data.costs && data.costs[p.id] != null ? data.costs[p.id] : '';
+    }
+    const d = draft;
+    main.innerHTML = shell(editorForm(d, isNew), `<button class="adm-back" type="button" data-cancel-edit>${icon('left')} Back</button>`, `<button class="adm-scan" type="button" data-scan aria-label="Scan barcode for UPC"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 8v8M9 8v8M11.5 8v8M13 8v8M15.5 8v8M17.5 8v8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>SCAN</span></button>`);
+    wireEditor();
+  }
+
+  // Photos just uploaded keep showing from the phone's own copy, so they don't flash while loading from the web.
+  const previewOf = new Map();
+  function photosHTML(d) {
+    if (!d.images.length) return '<p class="muted" style="font-size:14px">No photos yet.</p>';
+    return d.images.map((im, i) => `<figure class="adm-photo${im.uploading ? ' is-uploading' : ''}" draggable="true" data-ph="${i}">
+      <img src="${esc(img(previewOf.get(im.sm) || im.sm || im.lg))}" alt="Photo ${i + 1}">
+      ${i === 0 ? '<span class="adm-cover">Cover</span>' : ''}
+      <figcaption>
+        <span class="mono">${i + 1}</span>
+        <button type="button" aria-label="Delete photo ${i + 1}" data-ph-del>${icon('trash', 'icon-sm')}</button>
+      </figcaption></figure>`).join('');
+  }
+
+  function wireEditor(opts = {}) {
+    const form = $('[data-editor]');
+    const isNew = opts.isNew != null ? opts.isNew : editId === 'new';
+    const f = (n) => form.elements[n];
+    const redrawPhotos = () => { $('[data-photos]').innerHTML = photosHTML(draft); };
+    const syncDraft = () => {
+      ['title', 'description', 'brand', 'upc', 'slug', 'condition', 'categoryId'].forEach((k) => { draft[k] = f(k).value; });
+      draft.price = f('price').value; draft.originalPrice = f('originalPrice').value; draft.shipping = f('shipping').value; draft.inventory = f('inventory').value;
+      draft.published = f('published').checked; draft.noShipping = f('noShipping').checked;
+      draft.cost = f('cost').value;
+    };
+    form.addEventListener('input', (e) => {
+      const n = e.target.name;
+      const orig = parseFloat(f('originalPrice').value), pctv = parseFloat(f('pct').value), price = parseFloat(f('price').value);
+      if (n === 'pct' && orig > 0 && pctv >= 0) f('price').value = round2(orig * (1 - pctv / 100)).toFixed(2);
+      if (n === 'price' && orig > 0 && price >= 0) f('pct').value = price < orig ? Math.round((1 - price / orig) * 100) : '';
+      if (n === 'originalPrice' && orig > 0 && pctv > 0) f('price').value = round2(orig * (1 - pctv / 100)).toFixed(2);
+      if (n === 'title' || n === 'slug') { const sp = $('[data-slug-preview]'); if (sp) sp.textContent = slugify(f('slug').value || f('title').value) || 'product-name'; }
+      syncDraft();
+    });
+    form.addEventListener('change', syncDraft);
+    form.addEventListener('click', async (e) => {
+      const inv = e.target.closest('[data-ed-inv]');
+      if (inv) { f('inventory').value = Math.max(0, (parseInt(f('inventory').value, 10) || 0) + Number(inv.dataset.edInv)); syncDraft(); }
+      if (e.target.closest('[data-paste-photo]')) { pastePhotos(); return; }
+      const mv = e.target.closest('[data-ph-move]');
+      if (mv) { const i = Number(mv.closest('[data-ph]').dataset.ph), j = i + Number(mv.dataset.phMove); [draft.images[i], draft.images[j]] = [draft.images[j], draft.images[i]]; redrawPhotos(); }
+      const del = e.target.closest('[data-ph-del]');
+      if (del) { const i = Number(del.closest('[data-ph]').dataset.ph); const [rm] = draft.images.splice(i, 1); if (A.removeImage) A.removeImage(rm).catch(() => {}); redrawPhotos(); }
+      if (e.target.closest('[data-delete-product]')) { $('[data-confirm]').hidden = false; }
+      if (e.target.closest('[data-confirm-cancel]')) { $('[data-confirm]').hidden = true; }
+      if (e.target.closest('[data-confirm-delete]')) { await A.deleteProduct(editId); refreshStore(); toast('Product deleted'); editId = null; draft = null; render(); }
+    });
+    // drag & drop reorder
+    let dragFrom = null;
+    const ph = $('[data-photos]');
+    ph.addEventListener('dragstart', (e) => { const fig = e.target.closest('[data-ph]'); if (fig) { dragFrom = Number(fig.dataset.ph); e.dataTransfer.effectAllowed = 'move'; fig.classList.add('dragging'); } });
+    ph.addEventListener('dragover', (e) => { if (dragFrom !== null) { e.preventDefault(); } });
+    ph.addEventListener('drop', (e) => {
+      const fig = e.target.closest('[data-ph]'); if (dragFrom === null || !fig) return;
+      e.preventDefault(); const to = Number(fig.dataset.ph);
+      const [m] = draft.images.splice(dragFrom, 1); draft.images.splice(to, 0, m); dragFrom = null; redrawPhotos();
+    });
+    ph.addEventListener('dragend', () => { dragFrom = null; $$('.dragging').forEach((x) => x.classList.remove('dragging')); });
+    // Phones: press and hold a photo, then drag it with your finger to its new spot.
+    let hold = null;
+    const endHold = () => { if (!hold) return; clearTimeout(hold.timer); const h = hold; hold = null; if (h.active) { if (h.to != null && h.to !== h.from) { const [m] = draft.images.splice(h.from, 1); draft.images.splice(h.to, 0, m); } redrawPhotos(); } };
+    ph.addEventListener('touchstart', (e) => {
+      const fig = e.target.closest('[data-ph]'); if (!fig || e.target.closest('button') || e.touches.length > 1) return;
+      const t = e.touches[0];
+      hold = { fig, from: Number(fig.dataset.ph), to: null, x: t.clientX, y: t.clientY, active: false };
+      hold.timer = setTimeout(() => { if (!hold) return; hold.active = true; fig.classList.add('lifting'); if (navigator.vibrate) navigator.vibrate(10); }, 250);
+    }, { passive: true });
+    ph.addEventListener('touchmove', (e) => {
+      if (!hold) return; const t = e.touches[0];
+      if (!hold.active) { if (Math.hypot(t.clientX - hold.x, t.clientY - hold.y) > 8) { clearTimeout(hold.timer); hold = null; } return; }
+      e.preventDefault();
+      hold.fig.style.transform = `translate(${t.clientX - hold.x}px, ${t.clientY - hold.y}px) scale(1.06)`;
+      const over = document.elementFromPoint(t.clientX, t.clientY); const tgt = over && over.closest('[data-ph]');
+      ph.querySelectorAll('.drop-target').forEach((x) => x.classList.remove('drop-target'));
+      if (tgt && tgt !== hold.fig) { tgt.classList.add('drop-target'); hold.to = Number(tgt.dataset.ph); }
+    }, { passive: false });
+    ph.addEventListener('touchend', endHold);
+    ph.addEventListener('touchcancel', endHold);
+    ph.addEventListener('contextmenu', (e) => { if (e.target.closest('[data-ph]')) e.preventDefault(); });
+    // uploads
+    const status = $('[data-upload-status]');
+    const upload = async (files) => {
+      files = Array.from(files).filter((x) => x.type.startsWith('image/'));
+      if (!files.length) return;
+      // Show every photo right away from the phone, then upload them all at once in the background.
+      // Order: a product photo is the cover and the online screenshot goes second, without moving them by hand.
+      // A screenshot is a PNG or a tall phone-screen shape; camera photos are JPEG/HEIC and squarer.
+      const isShot = async (f) => { if (f.type === 'image/png') return true; try { const bm = await createImageBitmap(f); const r = bm.width / bm.height; bm.close(); return r < 0.62; } catch { return false; } };
+      const flags = await Promise.all(files.map(isShot));
+      let items = files.map((f, i) => ({ f, shot: flags[i] }));
+      const wasEmpty = !draft.images.length;
+      if (wasEmpty) {
+        const firstPhoto = items.findIndex((x) => !x.shot), firstShot = items.findIndex((x) => x.shot);
+        const lead = [firstPhoto, firstShot].filter((i) => i > -1);
+        items = [...lead.map((i) => items[i]), ...items.filter((_, i) => !lead.includes(i))];
+      }
+      const slots = items.map(({ f, shot }) => { const u = URL.createObjectURL(f); const im = { lg: u, sm: u, alt: '', uploading: true, shot }; draft.images.push(im); return { f, im }; });
+      if (!wasEmpty && !(draft.images[1] && draft.images[1].shot)) {
+        const s = slots.find((x) => x.im.shot);
+        if (s && draft.images.length > 1) { draft.images.splice(draft.images.indexOf(s.im), 1); draft.images.splice(1, 0, s.im); }
+      }
+      redrawPhotos();
+      let done = 0;
+      status.textContent = `Uploading ${files.length} photo${files.length > 1 ? 's' : ''}…`;
+      const work = async ({ f, im }) => {
+        try { const up = await A.uploadImage(f); const i = draft.images.indexOf(im); if (i > -1) draft.images[i] = { ...up, alt: '', shot: im.shot }; previewOf.set(up.sm, im.sm); previewOf.set(up.lg, im.lg); }
+        catch (ex) { const i = draft.images.indexOf(im); if (i > -1) draft.images.splice(i, 1); URL.revokeObjectURL(im.lg); toast(`Couldn’t upload ${f.name}: ${ex.message}`, 'err'); }
+        finally { done++; status.textContent = done < files.length ? `Uploaded ${done} of ${files.length}…` : `${files.length} photo${files.length > 1 ? 's' : ''} added — remember to save.`; redrawPhotos(); }
+      };
+      await Promise.all(slots.map(work)); // every photo uploads at the same time, no limit
+    };
+    $('[data-files]').addEventListener('change', (e) => { upload(e.target.files); e.target.value = ''; });
+    // Paste: only photos on the clipboard are added; copied text is ignored.
+    const asFiles = (blobs) => blobs.map((b, i) => new File([b], `pasted-${Date.now()}-${i}.${(b.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`, { type: b.type }));
+    async function pastePhotos() {
+      if (!navigator.clipboard || !navigator.clipboard.read) { toast('Paste isn’t supported in this browser — use Add photos instead.'); return; }
+      try {
+        const blobs = [];
+        for (const item of await navigator.clipboard.read()) {
+          const t = item.types.find((x) => x.startsWith('image/'));
+          if (t) blobs.push(await item.getType(t));
+        }
+        if (!blobs.length) { toast('No photo copied — copy a photo first, then tap Paste photo.'); return; }
+        upload(asFiles(blobs));
+      } catch { toast('Couldn’t read the clipboard. Allow paste when your phone asks, or use Add photos.'); }
+    }
+    form.addEventListener('paste', (e) => {
+      const blobs = [...(e.clipboardData ? e.clipboardData.items : [])].filter((i) => i.type.startsWith('image/')).map((i) => i.getAsFile()).filter(Boolean);
+      if (blobs.length) { e.preventDefault(); upload(asFiles(blobs)); }
+    });
+    const drop = $('[data-drop]');
+    drop.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); drop.classList.add('over'); } });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) { e.preventDefault(); drop.classList.remove('over'); upload(e.dataTransfer.files); } });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault(); syncDraft();
+      const err = $('[data-err]');
+      const price = parseFloat(draft.price), orig = parseFloat(draft.originalPrice), ship = parseFloat(draft.shipping || 0), inv = parseInt(draft.inventory, 10);
+      const upc = String(draft.upc || '').replace(/\D/g, '');
+      const problems = [];
+      if (!draft.title.trim()) problems.push(['ed-title', 'Add a title.']);
+      if (draft.images.some((im) => im.uploading)) problems.push(['ed-title', 'Photos are still uploading — wait a moment, then save.']);
+      if (String(draft.price ?? '').trim() === '' || !(price >= 0)) problems.push(['ed-price', 'Enter a sale price ($0 or more).']);
+      if (!(inv >= 0)) problems.push(['ed-inv', 'Inventory must be 0 or more.']);
+      if (!(ship >= 0)) problems.push(['ed-ship', 'Shipping must be 0 or more.']);
+      if (upc && (upc.length < 8 || upc.length > 14)) problems.push(['ed-upc', 'UPC should be 8–14 digits.']);
+      $$('[aria-invalid]', form).forEach((x) => x.removeAttribute('aria-invalid'));
+      if (problems.length) { problems.forEach(([id]) => $('#' + id).setAttribute('aria-invalid', 'true')); err.textContent = problems.map((x) => x[1]).join(' '); err.hidden = false; $('#' + problems[0][0]).focus(); return; }
+      const rec = {
+        id: isNew ? undefined : editId, title: draft.title.trim(), slug: draft.slug.trim(), brand: draft.brand.trim(), upc,
+        condition: draft.condition, categoryId: draft.categoryId || null, description: draft.description.trim(),
+        price: round2(price), originalPrice: orig > price ? round2(orig) : null, shipping: round2(ship), inventory: inv,
+        published: draft.published, bestDeal: false, noShipping: !!draft.noShipping, images: draft.images.map(({ uploading, shot, ...im }) => im),
+      };
+      const btn = $('button[type="submit"]', form); btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const saved = await A.saveProduct(rec);
+        // Save the cost with the product (blank clears it), so Inventory and profit use it right away.
+        const costRaw = String(draft.cost ?? '').trim(); const pid = (saved && saved.id) || rec.id;
+        if (pid && (costRaw !== '' || (data.costs && data.costs[pid] != null))) await saveCost(pid, costRaw);
+        // Put the saved product into the admin's copy right away, so the Products list shows the new price/stock.
+        if (saved && saved.id && data) { const i = data.products.findIndex((x) => x.id === saved.id); if (i >= 0) data.products[i] = { ...data.products[i], ...saved }; else data.products.unshift(saved); }
+        refreshStore();
+        toast(isNew ? 'Product created' : 'Changes saved');
+        if (opts.onSaved) return opts.onSaved(saved);
+        editId = null; draft = null; tab = 'products';
+        render();
+        return saved;
+      } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; btn.textContent = isNew ? 'List product' : 'Save changes'; }
+    });
+  }
+
+  // ------------------------------------------------------------ inventory & cost
+  let invQ = '';
+  let invSort = 'cost-high';
+  const INV_SORTS = [['stock', 'In stock first'], ['cost-high', 'Cost: high to low'], ['cost-low', 'Cost: low to high'], ['recent', 'Recently added']];
+  // Items without a cost always sort to the end of the cost sorts.
+  const sortInv = (list) => {
+    // Sort by total cost on hand (cost × units in stock), so 10 units outrank 1 unit of a pricier item.
+    const byCost = (dir) => (a, b) => { const ca = costOf(a); const cb = costOf(b); if (ca == null || cb == null) return (ca == null) - (cb == null) || a.title.localeCompare(b.title); const ta = ca * Math.max(0, a.inventory); const tb = cb * Math.max(0, b.inventory); return dir * (tb - ta) || a.title.localeCompare(b.title); };
+    if (invSort === 'cost-high') return list.sort(byCost(1));
+    if (invSort === 'cost-low') return list.sort(byCost(-1));
+    if (invSort === 'recent') return list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    return list.sort((a, b) => (b.inventory > 0) - (a.inventory > 0) || a.title.localeCompare(b.title));
+  };
+  const upcKey = (u) => String(u || '').replace(/\D/g, '').replace(/^0+/, '');
+  const costOf = (p) => (data.costs && data.costs[p.id] != null ? data.costs[p.id] : null);
+  const fmtCost = (v) => (v == null ? '' : Number(v).toFixed(2));
+  function invTotals() {
+    const P = data.products;
+    const units = P.reduce((t, p) => t + Math.max(0, p.inventory), 0);
+    const costVal = round2(P.reduce((t, p) => t + (costOf(p) != null ? costOf(p) * Math.max(0, p.inventory) : 0), 0));
+    const retail = round2(P.reduce((t, p) => t + p.price * Math.max(0, p.inventory), 0));
+    const missing = P.filter((p) => p.inventory > 0 && costOf(p) == null).length;
+    return { units, costVal, retail, missing };
+  }
+  // Search total: cost × stock of the items found, or only the checked ones when any are checked.
+  const invSel = new Set();
+  const invMatches = () => { const q = invQ.trim().toLowerCase(); const qd = upcKey(invQ); return data.products.filter((p) => !q || p.title.toLowerCase().includes(q) || (qd && upcKey(p.upc).includes(qd))); };
+  function updateInvSum() {
+    const box = $('[data-inv-sum]', main); if (!box) return; const rev = $('[data-inv-rev]', main); const pro = $('[data-inv-pro]', main);
+    const list = invMatches(); const picked = list.filter((p) => invSel.has(p.id));
+    const use = picked.length ? picked : list;
+    if (!invQ.trim() && !picked.length) { box.classList.add('is-empty'); box.innerHTML = '<b>&nbsp;</b>'; [rev, pro].forEach((x) => { if (x) { x.classList.add('is-empty'); x.innerHTML = '<b>&nbsp;</b>'; } }); return; }
+    const total = round2(use.reduce((t, p) => t + (costOf(p) != null ? costOf(p) * Math.max(0, p.inventory) : 0), 0));
+    box.innerHTML = `<b>Cost: <span class="tabnum">${money(total)}</span></b><small>${picked.length ? `${picked.length} selected` : `${list.length} item${list.length === 1 ? '' : 's'} found`}</small>${picked.length ? '<button type="button" class="link" data-inv-clear>Clear</button>' : ''}`;
+    box.classList.remove('is-empty');
+    const r = round2(use.reduce((t, p) => t + p.price * Math.max(0, p.inventory), 0));
+    if (rev) { rev.innerHTML = `<b>Est. revenue: <span class="tabnum">${money(r)}</span></b>`; rev.classList.remove('is-empty'); }
+    if (pro) { const pr = round2(r - total); pro.innerHTML = `<b>Est. profit: <span class="tabnum">${pr < 0 ? '-' : ''}${money(Math.abs(pr))}</span></b>`; pro.classList.remove('is-empty'); }
+  }
+  let invSumT = 0; const invSumSoon = () => { clearTimeout(invSumT); invSumT = setTimeout(updateInvSum, 450); };
+  function invRow(p) {
+    const c = costOf(p); const tot = c != null ? money(c * Math.max(0, p.inventory)) : '—';
+    return `<li class="inv-row${p.inventory <= 0 ? ' is-out' : ''}${invSel.has(p.id) ? ' is-picked' : ''}" data-inv="${p.id}">
+      <input type="checkbox" class="inv-pick" data-inv-pick="${p.id}" ${invSel.has(p.id) ? 'checked' : ''} aria-label="Select ${esc(p.title)} for the cost total">
+      ${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="" width="52" height="52" loading="lazy">` : '<span class="adm-noimg"></span>'}
+      <div><div class="inv-title">${esc(p.title)}</div><div class="inv-meta">${p.upc ? 'UPC ' + esc(p.upc) : 'No UPC'}${p.published ? '' : ' · Hidden'}</div></div>
+      <div class="inv-nums">
+        <div><small>Stock</small><label class="sp-money inv-stock-in"><input type="number" inputmode="numeric" min="0" step="1" value="${p.inventory}" data-inv-setstock="${p.id}" aria-label="Stock of ${esc(p.title)}"></label></div>
+        <div><small>Price</small><b class="tabnum">${money(p.price)}</b></div>
+        <div><small>Cost</small><label class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-cost="${p.id}" aria-label="Cost of ${esc(p.title)}"></label></div>
+        <div><small>Total cost</small><b class="tabnum" data-inv-total>${tot}</b></div>
+      </div></li>`;
+  }
+  // Rows for the current search. Typing only swaps these rows, so the search box keeps focus and the page doesn't jump.
+  function invRowsHTML() {
+    const list = sortInv(invMatches());
+    return list.map(invRow).join('') || '<li class="inv-row"><span></span><span class="muted">No matching items.</span></li>';
+  }
+  function inventory() {
+    const t = invTotals();
+    main.innerHTML = shell(`
+      <div class="adm-tiles inv-tiles">
+        <div class="adm-tile is-cost"><span class="eyebrow">Inventory value (cost)</span><b class="tabnum" data-inv-costval>${money(t.costVal)}</b><span class="muted" data-inv-missing>${t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost'}</span></div>
+        <div class="adm-tile is-retail"><span class="eyebrow">Retail value</span><b class="tabnum">${money(t.retail)}</b><span class="muted">At your website prices</span></div>
+        <div class="adm-tile"><span class="eyebrow">Units in stock</span><b class="tabnum">${t.units}</b><span class="muted">${data.products.filter((p) => p.inventory > 0).length} items in stock</span></div>
+        <button type="button" class="adm-tile inv-ship-btn" data-tab="shipments"><span class="inv-ship-ic">${icon('truck')}</span><b>Check incoming shipments</b><span class="muted">${shipList ? `${shipList.filter((x) => !x.delivered).length} on the way` : 'Track your packages'}</span></button>
+      </div>
+      <div class="inv-tools"><input type="search" placeholder="Search by name or UPC" value="${esc(invQ)}" data-inv-q aria-label="Search inventory"><div class="select"><label class="sr-only" for="inv-sort">Sort inventory</label><select id="inv-sort" data-inv-sort>${INV_SORTS.map(([v, l]) => `<option value="${v}" ${invSort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div></div>
+      <div class="inv-sums"><div class="inv-sum is-empty" data-inv-sum><b>&nbsp;</b></div><div class="inv-sum inv-rev is-empty" data-inv-rev><b>&nbsp;</b></div><div class="inv-sum inv-pro is-empty" data-inv-pro><b>&nbsp;</b></div></div>
+      <ul class="inv-list">${invRowsHTML()}</ul>`, 'Inventory', `<button class="btn btn-primary" type="button" data-inv-scan>${icon('camera', 'icon-sm')} Scan</button>`);
+    fitTiles();
+    updateInvSum();
+    if (!shipList) loadShipments().then(() => { const el = $('.inv-ship-btn .muted', main); if (el && shipList) el.textContent = `${shipList.filter((x) => !x.delivered).length} on the way`; });
+  }
+  // Update tiles and one row in place (no re-render, so typing and scrolling aren't interrupted).
+  function invRefresh(id) {
+    const t = invTotals();
+    const cv = $('[data-inv-costval]'); if (cv) cv.textContent = money(t.costVal);
+    const ms = $('[data-inv-missing]'); if (ms) ms.textContent = t.missing ? `${t.missing} in-stock item${t.missing === 1 ? '' : 's'} still need a cost` : 'All in-stock items have a cost';
+    const p = data.products.find((x) => x.id === id); const row = id && $(`[data-inv="${id}"]`);
+    if (p && row) { const c = costOf(p); const si = $('[data-inv-setstock]', row); if (si && document.activeElement !== si) si.value = p.inventory; $('[data-inv-total]', row).textContent = c != null ? money(c * Math.max(0, p.inventory)) : '—'; row.classList.toggle('is-out', p.inventory <= 0); }
+  }
+  async function saveCost(id, raw) {
+    const v = raw === '' ? null : round2(Math.max(0, Number(raw)));
+    if (raw !== '' && !Number.isFinite(v)) return;
+    data.costs = data.costs || {};
+    if (v == null) delete data.costs[id]; else data.costs[id] = v;
+    try { await A.setCost(id, v); } catch (ex) { toast(ex.message || 'Could not save the cost'); }
+  }
+  // Mini add-product popup from the scanner: the full product form. "List product" posts it and returns to the scanner.
+  function openAddProduct(code, onSaved) {
+    draft = { title: '', slug: '', brand: '', upc: code, condition: 'New', categoryId: (store.categories()[0] || {}).id || null, description: '', price: '', originalPrice: '', shipping: 9.95, inventory: 1, published: true, bestDeal: false, images: [] };
+    const dlg = document.createElement('dialog');
+    dlg.className = 'modal adm-add-dlg';
+    dlg.innerHTML = `<div class="adm-add-head"><h2>Add product</h2><button class="btn btn-sm" type="button" data-add-close aria-label="Close">${icon('close', 'icon-sm')}</button></div><div class="adm-add-body">${editorForm(draft, true)}</div>`;
+    const close = () => { dlg.close(); dlg.remove(); };
+    document.body.appendChild(dlg);
+    dlg.querySelector('[data-add-close]').addEventListener('click', close);
+    dlg.querySelector('[data-cancel-edit]').addEventListener('click', close);
+    dlg.showModal();
+    wireEditor({ isNew: true, onSaved: async (saved) => { close(); await loadAll(); onSaved(saved); } });
+  }
+  async function invScan() {
+    if (!window.MLScanner) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = ENV.root + 'assets/scanner.js' + (ENV.cfg.v ? '?v=' + ENV.cfg.v : ''); s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+    let cur = null; // { code, id }
+    const h = window.MLScanner.open({
+      continuous: true,
+      onResult: (code) => { cur = { code, id: (data.products.find((p) => p.upc && upcKey(p.upc) === upcKey(code)) || {}).id || null }; paint(true); },
+      onError: (msg) => toast(msg),
+      onClose: () => { if (tab === 'inventory') inventory(); },
+    });
+    // Typed UPC box is always there, above the results card.
+    h.panel.innerHTML = `<form class="sp-type" data-sp-type><label class="sr-only" for="sp-upc">Type a UPC</label><input id="sp-upc" type="text" inputmode="numeric" autocomplete="off" placeholder="Type UPC" enterkeyhint="search"><button class="btn btn-primary" type="submit">Search</button></form><div data-sp-out></div>`;
+    const panel = $('[data-sp-out]', h.panel);
+    // Put the typed-UPC box right under the scan frame, inside the camera view.
+    const typeForm = h.panel.querySelector('[data-sp-type]'); const cam = h.panel.parentElement.querySelector('.scan-cam'); if (cam) cam.appendChild(typeForm);
+    typeForm.addEventListener('submit', (e) => {
+      e.preventDefault(); const inp = e.target.querySelector('input'); const code = inp.value.replace(/\D/g, '');
+      if (code.length < 6) { toast('Enter at least 6 digits'); return; }
+      cur = { code, id: (data.products.find((p) => p.upc && upcKey(p.upc) === upcKey(code)) || {}).id || null }; paint(true); inp.value = ''; inp.blur();
+    });
+    const paint = (fresh) => {
+      if (!cur) { panel.innerHTML = '<p class="sp-empty">Scan a barcode or type the UPC in the box under the camera. Each new scan shows up here — the camera stays on.</p>'; return; }
+      const p = cur.id && data.products.find((x) => x.id === cur.id);
+      const c = p ? costOf(p) : null;
+      panel.innerHTML = `<div class="sp-card"${fresh ? '' : ' style="animation:none"'}>
+        <div class="sp-upc"><b>${esc(cur.code)}</b><button class="btn btn-sm" type="button" data-sp-copy>Copy</button></div>
+        ${p ? `<div class="sp-prod">${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="">` : ''}<div><h3>${esc(p.title)}</h3><div class="sp-stock">In stock: <button type="button" class="sp-stock-btn tabnum" data-sp-edit aria-label="Change stock">${p.inventory} ${icon('edit', 'icon-sm')}</button> · ${money(p.price)}</div>${p.inventory <= 0 || !p.published ? `<div class="sp-status">${p.inventory <= 0 ? 'Sold out — saved, not showing on the website' : 'Hidden from the website'}${!p.published ? ` <button class="btn btn-sm" type="button" data-sp-relist>Show on website</button>` : ' · add stock to relist'}</div>` : '<div class="sp-status ok">Live on the website</div>'}</div></div>
+          <div class="sp-cost"><label>Cost per item<span class="sp-money"><span>$</span><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" value="${fmtCost(c)}" data-sp-cost></span></label><div class="sp-total"><small>Total cost (${p.inventory})</small><b class="tabnum" data-sp-total>${c != null ? money(c * Math.max(0, p.inventory)) : '—'}</b></div></div>
+          <div class="sp-actions"><button class="btn" type="button" data-sp="-1">${icon('minus', 'icon-sm')} Reduce by 1</button><button class="btn adm-danger" type="button" data-sp="out">Mark out of stock</button><button class="btn btn-primary" type="button" data-sp="+1">${icon('plus', 'icon-sm')} Add 1 stock</button></div>`
+        : '<div class="sp-new-row"><p class="sp-new">This item isn’t on the website.</p><button class="btn btn-primary" type="button" data-sp-add>Add</button></div>'}
+      </div>`;
+    };
+    paint(false);
+    // iOS ignores touch-action on some versions: block the double-tap zoom gesture on the action buttons.
+    let lastTap = 0;
+    panel.addEventListener('touchend', (e) => { if (!e.target.closest('.sp-actions, [data-sp-edit], [data-sp-copy], [data-sp-add]')) return; const now = Date.now(); if (now - lastTap < 350) { e.preventDefault(); e.target.closest('button').click(); } lastTap = now; }, { passive: false });
+    panel.addEventListener('click', async (e) => {
+      if (e.target.closest('[data-sp-copy]')) { try { await navigator.clipboard.writeText(cur.code); e.target.closest('button').textContent = 'Copied'; } catch { toast('Copy not available — press and hold the number to copy'); } return; }
+      if (e.target.closest('[data-sp-edit]') && cur && cur.id) {
+        const p = data.products.find((x) => x.id === cur.id); const btn = e.target.closest('[data-sp-edit]');
+        btn.outerHTML = `<form class="sp-stock-form" data-sp-stockform><input type="number" inputmode="numeric" min="0" step="1" value="${p.inventory}" aria-label="New stock"><button class="btn btn-sm btn-primary" type="submit">Save</button></form>`;
+        const inp = $('[data-sp-stockform] input', panel); inp.focus(); inp.select();
+        return;
+      }
+      if (e.target.closest('[data-sp-relist]') && cur && cur.id) {
+        const p = data.products.find((x) => x.id === cur.id);
+        try { const np = await A.patchProduct(p.id, { published: true }); p.published = true; if (np) p.inventory = np.inventory; refreshStore(); } catch (ex) { toast(ex.message || 'Could not relist'); }
+        paint(false); return;
+      }
+      if (e.target.closest('[data-sp-add]')) { openAddProduct(cur.code, (saved) => { cur = { code: cur.code, id: saved.id }; paint(true); }); return; }
+      const b = e.target.closest('[data-sp]'); if (!b || !cur || !cur.id) return;
+      const p = data.products.find((x) => x.id === cur.id); if (!p) return;
+      $$('[data-sp]', panel).forEach((x) => { x.disabled = true; });
+      try {
+        let np;
+        if (b.dataset.sp === 'out') np = await A.patchProduct(p.id, { inventory: 0 });
+        else np = await A.adjustInventory(p.id, b.dataset.sp === '+1' ? 1 : -1);
+        p.inventory = np && np.inventory != null ? np.inventory : p.inventory;
+        refreshStore();
+      } catch (ex) { toast(ex.message || 'Could not update stock'); }
+      paint(false);
+    });
+    panel.addEventListener('submit', async (e) => {
+      if (!e.target.matches('[data-sp-stockform]')) return; e.preventDefault();
+      const p = data.products.find((x) => x.id === cur.id); const n = parseInt(e.target.querySelector('input').value, 10);
+      if (!(n >= 0)) { toast('Enter a number 0 or higher'); return; }
+      try { const np = await A.patchProduct(p.id, { inventory: n }); p.inventory = np && np.inventory != null ? np.inventory : n; refreshStore(); } catch (ex) { toast(ex.message || 'Could not update stock'); }
+      paint(false);
+    });
+    panel.addEventListener('input', (e) => {
+      if (!e.target.matches('[data-sp-cost]') || !cur || !cur.id) return;
+      const p = data.products.find((x) => x.id === cur.id); const v = e.target.value;
+      const tot = $('[data-sp-total]', panel); if (tot) tot.textContent = v === '' ? '—' : money(Number(v) * Math.max(0, p.inventory));
+      clearTimeout(invScan.t); invScan.t = setTimeout(() => saveCost(p.id, v), 500);
+    });
+  }
+
+  // ------------------------------------------------------------ incoming shipments
+  let shipList = null;
+  const detectCarrier = (n) => {
+    const t = n.replace(/\s+/g, '').toUpperCase();
+    if (/^1Z[0-9A-Z]{16}$/.test(t)) return 'ups';
+    if (/^(94|93|92|95|82)\d{18,20}$/.test(t) || /^[A-Z]{2}\d{9}US$/.test(t) || /^\d{20,22}$/.test(t)) return 'usps';
+    if (/^\d{12}$/.test(t) || /^\d{15}$/.test(t) || /^\d{34}$/.test(t)) return 'fedex';
+    return '';
+  };
+  // Ask the carriers (through 17TRACK on the server) for fresh status, then reload the list. Once per page visit, plus after adding.
+  let shipChecking = false; let shipCheckedAt = 0;
+  async function refreshTracking(id) {
+    if (!A.trackShipments || shipChecking) return;
+    shipChecking = true; const live = $('[data-ship-live]', main); if (live) live.textContent = 'Checking with carriers…';
+    try { await A.trackShipments(id); shipCheckedAt = Date.now(); await loadShipments(); if (tab === 'shipments') shipments(true); }
+    catch (ex) { const l = $('[data-ship-live]', main); if (l) l.textContent = 'Could not reach the tracking service: ' + (ex.message || 'try again'); }
+    finally { shipChecking = false; }
+  }
+  const shipStatus = (x) => (x.delivered ? 'Delivered' : (x.details && x.details.statusText) || 'Checking…');
+  const fmtWhen = (t) => { if (!t) return ''; const d = new Date(t); return isNaN(d) ? String(t) : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); };
+  async function loadShipments() { try { shipList = A.shipments ? await A.shipments() : []; } catch { shipList = shipList || []; } }
+  async function shipments(fromRefresh) {
+    if (!fromRefresh && !shipChecking && Date.now() - shipCheckedAt > 60000) setTimeout(() => refreshTracking(), 0);
+    if (!shipList) { main.innerHTML = shell('<p class="muted adm-empty">Loading shipments…</p>', 'Incoming shipments'); await loadShipments(); if (tab !== 'shipments') return; }
+    const coming = shipList.filter((x) => !x.delivered);
+    const box = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 20.5 7v10L12 21.2 3.5 17V7z M3.5 7 12 11.2 20.5 7 M12 11.2v10 M7.8 4.9l8.5 4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    const badge = (c) => (['usps', 'ups', 'fedex'].includes(c) ? `<img class="ship-badge" src="${esc(img('img/carriers/' + c + '.webp'))}" alt="${esc(carrierName(c))}" width="54" height="42">` : `<span class="ship-badge is-none"><b>${esc(carrierName(c) || '—')}</b></span>`);
+    main.innerHTML = shell(`<div class="ship-page">
+      <button class="ship-back" type="button" data-tab="inventory">${icon('left', 'icon-sm')} Inventory</button>
+      <section class="ship-hero"><span class="ship-hero-ic">${icon('truck')}</span><div><h2>${coming.length} package${coming.length === 1 ? '' : 's'}</h2><p class="muted">Add a tracking number from USPS, UPS or FedEx. Updates come straight from the carrier.</p><p class="ship-live" data-ship-live>${shipChecking ? 'Checking with carriers…' : shipCheckedAt ? 'Updated ' + fmtWhen(shipCheckedAt) : ''}</p></div></section>
+      <form class="ship-add" data-ship-add>
+        <label class="sr-only" for="ship-num">Tracking number</label>
+        <span class="ship-field">${icon('search', 'icon-sm')}<input id="ship-num" name="tracking" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste or type a tracking number" required></span>
+        <button class="ship-paste" type="button" data-ship-paste>Paste</button>
+        <label class="sr-only" for="ship-label">What's in it (optional)</label>
+        <span class="ship-field is-wide">${icon('tag', 'icon-sm')}<input id="ship-label" name="label" type="text" autocomplete="off" placeholder="What’s in it? (optional)"></span>
+        <span class="ship-field is-wide is-select">${icon('truck', 'icon-sm')}<label class="sr-only" for="ship-carrier">Carrier</label><select id="ship-carrier" name="carrier"><option value="">Carrier: auto-detect</option>${CARRIERS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>${icon('down', 'icon-sm')}</span>
+        <button class="ship-submit" type="submit">${icon('plus', 'icon-sm')} Add package</button>
+      </form>
+      <section class="ship-card"><div class="ship-card-head"><h2>Packages</h2><span>${shipList.length} total</span></div>
+        ${shipList.length ? `<ul class="ship-list">${shipList.map((x) => `<li><button type="button" class="ship-row" data-ship="${x.id}">${badge(x.carrier)}<span class="ship-main"><b>${esc(x.label || 'Package')}</b><small>${esc(x.tracking)}</small>${x.details && x.details.latest && x.details.latest.desc ? `<small class="ship-last">${esc(x.details.latest.desc)}${x.details.latest.loc ? ' · ' + esc(x.details.latest.loc) : ''}</small>` : ''}</span><span class="ship-st"><span class="ship-pill${x.delivered ? ' is-done' : ''}">${esc(shipStatus(x))}</span><small>Added ${fmtDate(x.createdAt)}</small></span>${icon('right', 'icon-sm')}</button></li>`).join('')}</ul>` : '<p class="ship-empty">No packages yet. Paste a tracking number above to start.</p>'}
+      </section>
+      <dialog class="modal" id="ship-dlg" aria-labelledby="ship-title"></dialog></div>`, `<span class="ship-title">${box}Incoming Shipments</span>`);
+    const form = $('[data-ship-add]', main);
+    const num = form.elements.tracking; const car = form.elements.carrier;
+    num.addEventListener('input', () => { const c = detectCarrier(num.value); if (c) car.value = c; });
+    $('[data-ship-paste]', main).addEventListener('click', async () => {
+      try { const t = (await navigator.clipboard.readText()).trim(); if (!t) { toast('Clipboard is empty'); return; } num.value = t; num.dispatchEvent(new Event('input')); }
+      catch { num.focus(); toast('Press and hold in the box, then tap Paste'); }
+    });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const tracking = num.value.replace(/\s+/g, '').toUpperCase(); if (tracking.length < 8) { toast('Enter a full tracking number'); return; }
+      if (shipList.some((x) => x.tracking === tracking)) { toast('That package is already on the list'); return; }
+      const btn = form.querySelector('[type="submit"]'); btn.disabled = true;
+      try { const r = await A.addShipment({ tracking, carrier: car.value || detectCarrier(tracking), label: form.elements.label.value.trim() }); await loadShipments(); toast('Package added — checking with the carrier'); shipments(true); refreshTracking(r && r.id); }
+      catch (ex) { toast(ex.message || 'Could not add the package'); btn.disabled = false; }
+    });
+    main.querySelectorAll('[data-ship]').forEach((b) => b.addEventListener('click', () => openShipment(b.dataset.ship)));
+  }
+  function openShipment(id) {
+    const x = shipList.find((s) => s.id === id); const dlg = $('#ship-dlg'); if (!x || !dlg) return;
+    const url = trackUrl(x.carrier, x.tracking);
+    dlg.innerHTML = `<div class="modal-head"><h2 id="ship-title">${esc(x.label || 'Package')}</h2><button class="icon-btn" type="button" aria-label="Close" data-ship-close>${icon('close')}</button></div>
+      <form class="ship-name" data-ship-name><label for="ship-name-in">Package name</label><div><input id="ship-name-in" type="text" value="${esc(x.label)}" placeholder="What’s in it?" autocomplete="off"><button class="btn btn-primary" type="submit">${icon('edit', 'icon-sm')} Save name</button></div></form>
+      <div class="ship-detail">
+        <dl class="kv"><div><dt>Tracking number</dt><dd class="mono">${esc(x.tracking)}</dd></div><div><dt>Carrier</dt><dd>${esc(carrierName(x.carrier) || 'Unknown')}</dd></div><div><dt>Status</dt><dd><b>${esc(shipStatus(x))}</b></dd></div><div><dt>${x.delivered ? 'Added' : 'Expected'}</dt><dd>${x.delivered ? fmtDate(x.createdAt, true) : (x.details && x.details.eta ? fmtDate(x.details.eta) : '—')}</dd></div></dl>
+        ${x.details && x.details.note && !(x.details.events || []).length ? `<p class="muted" style="font-size:13px">${esc(x.details.note)}</p>` : ''}
+        ${x.details && (x.details.events || []).length ? `<div class="ship-events"><h3>Tracking history</h3><ol>${x.details.events.map((ev, i) => `<li class="${i === 0 ? 'is-latest' : ''}"><b>${esc(ev.desc)}</b><small>${esc(fmtWhen(ev.time))}${ev.loc ? ' · ' + esc(ev.loc) : ''}</small></li>`).join('')}</ol></div>` : ''}
+        <p class="muted" style="font-size:12px">${x.details && x.details.checkedAt ? 'Last checked ' + esc(fmtWhen(x.details.checkedAt)) : 'Not checked yet'}</p>
+        <div class="ship-actions"><button class="btn" type="button" data-ship-check>Check now</button><button class="btn" type="button" data-ship-copy>Copy number</button>${url ? `<a class="btn btn-primary" href="${esc(url)}" target="_blank" rel="noopener">Track on ${esc(carrierName(x.carrier))}</a>` : ''}<button class="btn" type="button" data-ship-deliv>${x.delivered ? 'Mark as on the way' : 'Mark as delivered'}</button><button class="btn adm-danger" type="button" data-ship-del>Remove</button></div>
+      </div>`;
+    dlg.onclick = async (e) => {
+      if (e.target === dlg || e.target.closest('[data-ship-close]')) { dlg.close(); return; }
+      if (e.target.closest('[data-ship-copy]')) { try { await navigator.clipboard.writeText(x.tracking); toast('Copied'); } catch { toast('Press and hold the number to copy'); } return; }
+      if (e.target.closest('[data-ship-check]')) { const b = e.target.closest('[data-ship-check]'); b.disabled = true; b.textContent = 'Checking…'; try { await A.trackShipments(x.id); await loadShipments(); shipments(true); openShipment(x.id); } catch (ex) { toast(ex.message || 'Could not check'); b.disabled = false; b.textContent = 'Check now'; } return; }
+      if (e.target.closest('[data-ship-deliv]')) { try { await A.updateShipment(x.id, { delivered: !x.delivered, status: x.delivered ? 'pending' : 'delivered' }); await loadShipments(); shipments(); openShipment(x.id); toast(x.delivered ? 'Marked as on the way' : 'Marked as delivered'); } catch (ex) { toast(ex.message || 'Could not update'); } return; }
+      if (e.target.closest('[data-ship-del]')) { if (!confirm('Remove this package from the list?')) return; try { await A.deleteShipment(x.id); dlg.close(); await loadShipments(); shipments(); } catch (ex) { toast(ex.message || 'Could not remove'); } }
+    };
+    dlg.querySelector('[data-ship-name]').onsubmit = async (e) => {
+      e.preventDefault(); const v = dlg.querySelector('#ship-name-in').value.trim();
+      try { await A.updateShipment(x.id, { label: v }); await loadShipments(); shipments(); openShipment(x.id); toast('Name saved'); } catch (ex) { toast(ex.message || 'Could not save the name'); }
+    };
+    dlg.showModal();
+  }
+
+  // ------------------------------------------------------------ profit
+  let profitPeriod = '30';
+  // One row per sale: revenue (items, excluding shipping, minus refunds) minus the cost of what sold.
+  // who: 'main' (Mario's / the store's Profit and Sales pages) or 'lorena'. A sale saved "for Lorena" counts only for her;
+  // "Add to both" splits its revenue, cost and profit between the two: 50/50 unless the order has its own Lorena share (e.g. 0.3).
+  const shareOf = (o, who) => {
+    if (who === 'all') return 1; // Sales page: the whole store, every sale in full
+    const ow = o.profitOwner || 'main';
+    if (ow === 'both') { const ls = o.lorenaShare != null ? o.lorenaShare : 0.5; return who === 'lorena' ? ls : 1 - ls; }
+    return ow === who ? 1 : 0;
+  };
+  // Tap a sale's photo: show it large (about 75% of the screen) for 1 second, then it closes itself.
+  function photoPeek(src) {
+    document.querySelectorAll('.photo-peek').forEach((x) => x.remove());
+    const box = document.createElement('div'); box.className = 'photo-peek';
+    box.innerHTML = `<img src="${esc(src)}" alt="">`;
+    document.body.appendChild(box);
+    const close = () => { box.classList.add('is-out'); setTimeout(() => box.remove(), 200); };
+    box.addEventListener('click', close);
+    setTimeout(close, 1000); // closes 1 second after the tap
+  }
+  // Small photo of the (first) item sold, for the Profit lists. Falls back to the product's current photo.
+  const saleThumb = (o) => {
+    const i = o.items[0] || {}; const p = data.products.find((x) => x.id === i.productId);
+    const im = i.image || (p && p.images[0]);
+    return im ? `<img class="prof-thumb" src="${esc(img(im.sm || im.lg))}" data-full="${esc(img(im.lg || im.sm))}" alt="" width="30" height="30" loading="lazy" role="button" tabindex="0" aria-label="Show photo">` : '<span class="prof-thumb"></span>';
+  };
+  const shareTag = (r) => (r.share < 1 ? ` <small class="muted">· ${Math.round(r.share * 100)}% share</small>` : '');
+  function profitRows(from, to, who = 'main') {
+    const costs = data.costs || {};
+    return data.orders.filter((o) => o.status !== 'cancelled' && new Date(o.createdAt) >= from && new Date(o.createdAt) <= to && shareOf(o, who) > 0).map((o) => {
+      const share = shareOf(o, who);
+      const cost = round2(share * o.items.reduce((t, i) => t + (costs[i.productId] != null ? costs[i.productId] * (i.qty || 1) : 0), 0));
+      const missing = o.items.filter((i) => costs[i.productId] == null).length;
+      const refunds = refundsOf(o).reduce((t, r) => t + Number(r.amount), 0);
+      const revenue = round2(share * ((o.subtotal != null ? o.subtotal : o.total) - refunds));
+      return { o, cost, revenue, profit: round2(revenue - cost), missing, share };
+    });
+  }
+  // Mario's Profit (the store overall) / Lorena's Profit switch, shown at the top of both pages.
+  const ownerSwitch = (on) => `<div class="own-switch" role="group" aria-label="Whose profit"><button type="button" class="own-btn is-mario${on === 'profit' ? ' is-on' : ''}" data-tab="profit" aria-pressed="${on === 'profit'}">Mario</button><button type="button" class="own-btn is-lorena${on === 'lorena' ? ' is-on' : ''}" data-tab="lorena" aria-pressed="${on === 'lorena'}">Lorena</button></div>`;
+  function profit() {
+    const [from, to] = revRange(profitPeriod);
+    const rows = profitRows(from, to);
+    // Same totals as the Sales page for this period (website orders plus the owner's sheet).
+    const T = rangeTotals(profitPeriod);
+    const total = T.profit;
+    const rev = T.revenue;
+    const missing = rows.reduce((t, r) => t + r.missing, 0);
+    const margin = rev ? Math.round((total / rev) * 100) : 0;
+    main.innerHTML = shell(`
+      <div class="rv-periods" role="group" aria-label="Time period">${[...REV_PERIODS, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
+      ${profitPeriod === 'custom' ? `<div class="prof-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
+      <div class="adm-tiles rv-tiles">
+        <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
+        <div class="adm-tile"><span class="eyebrow">Margin</span><b class="tabnum">${rev ? margin + '%' : '—'}</b><span class="muted">Profit ÷ revenue</span></div>
+        ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
+      </div>
+      <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
+        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><span class="prof-qty tabnum">${qtyOf(r.o) > 1 ? qtyOf(r.o) + 'x' : ''}</span>${saleThumb(r.o)}<button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${shareTag(r)}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+      </section>
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Mario’s Profit', ownerSwitch('profit'));
+  }
+
+  // Lorena's Profit: only her sales ("Save sale for Lorena") plus her half of "Add to both" sales.
+  function lorena() {
+    const [from, to] = revRange(profitPeriod);
+    const rows = profitRows(from, to, 'lorena');
+    const total = round2(rows.reduce((t, r) => t + r.profit, 0));
+    const rev = round2(rows.reduce((t, r) => t + r.revenue, 0));
+    const missing = rows.reduce((t, r) => t + r.missing, 0);
+    const margin = rev ? Math.round((total / rev) * 100) : 0;
+    main.innerHTML = shell(`
+      <div class="rv-periods" role="group" aria-label="Time period">${[...REV_PERIODS, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${profitPeriod === k ? ' is-on' : ''}" data-prof="${k}" aria-pressed="${profitPeriod === k}">${l}</button>`).join('')}</div>
+      ${profitPeriod === 'custom' ? `<div class="prof-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
+      <div class="adm-tiles rv-tiles">
+        <div class="adm-tile"><span class="eyebrow">Profit</span><b class="tabnum">${money(total)}</b><span class="muted">${rows.length} sale${rows.length === 1 ? '' : 's'}</span></div>
+        <div class="adm-tile"><span class="eyebrow">Margin</span><b class="tabnum">${rev ? margin + '%' : '—'}</b><span class="muted">Profit ÷ revenue</span></div>
+        ${missing ? `<div class="adm-tile"><span class="eyebrow">Missing cost</span><b class="tabnum">${missing}</b><span class="muted">items sold with no cost yet</span></div>` : ''}
+      </div>
+      <section class="adm-card"><div class="adm-card-head"><h2>Profit by sale</h2></div>
+        ${rows.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Profit</th></tr></thead><tbody>${rows.slice().sort((a, b) => new Date(b.o.createdAt) - new Date(a.o.createdAt)).map((r) => `<tr><td>${fmtDate(r.o.createdAt)}</td><td><span class="prof-qty tabnum">${qtyOf(r.o) > 1 ? qtyOf(r.o) + 'x' : ''}</span>${saleThumb(r.o)}<button class="link mono" type="button" data-open-order="${r.o.id}">#${r.o.number}</button>${shareTag(r)}${r.missing ? ' <small class="muted">· cost missing</small>' : ''}</td><td class="num tabnum">${money(r.profit)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales for Lorena in this period yet.</p>'}
+      </section>
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Lorena’s Profit', ownerSwitch('lorena'));
+  }
+
+  // ------------------------------------------------------------ sales breakdown (pop-up from Overview)
+  let sbUnit = 'month';
+  const SB_UNITS = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['year', 'Year']];
+  const ymd = (t) => `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  // Period key for a date in local time: the day, the Monday of its week, the month (YYYY-MM) or the year.
+  function periodOf(d, unit) {
+    const x = new Date(d);
+    if (unit === 'year') return String(x.getFullYear());
+    if (unit === 'month') return ymd(x).slice(0, 7);
+    if (unit === 'week') { const w = new Date(x.getFullYear(), x.getMonth(), x.getDate()); w.setDate(w.getDate() - ((w.getDay() + 6) % 7)); return ymd(w); }
+    return ymd(x);
+  }
+  function periodLabel(key, unit) {
+    if (unit === 'year') return key;
+    if (unit === 'month') return new Date(key + '-01T12:00:00').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    const day = new Date(key + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return unit === 'week' ? `Week of ${day}` : day;
+  }
+  // Rows per period. Site = orders on this website (revenue, expenses, profit). Sheet and Average = profit only.
+  function salesBreakdownRows(unit, who = 'main') {
+    const now = new Date();
+    const bucket = (u) => {
+      const m = new Map();
+      profitRows(new Date(0), now, who).forEach((r) => {
+        const k = periodOf(r.o.createdAt, u);
+        const x = m.get(k) || { key: k, revenue: 0, expenses: 0, profit: 0 };
+        x.revenue = round2(x.revenue + r.revenue); x.expenses = round2(x.expenses + r.cost); x.profit = round2(x.profit + r.profit);
+        m.set(k, x);
+      });
+      return m;
+    };
+    if (unit === 'day' || unit === 'week') {
+      return [...bucket(unit).values()].map((r) => ({ ...r, label: periodLabel(r.key, unit), source: 'Site' }));
+    }
+    const site = bucket('month'); const sheet = new Map(SALES_MONTHS); const out = [];
+    for (let i = 2024 * 12 + 3; i <= now.getFullYear() * 12 + now.getMonth(); i++) {
+      const y = Math.floor(i / 12); const key = `${y}-${String(i % 12 + 1).padStart(2, '0')}`;
+      const s = site.get(key); site.delete(key);
+      if (s) out.push({ ...s, label: periodLabel(key, 'month'), source: 'Site' });
+      else if (sheet.has(key)) out.push({ key, label: periodLabel(key, 'month'), revenue: null, expenses: null, profit: sheet.get(key), source: 'Sheet' });
+      else if (y === 2026 && Number(key.slice(5)) <= SALES_AVG_LAST_MONTH) out.push({ key, label: periodLabel(key, 'month'), revenue: null, expenses: null, profit: SALES_AVG_2026, source: 'Average' });
+    }
+    site.forEach((s) => out.push({ ...s, label: periodLabel(s.key, 'month'), source: 'Site' }));
+    if (unit === 'month') return out.sort((a, b) => (a.key < b.key ? -1 : 1));
+    const years = new Map();
+    out.forEach((r) => {
+      const y = r.key.slice(0, 4);
+      const x = years.get(y) || { key: y, label: y, revenue: null, expenses: null, profit: 0, source: 'Year' };
+      if (r.revenue != null) x.revenue = round2((x.revenue || 0) + r.revenue);
+      if (r.expenses != null) x.expenses = round2((x.expenses || 0) + r.expenses);
+      x.profit = round2(x.profit + r.profit);
+      years.set(y, x);
+    });
+    return [...years.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
+  }
+  const sbMoney = (v) => (v == null ? '' : money(v));
+  // The owner's sheet: all-time totals, and monthly profit before the website. From January 2026 each month uses the average until changed here.
+  const SALES_TOTALS = { gross: 253099.17, expenses: 169954.44, profit: 83144.74 };
+  const SALES_MONTHS = [['2024-04', 471.83], ['2024-05', 481.14], ['2024-06', 292.82], ['2024-07', 1101.99], ['2024-08', 1797.00], ['2024-09', 1592.18], ['2024-10', 446.34], ['2024-11', 396.66], ['2024-12', 1596.93],
+    ['2025-01', 2000.00], ['2025-02', 2000.00], ['2025-03', 3000.00], ['2025-04', 3000.00], ['2025-05', 3000.00], ['2025-06', 2037.59], ['2025-07', 3002.21], ['2025-08', 2753.21], ['2025-09', 3184.79], ['2025-10', 3231.09], ['2025-11', 3123.05], ['2025-12', 4516.84]];
+  const SALES_AVG_2026 = 2771.49;
+  // The 2026 monthly average applies January–September only. From October on, website sales are the real figures.
+  const SALES_AVG_LAST_MONTH = 9;
+  // Every website sale is added on top of the owner's sheet totals (the sheet does not include website sales).
+  const SALES_SHEET_CUTOFF = new Date(0);
+  const SALES_AVG_REVENUE = 8436.64;
+  const SALES_AVG_EXPENSES = 5665.15;
+  // Sales page: revenue, expenses and profit for a range. Site orders are exact; the sheet adds profit for whole months in the range.
+  let sbRange = 'all';
+  const SB_RANGES = [['today', 'Today'], ['7', 'Last 7 days'], ['30', 'Last 30 days'], ['ytd', 'YTD'], ['lastyear', 'Last year'], ['all', 'All time']];
+  // Custom date range on the Profit page (YYYY-MM-DD, local days, both ends included).
+  const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  let customFrom = dayKey(new Date(Date.now() - 29 * 864e5)); let customTo = dayKey(new Date());
+  const customBounds = () => { const a = new Date(customFrom + 'T00:00:00'), z = new Date(customTo + 'T23:59:59.999'); return a <= z ? [a, z] : [new Date(customTo + 'T00:00:00'), new Date(customFrom + 'T23:59:59.999')]; };
+  function rangeBounds(key) {
+    if (key === 'custom') { const [from, to] = customBounds(); return { from, to }; }
+    const now = new Date(); const y = now.getFullYear(); const startDay = new Date(y, now.getMonth(), now.getDate());
+    if (key === 'today') return { from: startDay, to: now };
+    if (key === '7' || key === '30' || key === '90') return { from: new Date(startDay - Number(key) * 864e5), to: now };
+    if (key === 'ytd') return { from: new Date(y, 0, 1), to: now };
+    if (key === 'lastyear') return { from: new Date(y - 1, 0, 1), to: new Date(y - 1, 11, 31, 23, 59, 59, 999) };
+    return { from: new Date(0), to: now };
+  }
+  function rangeTotals(key, who = 'main') {
+    // Website sales made after the owner's sheet totals were entered are added on top of them.
+    const newer = profitRows(SALES_SHEET_CUTOFF, new Date(), who);
+    const newerSum = (k) => newer.reduce((t, r) => t + r[k], 0);
+    if (key === 'all') return { revenue: round2(SALES_TOTALS.gross + newerSum('revenue')), expenses: round2(SALES_TOTALS.expenses + newerSum('cost')), profit: round2(SALES_TOTALS.profit + newerSum('profit')) };
+    const b = rangeBounds(key); const now = new Date();
+    const site = profitRows(b.from, b.to, who);
+    // A month's figure is added once, on its last day, so it counts for a range only if that last day is inside the range.
+    const lastDayIn = (yy, mm) => { const me = new Date(yy, mm, 0, 23, 59, 59, 999); return me >= b.from && me <= b.to; };
+    let profit = 0, revenue = 0, expenses = 0;
+    // Sheet months before 2026: profit only.
+    SALES_MONTHS.forEach(([m, v]) => { const [yy, mm] = m.split('-').map(Number); if (lastDayIn(yy, mm)) profit += v; });
+    // 2026 months: the sheet averages for revenue, expenses and profit (profit = revenue minus expenses).
+    for (let mo = 1; mo <= Math.min(now.getMonth() + 1, SALES_AVG_LAST_MONTH); mo++) {
+      if (!lastDayIn(now.getFullYear(), mo)) continue;
+      profit += SALES_AVG_2026; revenue += SALES_AVG_REVENUE; expenses += SALES_AVG_EXPENSES;
+    }
+    if (key === 'ytd') {
+      // YTD: 99,000 from the owner's sheet plus website revenue; profit set by the owner; expenses are revenue minus profit.
+      profit = 30372.38 + newerSum('profit');
+      revenue = site.reduce((t, r) => t + r.revenue, 0) + 99000;
+      expenses = revenue - profit;
+    } else {
+      // Website sales count as they happen.
+      profit += site.reduce((t, r) => t + r.profit, 0);
+      revenue += site.reduce((t, r) => t + r.revenue, 0);
+      expenses += site.reduce((t, r) => t + r.cost, 0);
+    }
+    return { revenue: round2(revenue), expenses: round2(expenses), profit: round2(profit) };
+  }
+  // Short axis label for a period key.
+  function shortLabel(key, unit) {
+    if (unit === 'year') return key;
+    if (unit === 'month') return new Date(key + '-01T12:00:00').toLocaleString('en-US', { month: 'short', year: '2-digit' });
+    return new Date(key + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  // Chart of revenue and expenses (bars) and profit (line) by period, oldest on the left. Tap a bar or dot for the figures.
+  function salesChart(rowsDesc) {
+    const rows = rowsDesc.slice().sort((x, y) => (x.key < y.key ? -1 : 1));
+    if (!rows.length) return '<p class="muted adm-empty">No sales yet for this view.</p>';
+    const W = 640, H = 240, pl = 50, pr = 12, pt = 14, pb = 30;
+    const max = Math.max(1, ...rows.flatMap((r) => [r.revenue || 0, r.expenses || 0, Math.max(r.profit || 0, 0)]));
+    const slot = (W - pl - pr) / rows.length;
+    const yOf = (v) => pt + (H - pt - pb) * (1 - Math.max(v || 0, 0) / max);
+    const bw = Math.max(3, Math.min(22, slot * 0.34));
+    const every = Math.max(1, Math.ceil(rows.length / 8));
+    const short = (v) => (v >= 1000 ? '$' + (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'k' : '$' + Math.round(v));
+    let bars = '', line = '', dots = '', labels = '', ticks = '';
+    [0, 0.25, 0.5, 0.75, 1].forEach((f) => {
+      const v = max * f; const y = yOf(v);
+      ticks += `<line x1="${pl}" x2="${W - pr}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e6e6e6" stroke-width="1"/><text x="${pl - 8}" y="${(y + 3.5).toFixed(1)}" text-anchor="end">${short(v)}</text>`;
+    });
+    rows.forEach((r, i) => {
+      const cx = pl + slot * (i + 0.5); const name = esc(r.label);
+      if (r.revenue != null) bars += `<rect x="${(cx - bw - 1).toFixed(1)}" y="${yOf(r.revenue).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pb - yOf(r.revenue)).toFixed(1)}" rx="2" fill="#d4d4d4"><title>${name} · Revenue ${money(r.revenue)}</title></rect>`;
+      if (r.expenses != null) bars += `<rect x="${(cx + 1).toFixed(1)}" y="${yOf(r.expenses).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H - pb - yOf(r.expenses)).toFixed(1)}" rx="2" fill="#6b6b6b"><title>${name} · Expenses ${money(r.expenses)}</title></rect>`;
+      line += `${i ? ' L' : 'M'}${cx.toFixed(1)} ${yOf(r.profit).toFixed(1)}`;
+      dots += `<circle cx="${cx.toFixed(1)}" cy="${yOf(r.profit).toFixed(1)}" r="4" fill="#0b0b0c" stroke="#fff" stroke-width="1.5"><title>${name} · Profit ${money(r.profit)}</title></circle>`;
+      if (i % every === 0 || i === rows.length - 1) labels += `<text x="${cx.toFixed(1)}" y="${H - 8}" text-anchor="middle">${esc(shortLabel(r.key, sbUnit))}</text>`;
+    });
+    return `<svg class="sb-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Revenue, expenses and profit by ${sbUnit}">
+      ${ticks}
+      <line x1="${pl}" x2="${W - pr}" y1="${H - pb}" y2="${H - pb}" stroke="#0b0b0c" stroke-width="1"/>
+      ${bars}<path d="${line}" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linejoin="round"/>${dots}${labels}
+    </svg>
+    <div class="sb-legend"><span><i style="background:#d4d4d4"></i>Revenue</span><span><i style="background:#6b6b6b"></i>Expenses</span><span><i style="background:#0b0b0c"></i>Profit</span></div>`;
+  }
+  function salesPage() {
+    // Sales page = the whole store: Mario's and Lorena's sales together, every sale counted in full.
+    const T = rangeTotals(sbRange, 'all');
+    const rows = salesBreakdownRows(sbUnit, 'all').slice().reverse();
+    // Sparkline of the last 12 periods (oldest left) for one figure, drawn in the card's colour.
+    const series = rows.slice(0, 12).reverse();
+    const spark = (k, color) => {
+      const v = series.map((r) => Math.max(0, r[k] || 0));
+      if (v.length < 2) return '';
+      const W = 200, H = 44, max = Math.max(1, ...v), step = W / (v.length - 1);
+      const pts = v.map((x, i) => [i * step, H - 4 - (H - 10) * (x / max)]);
+      const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+      const id = 'sg-' + k;
+      return `<svg class="sb-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs><path d="${line} L${W} ${H} L0 ${H} Z" fill="url(#${id})"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${pts[pts.length - 1][0].toFixed(1)}" cy="${pts[pts.length - 1][1].toFixed(1)}" r="3.2" fill="${color}"/></svg>`;
+    };
+    const trophy = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0V4ZM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M9 20h6M10 17h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const card = (label, v, neg, cls, ic, k, color) => `<div class="sb-card ${cls}"><div class="sb-card-top"><span class="sb-ic">${ic}</span><div><span class="sb-label">${label}</span><b class="tabnum">${v == null ? '' : (neg ? '-' : '') + money(v)}</b></div></div>${spark(k, color)}</div>`;
+    main.innerHTML = shell(`
+      <div class="sb-cards">
+        ${card('Revenue', T.revenue, false, 'is-rev', icon('chart'), 'revenue', '#6b4ff6')}
+        ${card('Expenses', T.expenses, true, 'is-exp', icon('layers'), 'expenses', '#e5483a')}
+        ${card('Profit', T.profit, false, 'is-pro', trophy, 'profit', '#3cbf5a')}
+      </div>
+      <div class="sb-ranges" role="group" aria-label="Time range">${[...SB_RANGES, ['custom', 'Custom']].map(([k, l]) => `<button type="button" class="chip${sbRange === k ? ' is-on' : ''}" data-sbr="${k}" aria-pressed="${sbRange === k}">${l}</button>`).join('')}</div>
+      ${sbRange === 'custom' ? `<div class="prof-custom sb-custom"><label>From<input type="date" value="${customFrom}" max="${dayKey(new Date())}" data-prof-from></label><label>To<input type="date" value="${customTo}" max="${dayKey(new Date())}" data-prof-to></label></div>` : ''}
+      <div class="sb-seg" role="group" aria-label="Breakdown by">${SB_UNITS.map(([k, l]) => `<button type="button" data-sb="${k}" aria-pressed="${sbUnit === k}">${l}</button>`).join('')}</div>
+      <section class="adm-card sb-chart-card"><div class="adm-card-head"><h2>Trend</h2><span class="muted" style="font-size:13px">By ${SB_UNITS.find((u) => u[0] === sbUnit)[1].toLowerCase()}</span></div>${salesChart(rows)}</section>
+      <div class="sb-more"><button type="button" class="sb-tile" data-stmts><span class="sb-tile-ic">${icon('download')}</span><b>Monthly statements</b><small>Last 12 months</small></button></div>
+      <dialog class="modal stmt-dlg" id="stmt-dlg" aria-labelledby="stmt-title"></dialog>
+      `, 'Sales', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+  }
+
+  // ------------------------------------------------------------ monthly statements (Sales page)
+  const monthKeyOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  // Most recent first: this month (in progress), then the 12 full months before it.
+  function statementMonths() {
+    const now = new Date(); const out = [];
+    for (let i = 0; i <= 12; i++) out.push(monthKeyOf(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+    return out;
+  }
+  // Figures and itemized lines for one month: website sales plus the owner's records for that month, if any.
+  function monthStatement(key) {
+    const [y, m] = key.split('-').map(Number);
+    const from = new Date(y, m - 1, 1); const end = new Date(y, m, 0, 23, 59, 59, 999); const now = new Date();
+    const to = end < now ? end : now;
+    const costs = data.costs || {};
+    const rows = profitRows(from, to, 'all').sort((a, b) => new Date(a.o.createdAt) - new Date(b.o.createdAt));
+    let sheet = null;
+    if (end <= now) {
+      const sm = SALES_MONTHS.find(([k]) => k === key);
+      if (sm) sheet = { revenue: null, expenses: null, profit: sm[1] };
+      else if (y === 2026 && m <= SALES_AVG_LAST_MONTH) sheet = { revenue: SALES_AVG_REVENUE, expenses: SALES_AVG_EXPENSES, profit: SALES_AVG_2026 };
+    }
+    const lines = [];
+    if (sheet) lines.push({ date: end, order: '', title: 'Sales from ML Group records (monthly summary)', qty: null, price: null, amount: sheet.revenue, cost: sheet.expenses, profit: sheet.profit, sheet: true });
+    rows.forEach((r) => {
+      const o = r.o; const one = o.items.length === 1; const sh = r.share;
+      o.items.forEach((i) => {
+        const qty = i.qty || 1; const c = costs[i.productId];
+        const amount = sh * (one ? r.revenue / sh + refundsOf(o).reduce((t, x) => t + Number(x.amount), 0) : i.price * qty);
+        const cost = c != null ? round2(sh * c * qty) : null;
+        lines.push({ date: new Date(o.createdAt), order: o.number, title: i.title, qty, price: round2(amount / qty), amount: round2(amount), cost, profit: round2(amount - (cost || 0)), missingCost: c == null, how: (isInPerson(o) ? 'In person' : o.fulfillment === 'pickup' ? 'Website · pickup' : 'Website · shipped') + (sh < 1 ? ` · ${Math.round(sh * 100)}% share` : '') });
+      });
+      refundsOf(o).forEach((x) => lines.push({ date: new Date(x.createdAt || o.createdAt), order: o.number, title: 'Refund', qty: null, price: null, amount: round2(-sh * Number(x.amount)), cost: null, profit: round2(-sh * Number(x.amount)), refund: true }));
+    });
+    const site = { revenue: rows.reduce((t, r) => t + r.revenue, 0), expenses: rows.reduce((t, r) => t + r.cost, 0), profit: rows.reduce((t, r) => t + r.profit, 0) };
+    const known = !sheet || sheet.revenue != null || rows.length;
+    const revenue = known ? round2(site.revenue + (sheet && sheet.revenue != null ? sheet.revenue : 0)) : null;
+    const expenses = known ? round2(site.expenses + (sheet && sheet.expenses != null ? sheet.expenses : 0)) : null;
+    const profit = round2(site.profit + (sheet ? sheet.profit : 0));
+    return { key, from, end, to, inProgress: end > now, lines, revenue, expenses, profit, sales: rows.length, units: rows.reduce((t, r) => t + qtyOf(r.o), 0), missing: rows.reduce((t, r) => t + r.missing, 0) };
+  }
+  const monthName = (key) => new Date(key + '-01T12:00:00').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const dShort = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const dLong = (d) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const mOr = (v) => (v == null ? '—' : (v < 0 ? '-' : '') + money(Math.abs(v)));
+  function statementHTML(S) {
+    const st = store.settings() || {};
+    const name = st.storeName || 'ML Group';
+    // Statements use the business mailing address (the website only shows the city).
+    const addr = ['MTM Group (DBA)', '814 Pike St NE, Apt D10', 'Auburn, WA 98002'];
+    const margin = S.revenue ? Math.round((S.profit / S.revenue) * 100) + '%' : '—';
+    return `<article class="stmt">
+      <header class="stmt-head">
+        <div class="stmt-co"><img src="${esc(img('logo-mark.png'))}" alt="" width="52" height="52"><div><b>${esc(name)}</b>${addr.map((l) => `<span>${esc(l)}</span>`).join('')}${st.phone ? `<span>${esc(st.phone)}</span>` : ''}${st.email ? `<span>${esc(st.email)}</span>` : ''}</div></div>
+        <div class="stmt-meta"><h3>Monthly Statement</h3><dl><div><dt>Period</dt><dd>${dLong(S.from)} – ${dLong(S.inProgress ? S.to : S.end)}</dd></div><div><dt>Statement no.</dt><dd class="mono">ML-${S.key.replace('-', '')}</dd></div><div><dt>Issued</dt><dd>${dLong(new Date())}</dd></div></dl>${S.inProgress ? '<span class="stmt-badge">Month in progress</span>' : ''}</div>
+      </header>
+      <section class="stmt-sum">
+        <div class="is-rev"><span>Gross</span><b class="tabnum">${mOr(S.revenue)}</b></div>
+        <div class="is-exp"><span>Cost of goods</span><b class="tabnum">${S.expenses == null ? '—' : (S.expenses > 0 ? '-' : '') + money(S.expenses)}</b></div>
+        <div class="is-pro"><span>Net operating income</span><b class="tabnum">${mOr(S.profit)}</b></div>
+      </section>
+      <p class="stmt-sub">${S.sales} sale${S.sales === 1 ? '' : 's'} on the website · ${S.units} item${S.units === 1 ? '' : 's'} sold · Margin ${margin}${S.missing ? ` · ${S.missing} item${S.missing === 1 ? '' : 's'} with no cost entered` : ''}</p>
+      <h4 class="stmt-h">Itemized sales</h4>
+      <table class="stmt-tbl"><thead><tr><th>Date</th><th class="c-x">Order</th><th>Item</th><th class="num c-x">Qty</th><th class="num c-x">Price</th><th class="num">Revenue</th><th class="num">Cost</th></tr></thead><tbody>
+        ${S.lines.length ? S.lines.map((l) => `<tr class="${l.sheet ? 'is-sheet' : ''}${l.refund ? ' is-refund' : ''}"><td>${dShort(l.date)}</td><td class="mono c-x">${l.order ? '#' + l.order : '—'}</td><td class="stmt-item">${esc(l.title)}${l.how || l.order ? `<small>${l.order ? `<span class="c-m-in">#${l.order} · </span>` : ''}${esc(l.how || '')}${l.qty ? ` · ${l.qty} × ${money(l.price)}` : ''}${l.missingCost ? ' · cost not entered' : ''}</small>` : ''}</td><td class="num c-x">${l.qty ?? ''}</td><td class="num c-x">${l.price == null ? '' : money(l.price)}</td><td class="num">${mOr(l.amount)}</td><td class="num">${l.cost == null ? '—' : money(l.cost)}</td></tr>`).join('') : '<tr><td colspan="7" class="muted">No sales this month.</td></tr>'}
+      </tbody><tfoot><tr><td colspan="5" class="c-x">Totals</td><td class="c-m" colspan="2">Totals</td><td class="num">${mOr(S.revenue)}</td><td class="num">${S.expenses == null ? '—' : money(S.expenses)}</td></tr></tfoot></table>
+      <footer class="stmt-foot">${esc(name)} · Statement for ${monthName(S.key)} · Amounts in USD. Gross is item sales after refunds, not including shipping. Cost of goods is what the items sold cost. Net operating income is gross minus cost of goods.${S.lines.some((l) => l.sheet) ? ' Record summaries come from ML Group’s own books for that month.' : ''}</footer>
+    </article>`;
+  }
+  function openStatements() {
+    const dlg = $('#stmt-dlg'); if (!dlg) return;
+    const list = () => {
+      dlg.innerHTML = `<div class="modal-head"><h2 id="stmt-title">Monthly statements</h2><button class="icon-btn" type="button" aria-label="Close" data-stmt-close>${icon('close')}</button></div>
+        <div class="stmt-list">${statementMonths().map((k) => { const S = monthStatement(k); return `<button type="button" class="stmt-row" data-stmt="${k}"><span><b>${monthName(k)}</b><small>${S.inProgress ? 'In progress · ' : ''}${S.lines.some((l) => l.sheet) && !S.sales ? 'From records' : `${S.sales} sale${S.sales === 1 ? '' : 's'}`}${S.revenue != null ? ' · Gross ' + money(S.revenue) : ''}</small></span><span class="stmt-row-p tabnum">${mOr(S.profit)}<small>Net income</small></span>${icon('right', 'icon-sm')}</button>`; }).join('')}</div>`;
+    };
+    const view = (k) => {
+      const S = monthStatement(k);
+      dlg.innerHTML = `<div class="modal-head stmt-bar"><button class="btn btn-sm" type="button" data-stmt-back>${icon('left', 'icon-sm')} Back</button><h2 id="stmt-title" class="sr-only">${monthName(k)} statement</h2><div><button class="btn btn-sm btn-primary" type="button" data-stmt-pdf="${k}">${icon('download', 'icon-sm')} Download PDF</button><button class="icon-btn" type="button" aria-label="Close" data-stmt-close>${icon('close')}</button></div></div>
+        <div class="stmt-scroll">${statementHTML(S)}</div>`;
+      dlg.querySelector('.stmt-scroll').scrollTop = 0;
+    };
+    list();
+    if (!dlg.dataset.wired) {
+      dlg.dataset.wired = '1';
+      dlg.addEventListener('click', async (e) => {
+        if (e.target === dlg || e.target.closest('[data-stmt-close]')) { dlg.close(); return; }
+        if (e.target.closest('[data-stmt-back]')) { list(); return; }
+        const r = e.target.closest('[data-stmt]'); if (r) { view(r.dataset.stmt); return; }
+        const pdf = e.target.closest('[data-stmt-pdf]');
+        if (pdf && !pdf.disabled) {
+          const label = pdf.innerHTML; pdf.disabled = true; pdf.textContent = 'Making PDF…';
+          try { await statementPDF(pdf.dataset.stmtPdf); } catch (ex) { toast('Could not make the PDF. Check your connection and try again.'); }
+          pdf.disabled = false; pdf.innerHTML = label;
+        }
+      });
+    }
+    dlg.showModal();
+  }
+  // PDF of a statement, laid out at letter width, made in the browser (html2pdf loads on first use).
+  // If the PDF library can't load, fall back to the phone's print screen (Save as PDF / Share).
+  async function statementPDF(key) {
+    document.querySelectorAll('.stmt-print').forEach((x) => x.remove());
+    const box = document.createElement('div'); box.className = 'stmt-print';
+    box.innerHTML = statementHTML(monthStatement(key));
+    document.body.appendChild(box);
+    if (!window.html2pdf) {
+      try {
+        await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; s.onload = res; s.onerror = rej; setTimeout(rej, 10000); document.head.appendChild(s); });
+      } catch {
+        const done = () => { document.body.classList.remove('printing-stmt'); box.remove(); window.removeEventListener('afterprint', done); };
+        document.body.classList.add('printing-stmt'); window.addEventListener('afterprint', done);
+        await new Promise((r) => setTimeout(r, 300)); window.print(); setTimeout(done, 60000);
+        return;
+      }
+    }
+    try {
+      await window.html2pdf().set({ margin: [0.4, 0.4, 0.5, 0.4], filename: `ML-Group-Statement-${key}.pdf`, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 800 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.stmt-sum', '.stmt-head'] } }).from(box.firstElementChild).save();
+    } finally { box.remove(); }
+  }
+
+  // ------------------------------------------------------------ revenue report
+  let revPeriod = '30';
+  const REV_PERIODS = [['today', 'Today'], ['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['ytd', 'Year to date'], ['all', 'All time']];
+  const isInPerson = (o) => o.customer && o.customer.name === 'In-person sale';
+  const qtyOf = (o) => o.items.reduce((t, i) => t + (i.qty || 1), 0);
+  function revRange(key, now = new Date()) {
+    if (key === 'custom') return customBounds();
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (key === 'today') return [day, now];
+    if (key === 'ytd') return [new Date(now.getFullYear(), 0, 1), now];
+    if (key === 'all') { const first = data.orders.reduce((m, o) => Math.min(m, +new Date(o.createdAt)), +now); return [new Date(first), now]; }
+    const n = Number(key); return [new Date(day.getTime() - (n - 1) * 864e5), now];
+  }
+  function revenue() {
+    const valid = data.orders.filter((o) => o.status !== 'cancelled');
+    const [from, to] = revRange(revPeriod);
+    const inP = valid.filter((o) => { const d = new Date(o.createdAt); return d >= from && d <= to; });
+    // previous period of equal length, for the change badge
+    const len = to - from; const prevFrom = new Date(from - len); const prev = valid.filter((o) => { const d = new Date(o.createdAt); return d >= prevFrom && d < from; });
+    const sum = (l) => round2(l.reduce((t, o) => t + o.total, 0));
+    const total = sum(inP), prevTotal = sum(prev);
+    const units = inP.reduce((t, o) => t + qtyOf(o), 0);
+    const ship = round2(inP.reduce((t, o) => t + (o.shippingTotal || 0), 0));
+    const chg = revPeriod !== 'all' && prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
+    const tiles = [
+      ['Revenue', money(total), chg == null ? `${inP.length} order${inP.length === 1 ? '' : 's'}` : `${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg)}% vs previous ${REV_PERIODS.find((x) => x[0] === revPeriod)[1].toLowerCase()}`],
+      ['Orders', inP.length, `${units} item${units === 1 ? '' : 's'} sold`],
+      ['Avg order', money(inP.length ? total / inP.length : 0), 'Revenue ÷ orders'],
+      ['Avg item price', money(units ? (total - ship) / units : 0), 'Item revenue ÷ items'],
+      ['Shipping collected', money(ship), `${inP.filter((o) => o.fulfillment !== 'pickup').length} shipped order(s)`],
+      ['Best day', (() => { const m = {}; inP.forEach((o) => { const k = new Date(o.createdAt).toDateString(); m[k] = (m[k] || 0) + o.total; }); const b = Object.entries(m).sort((a, c) => c[1] - a[1])[0]; return b ? money(b[1]) : '—'; })(), (() => { const m = {}; inP.forEach((o) => { const k = new Date(o.createdAt).toDateString(); m[k] = (m[k] || 0) + o.total; }); const b = Object.entries(m).sort((a, c) => c[1] - a[1])[0]; return b ? fmtDate(b[0]) : 'No sales yet'; })()],
+    ];
+    // chart buckets: hours for Today, days up to 45 days, weeks beyond that
+    const span = (to - from) / 864e5;
+    const unit = revPeriod === 'today' ? 'hour' : span > 45 ? 'week' : 'day';
+    const buckets = [];
+    if (unit === 'hour') { for (let h = 0; h <= to.getHours(); h++) buckets.push({ start: new Date(from.getTime() + h * 36e5), label: new Date(from.getTime() + h * 36e5).toLocaleTimeString('en-US', { hour: 'numeric' }) }); }
+    else { const step = unit === 'week' ? 7 : 1; for (let d = new Date(from); d <= to; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + step)) buckets.push({ start: new Date(d), label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }); }
+    buckets.forEach((b, i) => { const end = buckets[i + 1] ? buckets[i + 1].start : new Date(to.getTime() + 1); const os = inP.filter((o) => { const d = new Date(o.createdAt); return d >= b.start && d < end; }); b.total = sum(os); b.n = os.length; });
+    const max = Math.max(1, ...buckets.map((b) => b.total));
+    const bars = buckets.map((b) => `<div class="rv-bar" tabindex="0" data-tip="${esc(`${unit === 'week' ? 'Week of ' : ''}${b.label} · ${money(b.total)} · ${b.n} order${b.n === 1 ? '' : 's'}`)}"><i style="height:${b.total ? Math.max(3, (b.total / max) * 100) : 0}%"></i></div>`).join('');
+    const tickEvery = Math.ceil(buckets.length / 6);
+    const ticks = buckets.map((b, i) => `<span>${i % tickEvery === 0 ? esc(b.label) : ''}</span>`).join('');
+    // splits
+    const split = (rows) => { const t = rows.reduce((a, r) => a + r[1], 0) || 1; return `<ul class="rv-split">${rows.map(([l, v, n]) => `<li><div class="rv-split-top"><span>${l}</span><b class="tabnum">${money(v)}</b></div><div class="rv-meter"><i style="width:${(v / t) * 100}%"></i></div><small class="muted">${n} order${n === 1 ? '' : 's'} · ${Math.round((v / t) * 100)}%</small></li>`).join('')}</ul>`; };
+    const by = (f) => [inP.filter(f), inP.filter((o) => !f(o))];
+    const [web, store_] = by((o) => !isInPerson(o));
+    const [pick, shipd] = by((o) => o.fulfillment === 'pickup');
+    const [paidOnline, paidLocal] = by((o) => o.payment === 'paypal');
+    // top sellers & categories
+    const prod = {};
+    inP.forEach((o) => o.items.forEach((i) => { const k = i.productId || i.title; const r = prod[k] || (prod[k] = { title: i.title, image: i.image, units: 0, rev: 0, cat: (data.products.find((p) => p.id === i.productId) || {}).categoryId }); const share = o.items.length === 1 ? o.total - (o.shippingTotal || 0) : (i.price * (i.qty || 1)); r.units += i.qty || 1; r.rev += share; }));
+    const top = Object.values(prod).sort((a, b) => b.rev - a.rev);
+    const cats = {}; top.forEach((r) => { const k = catName(r.cat); cats[k] = (cats[k] || 0) + r.rev; });
+    const catRows = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+    main.innerHTML = shell(`
+      <div class="rv-periods" role="group" aria-label="Time period">${REV_PERIODS.map(([k, l]) => `<button type="button" class="chip${revPeriod === k ? ' is-on' : ''}" data-rev="${k}" aria-pressed="${revPeriod === k}">${l}</button>`).join('')}</div>
+      <p class="muted rv-range">${fmtDate(from)} – ${fmtDate(to)} · cancelled orders not counted</p>
+      <div class="adm-tiles rv-tiles">${tiles.map(([l, v, sub]) => `<div class="adm-tile"><span class="eyebrow">${l}</span><b class="tabnum">${v}</b><span class="muted">${sub}</span></div>`).join('')}</div>
+      <section class="adm-card rv-chart-card"><div class="adm-card-head"><h2>Revenue by ${unit}</h2><span class="muted">${money(total)} total</span></div>
+        <div class="rv-chart"><div class="rv-bars" style="--n:${buckets.length}">${bars}</div><div class="rv-ticks" style="--n:${buckets.length}">${ticks}</div><div class="rv-tip" hidden></div></div>
+      </section>
+      <div class="adm-cols three rv-splits">
+        <section class="adm-card"><div class="adm-card-head"><h2>Where it sold</h2></div>${split([['Website orders', sum(web), web.length], ['In person', sum(store_), store_.length]])}</section>
+        <section class="adm-card"><div class="adm-card-head"><h2>Delivery</h2></div>${split([['Pickup', sum(pick), pick.length], ['Shipped', sum(shipd), shipd.length]])}</section>
+        <section class="adm-card"><div class="adm-card-head"><h2>Payment</h2></div>${split([['Paid online (PayPal)', sum(paidOnline), paidOnline.length], ['Cash / at pickup', sum(paidLocal), paidLocal.length]])}</section>
+      </div>
+      <div class="adm-cols two">
+        <section class="adm-card"><div class="adm-card-head"><h2>Top sellers</h2></div>
+          ${top.length ? `<table class="rv-table"><thead><tr><th>Item</th><th class="num">Sold</th><th class="num">Revenue</th></tr></thead><tbody>${top.slice(0, 10).map((r) => `<tr><td><div class="adm-prod">${r.image ? `<img src="${esc(img(r.image.sm || r.image.lg))}" alt="" width="40" height="40" loading="lazy">` : '<span class="adm-noimg"></span>'}<span class="rv-title">${esc(r.title)}</span></div></td><td class="num tabnum">${r.units}</td><td class="num tabnum">${money(r.rev)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+        </section>
+        <section class="adm-card"><div class="adm-card-head"><h2>By category</h2></div>
+          ${catRows.length ? `<table class="rv-table"><thead><tr><th>Category</th><th class="num">Revenue</th><th class="num">Share</th></tr></thead><tbody>${catRows.map(([c, v]) => `<tr><td>${esc(c)}</td><td class="num tabnum">${money(v)}</td><td class="num tabnum">${Math.round((v / (total - ship || 1)) * 100)}%</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+        </section>
+      </div>
+      <section class="adm-card"><div class="adm-card-head"><h2>Sales in this period</h2><span class="muted">${inP.length} order${inP.length === 1 ? '' : 's'}</span></div>
+        ${inP.length ? `<table class="rv-table"><thead><tr><th>Date</th><th>Order</th><th>Sold</th><th class="num">Items</th><th class="num">Total</th></tr></thead><tbody>${inP.map((o) => `<tr><td>${fmtDate(o.createdAt, true)}</td><td><button class="link mono" type="button" data-open-order="${o.id}">#${o.number}</button></td><td>${isInPerson(o) ? 'In person' : 'Website'} · ${o.fulfillment === 'pickup' ? 'Pickup' : 'Shipped'}</td><td class="num tabnum">${qtyOf(o)}</td><td class="num tabnum">${money(o.total)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted adm-empty">No sales in this period.</p>'}
+      </section>
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Revenue', `<button class="btn btn-sm" type="button" data-tab="overview">${icon('left', 'icon-sm')} Overview</button>`);
+    const chart = $('.rv-chart', main); const tip = $('.rv-tip', main);
+    const show = (b) => { tip.textContent = b.dataset.tip; tip.hidden = false; const r = b.getBoundingClientRect(), c = chart.getBoundingClientRect(); tip.style.left = `${Math.min(Math.max(r.left - c.left + r.width / 2, 70), c.width - 70)}px`; };
+    $$('.rv-bar', main).forEach((b) => { b.addEventListener('pointerenter', () => show(b)); b.addEventListener('focus', () => show(b)); b.addEventListener('click', () => show(b)); });
+    chart.addEventListener('pointerleave', () => { tip.hidden = true; });
+  }
+
+  // ------------------------------------------------------------ orders
+  let orderFilter = 'all';
+  let orderQ = '';
+  // Live order search: order number, item name or amount. Hides rows that don't match, so the search box keeps focus.
+  function applyOrderSearch() {
+    const q = orderQ.trim().toLowerCase(); const qn = q.replace(/[#$,\s]/g, '');
+    let shown = 0;
+    data.orders.forEach((o) => {
+      const row = $(`[data-swipe="${o.id}"]`, main); if (!row) return;
+      const hit = !q || String(o.number).includes(qn) || o.items.some((i) => String(i.title || '').toLowerCase().includes(q)) || (qn && [o.total, o.subtotal].some((v) => Number(v || 0).toFixed(2).includes(qn)));
+      row.hidden = !hit; if (hit) shown++;
+    });
+    const none = $('[data-ord-none]', main); if (none) none.hidden = !(q && !shown);
+  }
+  function orders() {
+    const list = data.orders.filter((o) => orderFilter === 'all' || o.status === orderFilter);
+    main.innerHTML = shell(`
+      <input type="search" class="ord-search" placeholder="Search order #, item or amount" value="${esc(orderQ)}" data-ord-q aria-label="Search orders" autocomplete="off">
+      <p class="muted adm-empty" data-ord-none hidden>No orders match your search.</p>
+      <div class="adm-toolbar"><div class="select"><label class="sr-only" for="of-f">Status</label><select id="of-f" data-of>${[['all', 'All orders'], ...ORDER_STATUS].map(([v, l]) => `<option value="${v}" ${orderFilter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div><span class="muted" style="font-size:14px">${list.length} order${list.length === 1 ? '' : 's'}</span></div>
+      ${list.length ? `<div class="ord-list">${list.map((o) => {
+        const first = o.items[0] || {}; const more = o.items.length - 1;
+        return `<div class="ord-swipe" data-swipe="${o.id}"><button class="ord-del-btn" type="button" data-del-order="${o.id}">${icon('trash', 'icon-sm')} Delete</button><details class="ord-row" data-oid="${o.id}">
+          <summary>
+            <span class="ord-main"><b class="ord-name">${esc(o.customer.name)}</b><span class="ord-del ${o.fulfillment === 'pickup' ? 'is-pickup' : 'is-ship'}">${o.fulfillment === 'pickup' ? 'Pick up' : 'Shipping'}</span>${needsConfirm(o) ? `<span class="adm-needs ord-confirm-tap" role="button" tabindex="0" data-confirm-order="${o.id}" title="Tap to confirm this order">Confirm</span>` : ''}</span>
+            <span class="ord-item">${esc(first.title || '')}${more > 0 ? ` <small>+${more} more</small>` : ''}</span>
+            <span class="ord-chev" aria-hidden="true">${icon('down', 'icon-sm')}</span>
+          </summary>
+          <div class="ord-body">
+            <dl class="ord-kv"><div><dt>Order</dt><dd class="mono">#${o.number}</dd></div><div><dt>Date</dt><dd>${fmtDate(o.createdAt, true)}</dd></div><div><dt>Phone</dt><dd>${esc(o.customer.phone || '—')}</dd></div><div><dt>Items</dt><dd>${o.items.reduce((s, i) => s + i.qty, 0)}</dd></div><div><dt>Total</dt><dd class="tabnum"><b>${money(o.total)}</b></dd></div></dl>
+            <div class="ord-status"><label class="sr-only" for="os-${o.id}">Status</label><select id="os-${o.id}" class="adm-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${needsConfirm(o) ? `<small><button class="btn btn-sm btn-primary adm-confirm-btn" type="button" data-confirm-order="${o.id}">Confirm</button></small>` : ''}${o.tracking && o.tracking.number ? `<small class="adm-track">${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></small>` : o.status === 'shipped' ? `<small><button class="link" type="button" data-track="${o.id}">+ Add tracking</button></small>` : ''}</div>
+            <button class="btn btn-sm" type="button" data-open-order="${o.id}">View full order</button>
+            <button class="btn btn-sm adm-danger ord-del-inline" type="button" data-del-order="${o.id}">${icon('trash', 'icon-sm')} Delete order</button>
+            ${(() => { const im = o.items[0] && o.items[0].image; return im ? `<img class="ord-body-img" src="${esc(img(im.sm || im.lg))}" alt="${esc(o.items[0].title)}" width="120" height="120" loading="lazy">` : ''; })()}
+          </div>
+        </details></div>`; }).join('')}</div>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
+      <h2 class="adm-sub" id="pickup-requests">Pickup requests</h2>
+      ${requestsHTML()}
+      <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Orders');
+    applyOrderSearch();
+  }
+  // PayPal refunds: full or partial; several partial refunds can add up to what the customer paid.
+  const refundsOf = (o) => (o.paypalRefunds || []).filter((r) => !['FAILED', 'CANCELLED'].includes(r.status));
+  const refundLeft = (o) => (o.payment === 'paypal' && o.paidAt && o.paypalCaptureId ? round2(o.total - refundsOf(o).reduce((t, r) => t + Number(r.amount), 0)) : 0);
+  const canRefund = (o) => refundLeft(o) > 0;
+  // Refund less the 4.5% card processing fee (fee is figured on the amount the customer paid).
+  const feeRefund = (o) => Math.max(0, round2(refundLeft(o) - round2(o.total * 0.045)));
+  // Tracking popup: carrier + tracking number (optional). Opens after marking an order Shipped.
+  function openTracking(id) {
+    const o = data.orders.find((x) => x.id === id); if (!o) return;
+    let dlg = document.getElementById('track-dlg');
+    if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'track-dlg'; dlg.className = 'modal track-dlg'; dlg.setAttribute('aria-labelledby', 'tk-title'); document.body.appendChild(dlg); }
+    const t = o.tracking || {};
+    dlg.innerHTML = `<div class="modal-head"><h2 id="tk-title">Tracking package</h2></div>
+      <form class="modal-body form" data-track-form="${o.id}" novalidate>
+        <p class="muted" style="font-size:14px">Order #${o.number} · ${esc(o.customer.name)}. Optional — the customer sees this on their order.</p>
+        <div class="field"><label for="tk-carrier">Carrier</label><select id="tk-carrier" name="carrier">${CARRIERS.map(([v, l]) => `<option value="${v}" ${t.carrier === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="field"><label class="sr-only" for="tk-number">Tracking number</label><input id="tk-number" name="number" placeholder="Tracking number" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" value="${esc(t.number || '')}"></div>
+        <div class="track-actions"><button class="btn btn-primary" type="submit">Save</button><button class="btn btn-exit" type="button" data-track-exit>Exit</button></div>
+      </form>`;
+    const form = dlg.querySelector('form');
+    dlg.onclick = (e) => { if (e.target === dlg || e.target.closest('[data-track-exit]')) dlg.close(); };
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const carrier = form.carrier.value, number = form.number.value.trim().replace(/\s+/g, '').toUpperCase();
+      const btn = form.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        await A.setTracking(o.id, number ? { carrier, number, at: new Date().toISOString() } : null);
+        dlg.close(); toast(number ? 'Tracking saved' : 'Saved'); await loadAll();
+        if (tab === 'orders') { const open = $('#order-dlg') && $('#order-dlg').open; orders(); if (open) openOrder(o.id); }
+      } catch (ex) { btn.disabled = false; btn.textContent = 'Save'; toast(ex.message || 'Could not save tracking'); }
+    };
+    dlg.showModal();
+  }
+  const needsConfirm = (o) => o.stockHeld === false && o.status !== 'cancelled';
+  function openOrder(id) {
+    const o = data.orders.find((x) => x.id === id); if (!o) return;
+    if (!$('#order-dlg')) { tab = 'orders'; orders(); }
+    const dlg = $('#order-dlg');
+    const addr = o.address ? `${esc(o.address.line1)}${o.address.line2 ? ', ' + esc(o.address.line2) : ''}<br>${esc(o.address.city)}, ${esc(o.address.state)} ${esc(o.address.zip)}` : 'Local pickup';
+    dlg.innerHTML = `<div class="modal-head"><h2 id="od-title">Order #${o.number}</h2><button class="icon-btn" type="button" aria-label="Close" data-close-dlg>${icon('close')}</button></div>
+      <div class="modal-body">
+        <dl class="kv"><div><dt>Placed</dt><dd>${fmtDate(o.createdAt, true)}</dd></div><div><dt>Delivery</dt><dd>${o.fulfillment === 'pickup' ? 'Local pickup' : 'Shipping'}</dd></div><div><dt>Payment</dt><dd>${o.payment === 'paypal' ? (o.paidAt ? `<b>PAID</b> · PayPal${o.paypalCaptureId ? `<small class="mono">${esc(o.paypalCaptureId)}</small>` : ''}` : 'PayPal — not paid') : o.payment === 'free' ? 'Free — no payment' : o.payment === 'pickup' ? 'Pay at pickup' : 'Send payment link'}</dd></div><div><dt>Total</dt><dd class="tabnum">${money(o.total)}</dd></div></dl>
+        <div class="info-card"><h2>Customer</h2><p><b>${esc(o.customer.name)}</b></p><p><a href="${telHref(o.customer.phone)}">${esc(o.customer.phone)}</a> · <a href="mailto:${esc(o.customer.email)}">${esc(o.customer.email)}</a></p><p class="muted">${addr}</p>${o.notes ? `<p><b>Notes:</b> ${esc(o.notes)}</p>` : ''}</div>
+        <ul class="sum-items" style="max-height:none;border:1px solid var(--line)">${o.items.map((i) => `<li class="sum-item"><span class="th">${imgTag(i.image, { alt: '', sizes: '56px' })}<span class="q">${i.qty}</span></span><span class="t">${esc(i.title)}<small>${i.qty} × ${money(i.price)}${i.shipping ? ' · ship ' + money(i.shipping) : ''}</small></span><span class="p tabnum">${money(i.price * i.qty)}</span></li>`).join('')}</ul>
+        <div class="sum-totals" style="padding:0"><div class="row"><span>Subtotal</span><span class="tabnum">${money(o.subtotal)}</span></div><div class="row"><span>Shipping</span><span class="tabnum">${money(o.shippingTotal)}</span></div><div class="row total"><span>Total</span><span class="tabnum">${money(o.total)}</span></div></div>
+        ${needsConfirm(o) ? `<div class="od-confirm-box"><p><b>Not confirmed yet.</b> This pay-at-pickup order hasn’t taken anything off the website — the ${o.items.length > 1 ? 'items are' : 'item is'} still for sale. Confirm to mark ${o.items.length > 1 ? 'them' : 'it'} sold and remove ${o.items.length > 1 ? 'them' : 'it'} from stock.</p><button class="btn btn-primary btn-block" type="button" data-confirm-order="${o.id}">${icon('check', 'icon-sm')} Confirm order</button></div>` : ''}
+        <div class="field"><label for="od-status">Status</label><select id="od-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        ${o.status === 'shipped' || (o.tracking && o.tracking.number) ? `<div class="info-card od-track"><h2>Tracking package</h2>${o.tracking && o.tracking.number ? `<p>${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></p>` : '<p class="muted">No tracking number yet.</p>'}<p><button class="btn btn-sm" type="button" data-track="${o.id}">${icon('truck', 'icon-sm')} ${o.tracking && o.tracking.number ? 'Edit tracking' : 'Add tracking'}</button></p></div>` : ''}
+        ${refundsOf(o).length ? `<div class="adm-note">${refundsOf(o).map((r) => `<p><b>Refunded ${money(r.amount)}</b> through PayPal on ${fmtDate(r.at, true)}${r.status !== 'COMPLETED' ? ` (${esc(String(r.status).toLowerCase())})` : ''}.</p>`).join('')}${refundsOf(o).length > 1 || canRefund(o) ? `<p class="muted">Refunded so far: ${money(round2(o.total - refundLeft(o)))} of ${money(o.total)}</p>` : ''}</div>` : ''}
+        ${o.status !== 'cancelled' || canRefund(o) ? `<div class="od-actions">${o.status !== 'cancelled' ? `<button class="btn adm-danger" type="button" data-od-ask="refund">Cancel order</button>` : ''}${canRefund(o) ? `<button class="btn adm-danger" type="button" data-od-ask="refund">Refund customer</button><button class="btn" type="button" data-od-ask="fee">Refund minus 4.5%</button><button class="btn" type="button" data-od-ask="partial">Partial refund</button>` : ''}</div>
+        <div class="adm-confirm" data-od-confirm="refund" hidden>${canRefund(o)
+          ? `<p><b>Would you like to refund the customer?</b> ${money(refundLeft(o))} goes back to their card or PayPal automatically.${o.status !== 'cancelled' ? ' The order is cancelled and items go back in stock.' : ''}</p><div><button class="btn btn-sm adm-danger" type="button" data-od-refund="${o.id}">Yes, refund ${money(refundLeft(o))}</button>${o.status !== 'cancelled' ? `<button class="btn btn-sm" type="button" data-cancel-order="${o.id}">No, just cancel</button>` : ''}<button class="btn btn-sm" type="button" data-od-back>Go back</button></div>`
+          : `<p><b>Cancel order #${o.number}?</b> ${needsConfirm(o) ? 'Nothing to restock — this order was never confirmed, so the items stayed on the website.' : 'Items go back in stock.'}${o.payment === 'paypal' ? '' : ' This order wasn’t paid online, so if they already paid you (cash, card link), refund them the same way.'}</p><div><button class="btn btn-sm adm-danger" type="button" data-cancel-order="${o.id}">Yes, cancel order</button><button class="btn btn-sm" type="button" data-od-back>Go back</button></div>`}</div>
+        ${canRefund(o) ? `<div class="adm-confirm" data-od-confirm="fee" hidden><p><b>Refund minus 4.5% fee?</b> ${money(feeRefund(o))} goes back to their card or PayPal (${money(refundLeft(o))} less the ${money(round2(o.total * 0.045))} processing fee).${o.status !== 'cancelled' ? ' The order is cancelled and items go back in stock.' : ''}</p><div><button class="btn btn-sm adm-danger" type="button" data-od-fee="${o.id}">Yes, refund ${money(feeRefund(o))}</button><button class="btn btn-sm" type="button" data-od-back>Go back</button></div></div>` : ''}
+        ${canRefund(o) ? `<div class="adm-confirm" data-od-confirm="partial" hidden><p><b>Partial refund</b> Enter how much to send back to the customer. Up to ${money(refundLeft(o))}. The order stays open and nothing is restocked.</p>
+          <div class="field"><label for="od-partial">Refund amount ($)</label><input id="od-partial" type="number" inputmode="decimal" min="0.01" max="${refundLeft(o)}" step="0.01" placeholder="0.00" data-od-amount></div>
+          <div><button class="btn btn-sm adm-danger" type="button" data-od-partial="${o.id}">Refund this amount</button><button class="btn btn-sm" type="button" data-od-back>Go back</button></div></div>` : ''}` : ''}
+      </div>`;
+    dlg.showModal();
+  }
+
+  // ------------------------------------------------------------ offers
+  function offers() {
+    main.innerHTML = shell(data.offers.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Product</th><th>List price</th><th>Offer</th><th>Customer</th><th>Status</th><th></th></tr></thead><tbody>
+      ${data.offers.map((o) => { const p = data.products.find((x) => x.id === o.productId); const ratio = o.listPrice ? Math.round((o.amount / o.listPrice) * 100) : 0; return `<tr>
+        <td>${fmtDate(o.createdAt, true)}</td>
+        <td><div class="adm-prod">${o.productImage ? `<img src="${esc(img(o.productImage.sm))}" alt="" width="48" height="48">` : ''}<div>${p ? `<button class="adm-title" type="button" data-edit="${p.id}">${esc(o.productTitle)}</button>` : esc(o.productTitle)}<small>${p ? `${p.inventory} in stock` : 'Deleted'}</small></div></div></td>
+        <td class="tabnum">${money(o.listPrice)}</td>
+        <td class="tabnum"><b>${money(o.amount)}</b><small>${ratio}% of list</small></td>
+        <td>${esc(o.name)}<small><a href="${telHref(o.phone)}">${esc(o.phone)}</a> · <a href="sms:${esc(o.phone.replace(/[^\d+]/g, ''))}">Text</a></small></td>
+        <td><label class="sr-only" for="ofs-${o.id}">Status</label><select id="ofs-${o.id}" class="adm-status" data-offer-status="${o.id}">${OFFER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+        <td><button class="btn btn-sm adm-danger" type="button" data-offer-del="${o.id}">${icon('trash', 'icon-sm')} Delete</button></td></tr>`; }).join('')}
+      </tbody></table></div>` : '<div class="empty"><h2>No offers yet</h2><p class="muted">When a customer taps “Make Offer”, their name, phone and amount appear here.</p></div>', 'Offers');
+  }
+
+  // ------------------------------------------------------------ messages
+  // ------------------------------------------------------------ pickup requests
+  function requestsHTML() {
+    const list = data.inquiries.filter((m) => m.type === 'pickup');
+    const parse = (m) => {
+      const item = ((m.message || '').match(/Pickup request:\s*(.+)/) || [])[1] || 'Pickup request';
+      const when = ((m.message || '').match(/When:\s*(.+)/) || [])[1] || '';
+      return { item: item.trim(), when: when.trim() };
+    };
+    return list.length ? `<div class="adm-reqs">${list.map((m) => { const r = parse(m); const tel = String(m.phone || '').replace(/[^\d+]/g, ''); return `<details class="adm-req ${m.status === 'new' ? 'unread' : ''}">
+      <summary><span class="adm-req-title"><b>${esc(r.item)}</b><small>${icon('calendar', 'icon-sm')} ${esc(r.when || fmtDate(m.createdAt, true))}</small></span>${m.status === 'new' ? '<span class="status s-new">New</span>' : `<span class="status s-${m.status}">${m.status === 'read' ? 'Confirmed' : 'Done'}</span>`}${icon('down')}</summary>
+      <div class="adm-req-body">
+        <dl class="kv"><div><dt>Name</dt><dd>${esc(m.name)}</dd></div><div><dt>Phone</dt><dd><a href="${telHref(m.phone)}">${esc(m.phone)}</a></dd></div><div><dt>Pickup time</dt><dd>${esc(r.when || '—')}</dd></div><div><dt>Requested</dt><dd>${fmtDate(m.createdAt, true)}</dd></div></dl>
+        <div class="adm-req-actions">
+          <a class="btn btn-primary" href="sms:${esc(tel)}">${icon('msg', 'icon-sm')} Text</a>
+          <a class="btn" href="${telHref(m.phone)}">${icon('phone', 'icon-sm')} Call</a>
+          <label class="sr-only" for="rq-${m.id}">Status</label><select id="rq-${m.id}" class="adm-status" data-msg-status="${m.id}"><option value="new" ${m.status === 'new' ? 'selected' : ''}>New</option><option value="read" ${m.status === 'read' ? 'selected' : ''}>Confirmed</option><option value="archived" ${m.status === 'archived' ? 'selected' : ''}>Done</option></select>
+          <button class="btn btn-sm" type="button" data-msg-del="${m.id}" data-back="requests">${icon('trash', 'icon-sm')} Delete</button>
+        </div>
+      </div></details>`; }).join('')}</div>` : '<div class="empty"><h2>No pickup requests yet</h2><p class="muted">When a customer taps “Choose a date &amp; time” on a product, their request shows up here.</p></div>';
+  }
+
+  function messages() {
+    const msgs = data.inquiries.filter((m) => m.type !== 'pickup');
+    main.innerHTML = shell(msgs.length ? `<div class="adm-msgs">${msgs.map((m) => `<article class="adm-card adm-msg ${m.status === 'new' ? 'unread' : ''}">
+      <div class="adm-card-head"><h2>${esc(m.name)} <span class="status">${m.type === 'wholesale' ? 'Wholesale' : m.type === 'pickup' ? 'Pickup request' : 'Contact'}</span></h2><span class="muted" style="font-size:13px">${fmtDate(m.createdAt, true)}</span></div>
+      <div class="adm-card-body"><p class="adm-msg-meta"><a href="${telHref(m.phone)}">${esc(m.phone)}</a> · <a href="sms:${esc(String(m.phone).replace(/[^\d+]/g, ''))}">Text</a>${m.email ? ` · <a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ''}${m.company ? ' · ' + esc(m.company) : ''}</p><p class="adm-msg-text">${esc(m.message)}</p>
+      <div class="adm-msg-actions"><label class="sr-only" for="ms-${m.id}">Status</label><select id="ms-${m.id}" class="adm-status" data-msg-status="${m.id}">${MSG_STATUS.map(([v, l]) => `<option value="${v}" ${m.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button class="btn btn-sm" type="button" data-msg-del="${m.id}">${icon('trash', 'icon-sm')} Delete</button></div></div>
+    </article>`).join('')}</div>` : '<div class="empty"><h2>No messages</h2><p class="muted">Contact form and wholesale requests appear here.</p></div>', 'Messages');
+  }
+
+  // ------------------------------------------------------------ categories
+  function categories() {
+    const cats = store.categories();
+    const counts = {}; data.products.forEach((p) => { counts[p.categoryId] = (counts[p.categoryId] || 0) + 1; });
+    main.innerHTML = shell(`<div class="adm-card"><div class="adm-card-body">
+      <ul class="adm-cats">${cats.map((c, i) => `<li data-cat="${c.id}">
+        <label class="sr-only" for="cn-${c.id}">Category name</label><input id="cn-${c.id}" value="${esc(c.name)}" data-cat-name>
+        <span class="muted mono" style="font-size:12px">${counts[c.id] || 0} items</span>
+        <button class="icon-btn" type="button" aria-label="Move up" data-cat-move="-1" ${i === 0 ? 'disabled' : ''}>${icon('left', 'icon-sm')}</button>
+        <button class="icon-btn" type="button" aria-label="Move down" data-cat-move="1" ${i === cats.length - 1 ? 'disabled' : ''}>${icon('right', 'icon-sm')}</button>
+        <button class="btn btn-sm" type="button" data-cat-save>Save</button>
+        <button class="btn btn-sm adm-danger" type="button" data-cat-del>${icon('trash', 'icon-sm')}</button>
+      </li>`).join('')}</ul>
+      <form class="adm-cat-add" data-cat-add><label class="sr-only" for="cat-new">New category name</label><input id="cat-new" name="name" placeholder="New category name" required><button class="btn btn-primary" type="submit">${icon('plus', 'icon-sm')} Add category</button></form>
+      <p class="hint" style="margin-top:12px">Deleting a category keeps its products — they become “Uncategorized”. Categories appear in the header dropdown in this order.</p>
+    </div></div>`, 'Categories');
+  }
+
+  // ------------------------------------------------------------ settings
+  function settings() {
+    const s = store.settings();
+    const fld = (k, l, extra = '') => `<div class="field"><label for="st-${k}">${l}</label><input id="st-${k}" name="${k}" value="${esc(s[k] || '')}" ${extra}></div>`;
+    main.innerHTML = shell(`<div class="adm-cols two">
+      <form class="adm-card" data-settings><div class="adm-card-head"><h2>Store details</h2></div><div class="adm-card-body form">
+        <div class="form-row two">${fld('phone', 'Phone', 'type="tel"')}${fld('email', 'Email', 'type="email"')}</div>
+        ${fld('address1', 'Pickup address')}
+        <div class="form-row three">${fld('city', 'City')}${fld('state', 'State', 'maxlength="2"')}${fld('zip', 'ZIP')}</div>
+        ${fld('pickupHours', 'Pickup hours')}
+        ${fld('pickupNote', 'Pickup note')}
+        ${fld('announcement', 'Announcement bar', 'maxlength="140"')}<p class="hint">Separate messages with “·”.</p>
+        <button class="btn btn-primary" type="submit">Save details</button>
+      </div></form>
+      <div style="display:grid;gap:16px;align-content:start">
+        <form class="adm-card" data-password><div class="adm-card-head"><h2>Admin password</h2></div><div class="adm-card-body form">
+          <div class="field"><label for="pw1">New password</label><input id="pw1" name="pw1" type="password" autocomplete="new-password" minlength="6" required></div>
+          <div class="field"><label for="pw2">Confirm new password</label><input id="pw2" name="pw2" type="password" autocomplete="new-password" minlength="6" required></div>
+          <p class="form-error" data-err hidden></p>
+          <button class="btn" type="submit">Change password</button>
+        </div></form>
+        ${store.kind === 'local' ? `<div class="adm-card"><div class="adm-card-head"><h2>Data</h2></div><div class="adm-card-body form">
+          <p class="hint">Preview data lives in this browser. Export a backup file to keep a copy.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn btn-sm" type="button" data-export>${icon('download', 'icon-sm')} Export backup</button><label class="btn btn-sm">${icon('upload', 'icon-sm')} Import backup<input type="file" accept="application/json" class="sr-only" data-import></label><button class="btn btn-sm adm-danger" type="button" data-reset>Reset demo data</button></div>
+          <div class="adm-confirm" data-reset-confirm hidden><p><b>Reset everything?</b> Products, orders and offers return to the demo catalog.</p><div><button class="btn btn-sm adm-danger" type="button" data-reset-yes>Reset</button><button class="btn btn-sm" type="button" data-reset-no>Cancel</button></div></div>
+          <textarea class="sr-only" data-export-box aria-label="Backup data" readonly></textarea>
+        </div></div>` : ''}
+      </div>
+    </div>`, 'Settings');
+  }
+
+  // ------------------------------------------------------------ events
+  const onClick = async (e) => {
+    const t = e.target;
+    if (t.closest('[data-inv-scan]')) { try { await invScan(); } catch { toast('The scanner could not load. Check your connection and try again.'); } return; }
+    if (t.closest('[data-sales-breakdown]')) { tab = 'sales'; editId = null; draft = null; render(); return; }
+    const sb = t.closest('[data-sb]');
+    if (sb) { sbUnit = sb.dataset.sb; salesPage(); return; }
+    if (t.closest('[data-scroll-top]')) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (t.closest('[data-stmts]')) { openStatements(); return; }
+    if (t.matches('img.prof-thumb[data-full]')) { photoPeek(t.dataset.full); return; }
+    const sr = t.closest('[data-sbr]');
+    if (sr) { sbRange = sr.dataset.sbr; salesPage(); return; }
+    const pf = t.closest('[data-prof]');
+    if (pf) { profitPeriod = pf.dataset.prof; if (tab === 'lorena') lorena(); else profit(); return; }
+    const rv = t.closest('[data-rev]');
+    if (rv) { revPeriod = rv.dataset.rev; revenue(); return; }
+    const tb = t.closest('[data-tab]');
+    if (tb) { tab = tb.dataset.tab; editId = null; draft = null; render(); return; }
+    if (t.closest('[data-logout]')) { await A.logout(); renderLogin(); return; }
+    if (t.closest('[data-new]')) { tab = 'products'; editId = 'new'; draft = null; render(); return; }
+    const ed = t.closest('[data-edit]');
+    if (ed) { tab = 'products'; editId = ed.dataset.edit; draft = null; render(); return; }
+    if (t.closest('[data-cancel-edit]')) { editId = null; draft = null; tab = 'products'; render(); return; }
+    const inv = t.closest('[data-inv]');
+    if (inv) { const p = await A.adjustInventory(inv.dataset.id, Number(inv.dataset.inv)); refreshStore(); if (p) { const row = inv.closest('tr'); $('b', inv.parentElement).textContent = p.inventory; row.classList.toggle('dim', p.inventory <= 0 || !p.published); } return; }
+    const oo = t.closest('[data-open-order]');
+    if (oo) { openOrder(oo.dataset.openOrder); return; }
+    if (t.closest('[data-close-dlg]') || t.matches('dialog.modal')) { const d = t.closest('dialog'); if (d) d.close(); return; }
+    const ask = t.closest('[data-od-ask]');
+    if (ask) { $$('[data-od-confirm]').forEach((c) => { c.hidden = c.dataset.odConfirm !== ask.dataset.odAsk; }); const c = $(`[data-od-confirm="${ask.dataset.odAsk}"]`); c.scrollIntoView({ block: 'nearest' }); const inp = $('[data-od-amount]', c); if (inp) inp.focus(); return; }
+    if (t.closest('[data-od-back]')) { $$('[data-od-confirm]').forEach((c) => { c.hidden = true; }); return; }
+    const rf = t.closest('[data-od-refund], [data-od-partial], [data-od-fee]');
+    if (rf) {
+      const partial = rf.hasAttribute('data-od-partial');
+      const fee = rf.hasAttribute('data-od-fee');
+      const id = rf.dataset.odRefund || rf.dataset.odPartial || rf.dataset.odFee; const o = data.orders.find((x) => x.id === id);
+      const left = o ? refundLeft(o) : 0;
+      let amount = fee && o ? feeRefund(o) : left;
+      if (fee && !(amount > 0)) { toast('Nothing left to refund after the 4.5% fee.'); return; }
+      if (partial) {
+        const inp = $('[data-od-amount]');
+        amount = round2(Number(inp.value));
+        if (!(amount > 0) || amount > left) { inp.setAttribute('aria-invalid', 'true'); inp.focus(); toast(`Enter an amount from $0.01 to ${money(left)}`); return; }
+        inp.setAttribute('aria-invalid', 'false');
+      }
+      const box = rf.closest('[data-od-confirm]'); const label = rf.textContent;
+      $$('button', box).forEach((b) => { b.disabled = true; }); rf.textContent = 'Refunding…';
+      try {
+        await A.refundOrder(id, partial || fee ? amount.toFixed(2) : null);
+        if (!partial && o && o.status !== 'cancelled') await A.updateOrder(id, { status: 'cancelled', restock: true });
+        refreshStore(); toast(`Refunded ${money(amount)} to the customer`);
+        await loadAll(); orders(); openOrder(id);
+      } catch (ex) {
+        $$('button', box).forEach((b) => { b.disabled = false; }); rf.textContent = label;
+        toast(ex.message || 'The refund did not go through.');
+      }
+      return;
+    }
+    if (t.closest('[data-scan]')) {
+      const btn = t.closest('[data-scan]');
+      btn.disabled = true;
+      try {
+        if (!window.MLScanner) await new Promise((res, rej) => { const s = document.createElement('script'); s.src = ENV.root + 'assets/scanner.js' + (ENV.cfg.v ? '?v=' + ENV.cfg.v : ''); s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+        window.MLScanner.open({
+          onResult: (code) => {
+            const inp = $('#ed-upc'); if (!inp) return;
+            inp.value = code; inp.dispatchEvent(new Event('input', { bubbles: true }));
+            inp.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            inp.classList.add('flash'); setTimeout(() => inp.classList.remove('flash'), 1200);
+            toast(`UPC ${code} added`);
+          },
+          onError: (msg) => toast(msg),
+        });
+      } catch { toast('The scanner could not load. Check your connection and try again.'); }
+      btn.disabled = false;
+      return;
+    }
+    const tk = t.closest('[data-track]');
+    if (tk) { openTracking(tk.dataset.track); return; }
+    const dl = t.closest('[data-del-order]');
+    if (dl) {
+      const o = data.orders.find((x) => x.id === dl.dataset.delOrder); if (!o) return;
+      const back = o.stockHeld !== false && ['new', 'processing', 'ready'].includes(o.status);
+      if (!confirm(`Delete order #${o.number} for ${o.customer.name}?${back ? ' The items go back in stock.' : ''} This can't be undone.`)) { closeSwipes(); return; }
+      try { await A.deleteOrder(o); refreshStore(); toast(`Order #${o.number} deleted`); await loadAll(); orders(); }
+      catch (ex) { toast(ex.message || 'Could not delete the order'); }
+      return;
+    }
+    const cf = t.closest('[data-confirm-order]');
+    if (cf) {
+      e.preventDefault(); e.stopPropagation();
+      if (cf.disabled || cf.dataset.busy) return; cf.dataset.busy = '1';
+      const id = cf.dataset.confirmOrder; cf.disabled = true;
+      try { await A.confirmOrder(id); refreshStore(); await loadAll(); const d = $('#order-dlg'); if (d && d.open) { orders(); openOrder(id); } else if (tab === 'orders') orders(); else render(); }
+      catch (ex) { cf.disabled = false; delete cf.dataset.busy; toast(ex.message || 'Could not confirm this order'); }
+      return;
+    }
+    const co = t.closest('[data-cancel-order]');
+    if (co) { await A.updateOrder(co.dataset.cancelOrder, { status: 'cancelled', restock: true }); refreshStore(); toast('Order cancelled and items restocked'); const d = t.closest('dialog'); if (d) d.close(); await loadAll(); orders(); return; }
+    const ap = t.closest('[data-accept-price]');
+    if (ap) { const o = data.offers.find((x) => x.id === ap.dataset.acceptPrice); const p = data.products.find((x) => x.id === o.productId); if (p) { await A.saveProduct({ ...p, originalPrice: p.originalPrice || p.price, price: o.amount }); await A.updateOffer(o.id, { status: 'accepted' }); refreshStore(); toast(`Price set to ${money(o.amount)} and offer accepted`); await loadAll(); offers(); } return; }
+    const bulk = t.closest('[data-bulk]');
+    if (bulk) { const p = data.products.find((x) => x.id === [...selected][0]); if (p) openSaleDialog(p); return; }
+    const cm = t.closest('[data-cat-move]');
+    if (cm) { const li = cm.closest('[data-cat]'); const ids = store.categories().map((c) => c.id); const i = ids.indexOf(li.dataset.cat), j = i + Number(cm.dataset.catMove); [ids[i], ids[j]] = [ids[j], ids[i]]; await A.reorderCategories(ids); refreshStore(); categories(); return; }
+    const cs = t.closest('[data-cat-save]');
+    if (cs) { const li = cs.closest('[data-cat]'); const name = $('[data-cat-name]', li).value.trim(); if (!name) return; await A.saveCategory({ id: li.dataset.cat, name }); refreshStore(); toast('Category saved'); categories(); return; }
+    const cd = t.closest('[data-cat-del]');
+    if (cd) { if (!cd.dataset.sure) { cd.dataset.sure = '1'; cd.textContent = 'Confirm'; return; } await A.deleteCategory(cd.closest('[data-cat]').dataset.cat); refreshStore(); toast('Category deleted'); await loadAll(); categories(); return; }
+    const od = t.closest('[data-offer-del]');
+    if (od) { if (!od.dataset.sure) { od.dataset.sure = '1'; od.textContent = 'Tap again to delete'; return; } await A.deleteOffer(od.dataset.offerDel); await loadAll(); offers(); toast('Offer deleted'); return; }
+    const md = t.closest('[data-msg-del]');
+    if (md) { await A.deleteInquiry(md.dataset.msgDel); await loadAll(); (md.dataset.back === 'requests' ? orders : messages)(); toast('Deleted'); return; }
+    if (t.closest('[data-export]')) { const json = await A.exportData(); const blob = new Blob([json], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `mlgroup-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove(); toast('Backup downloaded'); return; }
+    if (t.closest('[data-reset]')) { $('[data-reset-confirm]').hidden = false; return; }
+    if (t.closest('[data-reset-no]')) { $('[data-reset-confirm]').hidden = true; return; }
+    if (t.closest('[data-reset-yes]')) { await A.reset(); refreshStore(); toast('Demo data restored'); render(); }
+  };
+  const onChange = async (e) => {
+    const t = e.target;
+    if (t.matches('[data-pf-f]')) { prodFilter.f = t.value; products(); }
+    if (t.matches('[data-sel]')) { t.checked ? selected.add(t.dataset.sel) : selected.delete(t.dataset.sel); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
+    if (t.matches('[data-sel-all]')) { $$('[data-sel]').filter((c) => !c.closest('tr').hidden).forEach((c) => { c.checked = t.checked; t.checked ? selected.add(c.dataset.sel) : selected.delete(c.dataset.sel); }); const b = $('[data-bulk]'); b.hidden = !selected.size; $('[data-bulk-n]').textContent = `${selected.size} selected`; }
+    if (t.matches('[data-pub]')) { await A.patchProduct(t.dataset.pub, { published: t.checked }); refreshStore(); t.nextElementSibling.textContent = t.checked ? 'Published' : 'Hidden'; toast(t.checked ? 'Published' : 'Hidden from store'); }
+    if (t.matches('[data-of]')) { orderFilter = t.value; orders(); }
+    if (t.matches('[data-order-status]')) { const id = t.dataset.orderStatus; try { await A.updateOrder(id, { status: t.value }); } catch (ex) { toast(ex.message || 'Could not update the order'); await loadAll(); if (tab === 'orders') orders(); return; } if ((data.orders.find((x) => x.id === id) || {}).stockHeld === false && t.value !== 'cancelled') refreshStore(); toast('Order status updated'); await loadAll(); const dlg = $('#order-dlg'); if (dlg && dlg.open) { orders(); openOrder(id); } else if (tab === 'orders') { const was = [...main.querySelectorAll('.ord-row[open]')].map((d) => d.dataset.oid); orders(); was.forEach((x) => { const d = main.querySelector(`.ord-row[data-oid="${x}"]`); if (d) d.open = true; }); } if (t.value === 'shipped') openTracking(id); }
+    if (t.matches('[data-offer-status]')) { await A.updateOffer(t.dataset.offerStatus, { status: t.value }); toast('Offer updated'); await loadAll(); }
+    if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests' || tab === 'orders') orders(); }
+    if (t.matches('[data-import]') && t.files[0]) { try { await A.importData(await t.files[0].text()); refreshStore(); toast('Backup imported'); render(); } catch (ex) { toast(ex.message, 'err'); } }
+  };
+  const onInvStock = async (e) => {
+    if (!e.target.matches('[data-inv-setstock]')) return;
+    const id = e.target.dataset.invSetstock; const n = parseInt(e.target.value, 10); const p = data.products.find((x) => x.id === id);
+    if (!p || !(n >= 0) || n === p.inventory) { if (p) e.target.value = p.inventory; return; }
+    try { const np = await A.patchProduct(id, { inventory: n }); p.inventory = np && np.inventory != null ? np.inventory : n; refreshStore(); invRefresh(id); } catch (ex) { toast(ex.message || 'Could not update stock'); e.target.value = p.inventory; }
+  };
+  main.addEventListener('change', onInvStock);
+  main.addEventListener('change', (e) => {
+    const t = e.target; if (!t.matches('[data-prof-from], [data-prof-to]') || !t.value) return;
+    if (t.matches('[data-prof-from]')) customFrom = t.value; else customTo = t.value;
+    if (tab === 'sales') salesPage(); else if (tab === 'lorena') lorena(); else profit();
+  });
+  main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
+  main.addEventListener('change', (e) => {
+    const c = e.target.closest('[data-inv-pick]'); if (!c) return;
+    if (c.checked) invSel.add(c.dataset.invPick); else invSel.delete(c.dataset.invPick);
+    c.closest('.inv-row').classList.toggle('is-picked', c.checked); updateInvSum();
+  });
+  main.addEventListener('click', (e) => { if (!e.target.closest('[data-inv-clear]')) return; invSel.clear(); main.querySelectorAll('[data-inv-pick]').forEach((x) => { x.checked = false; x.closest('.inv-row').classList.remove('is-picked'); }); updateInvSum(); });
+  const onInput = (e) => {
+    if (e.target.matches('[data-ord-q]')) { orderQ = e.target.value; applyOrderSearch(); return; }
+    if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; $('.inv-list').innerHTML = invRowsHTML(); updateInvSum(); return; }
+    if (tab === 'inventory' && e.target.matches('[data-cost], [data-inv-setstock]')) invSumSoon();
+    if (e.target.matches('[data-cost]')) {
+      const id = e.target.dataset.cost; const v = e.target.value; const p = data.products.find((x) => x.id === id);
+      data.costs = data.costs || {}; if (v === '') delete data.costs[id]; else data.costs[id] = Number(v);
+      const row = e.target.closest('[data-inv]'); if (row && p) $('[data-inv-total]', row).textContent = v === '' ? '—' : money(Number(v) * Math.max(0, p.inventory));
+      invRefresh(null);
+      clearTimeout(onInput.t); onInput.t = setTimeout(() => saveCost(id, v), 600);
+      return;
+    }
+    if (e.target.matches('[data-pf-q]')) { prodFilter.q = e.target.value; applyProdSearch(); } };
+  const onSubmit = async (e) => {
+    const f = e.target;
+    if (f.matches('[data-login]')) {
+      e.preventDefault();
+      const btn = $('button[type="submit"]', f); btn.disabled = true;
+      try { await A.login(f.elements.pw.value); render(); } catch (ex) { renderLogin(ex.message || 'Sign in failed.'); }
+    }
+    if (f.matches('[data-settings]')) { e.preventDefault(); const d = Object.fromEntries(new FormData(f)); d.state = (d.state || '').toUpperCase(); await A.saveSettings(d); refreshStore(); toast('Store details saved'); }
+    if (f.matches('[data-password]')) {
+      e.preventDefault(); const d = Object.fromEntries(new FormData(f)); const err = $('[data-err]', f);
+      if (d.pw1.length < 6) { err.textContent = 'Use at least 6 characters.'; err.hidden = false; return; }
+      if (d.pw1 !== d.pw2) { err.textContent = 'The passwords don’t match.'; err.hidden = false; return; }
+      try { await A.changePassword(d.pw1); f.reset(); err.hidden = true; toast('Password changed'); } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+    }
+    if (f.matches('[data-cat-add]')) { e.preventDefault(); const name = f.elements.name.value.trim(); if (!name) return; await A.saveCategory({ name }); refreshStore(); toast('Category added'); categories(); }
+  };
+  // label table cells so they can stack as cards on phones
+  const labelTables = () => $$('table.tbl', main).forEach((t) => {
+    const heads = $$('thead th', t).map((th) => th.textContent.trim());
+    $$('tbody tr', t).forEach((tr) => $$('td', tr).forEach((td, i) => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', heads[i] || ''); }));
+  });
+  const mo = new MutationObserver(labelTables);
+  mo.observe(main, { childList: true, subtree: true });
+  main.addEventListener('click', onClick);
+  main.addEventListener('change', onChange);
+  // Swipe an order row left to reveal Delete.
+  function closeSwipes(except) { main.querySelectorAll('.ord-swipe.open').forEach((w) => { if (w !== except) w.classList.remove('open'); }); }
+  let sw = null;
+  main.addEventListener('touchstart', (e) => { const w = e.target.closest('.ord-swipe'); sw = w ? { w, x: e.touches[0].clientX, y: e.touches[0].clientY, moved: false } : null; if (!w) closeSwipes(); }, { passive: true });
+  main.addEventListener('touchmove', (e) => {
+    if (!sw) return; const dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
+    if (!sw.moved && Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy) * 1.5) { sw.moved = true; if (dx < 0) { closeSwipes(sw.w); sw.w.classList.add('open'); } else sw.w.classList.remove('open'); }
+  }, { passive: true });
+  main.addEventListener('click', (e) => { const w = e.target.closest('.ord-swipe'); if (w && w.classList.contains('open') && !e.target.closest('[data-del-order]')) { e.preventDefault(); e.stopPropagation(); w.classList.remove('open'); } }, true);
+  main.addEventListener('input', onInput);
+  main.addEventListener('submit', onSubmit);
+  render();
+  return () => { mo.disconnect(); main.removeEventListener('click', onClick); main.removeEventListener('change', onChange); main.removeEventListener('input', onInput); main.removeEventListener('submit', onSubmit); };
+}
+
+window.MLAdmin = { mount };
