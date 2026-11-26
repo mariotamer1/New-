@@ -1537,9 +1537,9 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 /* Inventory: search cost total + select boxes */
 .inv-row { position: relative; }
 .inv-row > div:not(.inv-nums) { padding-right: 34px; }
-.inv-pick { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; margin: 0; accent-color: var(--ink); cursor: pointer; }
+.inv-pick { position: absolute; top: 12px; right: 12px; width: 20px; height: 20px; margin: 0; accent-color: var(--ink); cursor: pointer; }
 .inv-row.is-picked { background: #f6f5f1; }
-.inv-sum { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--ink); }
-.inv-sum b { font-size: 16px; }
-.inv-sum small { color: var(--mute); font-size: 12.5px; }
-.inv-sum .link { margin-left: auto; font-size: 13px; }
+.inv-sum { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0 0 10px; padding: 6px 10px; background: #fff; border: 1px solid var(--ink); }
+.inv-sum b { font-size: 14px; }
+.inv-sum small { color: var(--mute); font-size: 11.5px; }
+.inv-sum .link { font-size: 12px; }
