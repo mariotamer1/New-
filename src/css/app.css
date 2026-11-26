@@ -1549,3 +1549,4 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .inv-sums .inv-sum { margin: 0; }
 .inv-sum.inv-pro { background: #eefaf1; border-color: #2fa24c; }
 .inv-sum.inv-pro b { color: #1d7a36; }
+.inv-sums[hidden] { display: none; }
