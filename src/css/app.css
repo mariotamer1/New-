@@ -1545,3 +1545,7 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .inv-sum .link { font-size: 12px; }
 .inv-sum.is-empty { visibility: hidden; }
 .admin, .admin * { overflow-anchor: none; }
+.inv-sums { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 10px; }
+.inv-sums .inv-sum { margin: 0; }
+.inv-sum.inv-rev { background: #eefaf1; border-color: #2fa24c; }
+.inv-sum.inv-rev b { color: #1d7a36; }
