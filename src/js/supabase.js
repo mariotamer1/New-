@@ -26,7 +26,7 @@ const toProduct = (p) => {
   if (p.id) o.id = p.id;
   return o;
 };
-const fromOffer = (r) => ({ id: r.id, productId: r.product_id, productTitle: r.product_title, productSlug: r.product_slug, productImage: r.product_image, listPrice: Number(r.list_price), name: r.name, phone: r.phone, amount: Number(r.amount), status: r.status, createdAt: r.created_at });
+const fromOffer = (r) => ({ id: r.id, productId: r.product_id, productTitle: r.product_title, productSlug: r.product_slug, productImage: r.product_image, listPrice: Number(r.list_price), name: r.name, phone: r.phone, amount: Number(r.amount), status: r.status, createdAt: r.created_at, counterAmount: r.counter_amount != null ? Number(r.counter_amount) : null, counterMessage: r.counter_message || '', counteredAt: r.countered_at || null, response: r.customer_response || null, respondedAt: r.responded_at || null, customerCounter: r.customer_counter != null ? Number(r.customer_counter) : null });
 const fromOrder = (r) => ({ id: r.id, number: r.number, createdAt: r.created_at, status: r.status, fulfillment: r.fulfillment, payment: r.payment, customer: r.customer, address: r.address, notes: r.notes || '', items: r.items, subtotal: Number(r.subtotal), shippingTotal: Number(r.shipping_total), total: Number(r.total), customerId: r.customer_id, paidAt: r.paid_at || null, paypalCaptureId: (r.paypal && r.paypal.captureId) || null, tracking: r.tracking || null, profitOwner: r.profit_owner || 'main', lorenaShare: r.lorena_share != null ? Number(r.lorena_share) : null, stockHeld: r.stock_held !== false, paypalRefunds: r.paypal ? (r.paypal.refunds || (r.paypal.refund ? [r.paypal.refund] : [])) : [] });
 const fromInquiry = (r) => ({ id: r.id, type: r.type, name: r.name, email: r.email, phone: r.phone, company: r.company, message: r.message, status: r.status, createdAt: r.created_at });
 
@@ -152,6 +152,9 @@ export function createSupabaseBackend(cfg) {
     get signedIn() { return !!ls.get(CUST_KEY, null); },
     likesGet: () => rpc('customer_likes_get', { p_token: ls.get(CUST_KEY, null) }),
     likesSet: (productId, liked) => rpc('customer_likes_set', { p_token: ls.get(CUST_KEY, null), p_product_id: productId, p_liked: liked }),
+    offersGet: () => rpc('customer_offers', { p_token: ls.get(CUST_KEY, null) }),
+    offerRespond: (id, accept) => rpc('customer_offer_respond', { p_token: ls.get(CUST_KEY, null), p_offer: id, p_accept: !!accept }),
+    offerCounter: (id, amount) => rpc('customer_offer_counter', { p_token: ls.get(CUST_KEY, null), p_offer: id, p_amount: Number(amount) }),
     async me() { const t = ls.get(CUST_KEY, null); if (!t) return null; const r = await rpc('customer_me', { p_token: t }).catch(() => null); if (!r) ls.del(CUST_KEY); return r; },
 
     admin: {
@@ -223,7 +226,7 @@ export function createSupabaseBackend(cfg) {
       },
       async offers() { return (await rest('GET', 'offers?select=*&order=created_at.desc')).map(fromOffer); },
       async deleteOffer(id) { await rest('DELETE', `offers?id=eq.${id}`); },
-      async updateOffer(id, patch) { await rest('PATCH', `offers?id=eq.${id}`, { status: patch.status }); },
+      async updateOffer(id, patch) { const row = {}; if (patch.status) row.status = patch.status; if ('counterAmount' in patch) row.counter_amount = patch.counterAmount; if ('counterMessage' in patch) row.counter_message = patch.counterMessage; if ('counteredAt' in patch) row.countered_at = patch.counteredAt; if ('response' in patch) { row.customer_response = patch.response; row.responded_at = null; } await rest('PATCH', `offers?id=eq.${id}`, row); },
       async inquiries() { return (await rest('GET', 'inquiries?select=*&order=created_at.desc')).map(fromInquiry); },
       async updateInquiry(id, patch) { await rest('PATCH', `inquiries?id=eq.${id}`, { status: patch.status }); },
       async deleteInquiry(id) { await rest('DELETE', `inquiries?id=eq.${id}`); },

@@ -1368,16 +1368,52 @@ function mount(main, { store, navigate, query }) {
 
   // ------------------------------------------------------------ offers
   function offers() {
-    main.innerHTML = shell(data.offers.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Product</th><th>List price</th><th>Offer</th><th>Customer</th><th>Status</th><th></th></tr></thead><tbody>
+    main.innerHTML = shell(data.offers.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Product</th><th>List price</th><th>Offer</th><th>Customer</th><th></th></tr></thead><tbody>
       ${data.offers.map((o) => { const p = data.products.find((x) => x.id === o.productId); const ratio = o.listPrice ? Math.round((o.amount / o.listPrice) * 100) : 0; return `<tr>
         <td>${fmtDate(o.createdAt, true)}</td>
         <td><div class="adm-prod">${o.productImage ? `<img src="${esc(img(o.productImage.sm))}" alt="" width="48" height="48">` : ''}<div>${p ? `<button class="adm-title" type="button" data-edit="${p.id}">${esc(o.productTitle)}</button>` : esc(o.productTitle)}<small>${p ? `${p.inventory} in stock` : 'Deleted'}</small></div></div></td>
         <td class="tabnum">${money(o.listPrice)}</td>
-        <td class="tabnum"><b>${money(o.amount)}</b><small>${ratio}% of list</small></td>
+        <td class="tabnum"><b>${money(o.amount)}</b><small>${ratio}% of list</small>${o.counterAmount != null ? `<small class="ofr-counter">Your counter: <b>${money(o.counterAmount)}</b> · ${o.response === 'accepted' ? '<span class="ofr-yes">Accepted</span>' : o.response === 'declined' ? '<span class="ofr-no">Declined</span>' : o.response === 'countered' ? `<span class="ofr-yes">They countered ${money(o.customerCounter)}</span>` : 'Waiting for reply'}</small>` : ''}</td>
         <td>${esc(o.name)}<small><a href="${telHref(o.phone)}">${esc(o.phone)}</a> · <a href="sms:${esc(o.phone.replace(/[^\d+]/g, ''))}">Text</a></small></td>
-        <td><label class="sr-only" for="ofs-${o.id}">Status</label><select id="ofs-${o.id}" class="adm-status" data-offer-status="${o.id}">${OFFER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-        <td><button class="btn btn-sm adm-danger" type="button" data-offer-del="${o.id}">${icon('trash', 'icon-sm')} Delete</button></td></tr>`; }).join('')}
+        <td class="offer-actions"><button class="btn btn-sm adm-danger" type="button" data-offer-del="${o.id}">${icon('trash', 'icon-sm')} Delete</button><button class="btn btn-sm btn-primary" type="button" data-counter="${o.id}">${icon('msg', 'icon-sm')} ${o.counterAmount != null ? 'New Counter Offer' : 'Send Counter Offer'}</button></td></tr>`; }).join('')}
       </tbody></table></div>` : '<div class="empty"><h2>No offers yet</h2><p class="muted">When a customer taps “Make Offer”, their name, phone and amount appear here.</p></div>', 'Offers');
+  }
+  // Counter offer: pick a price, then the phone's Messages app opens with the text ready to send to the customer.
+  function openCounter(o) {
+    const first = String(o.name || '').trim().split(/\s+/)[0] || 'there';
+    const sugg = Math.round(((Number(o.amount) + Number(o.listPrice || o.amount)) / 2) / 5) * 5;
+    const dlg = document.createElement('dialog'); dlg.className = 'modal adm-add-dlg';
+    const msg = (v) => `Hi ${first}, thanks for your offer of ${money(o.amount)} on the ${o.productTitle}. The best I can do is ${money(v || 0)}. Let me know if that works and we can set up pickup! – ML Group`;
+    const acctUrl = location.origin + href('/account');
+    dlg.innerHTML = `<div class="adm-add-head"><h2>Counter offer</h2><button class="btn btn-sm" type="button" data-c-close aria-label="Close">${icon('close', 'icon-sm')}</button></div>
+      <form class="adm-add-body form" data-c-form novalidate>
+        <p class="muted" style="margin:0 0 12px">${esc(o.name)} offered <b>${money(o.amount)}</b> · list ${money(o.listPrice)}</p>
+        <div class="field"><label for="c-amt">Your counter price</label><div class="money-input"><span>$</span><input id="c-amt" name="amt" type="number" inputmode="decimal" min="0" step="0.01" value="${sugg}" required></div></div>
+        <div class="field"><label for="c-msg">Text message</label><textarea id="c-msg" name="msg" rows="5">${esc(msg(sugg))}</textarea></div>
+        <label class="ofr-text-too"><input type="checkbox" name="text" checked> Also text it to ${esc(o.phone)}</label>
+        <p class="muted" style="font-size:12.5px;margin:0">The counter offer shows in their account on your website (signed in with this phone number), where they can accept or decline.</p>
+        <div class="adm-ed-actions"><button class="btn btn-primary btn-lg" type="submit">${icon('msg', 'icon-sm')} Send counter offer</button><button class="btn btn-lg" type="button" data-c-close>Cancel</button></div>
+      </form>`;
+    document.body.appendChild(dlg);
+    const close = () => { dlg.close(); dlg.remove(); };
+    dlg.querySelectorAll('[data-c-close]').forEach((b) => b.addEventListener('click', close));
+    const f = dlg.querySelector('[data-c-form]'); let edited = false;
+    f.elements.msg.addEventListener('input', () => { edited = true; });
+    f.elements.amt.addEventListener('input', () => { if (!edited) f.elements.msg.value = msg(Number(f.elements.amt.value)); });
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const amt = Math.round(Number(f.elements.amt.value) * 100) / 100; if (!(amt > 0)) { toast('Enter your counter price'); return; }
+      const text = f.elements.msg.value.trim(); const btn = f.querySelector('[type="submit"]'); btn.disabled = true; btn.textContent = 'Sending…';
+      try {
+        await A.updateOffer(o.id, { status: 'countered', counterAmount: amt, counterMessage: text, counteredAt: new Date().toISOString(), response: null });
+      } catch (ex) { toast(ex.message || 'Could not save the counter offer'); btn.disabled = false; btn.textContent = 'Send counter offer'; return; }
+      close(); toast('Counter offer sent to their account'); await loadAll(); offers();
+      if (f.elements.text.checked) {
+        const num = String(o.phone || '').replace(/[^\d+]/g, '');
+        if (num) { const sep = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? '&' : '?'; location.href = `sms:${num}${sep}body=${encodeURIComponent(text + `\n\nAccept or decline here: ${acctUrl}`)}`; }
+      }
+    });
+    dlg.showModal();
   }
 
   // ------------------------------------------------------------ messages
@@ -1467,6 +1503,7 @@ function mount(main, { store, navigate, query }) {
     if (t.closest('[data-sales-breakdown]')) { tab = 'sales'; editId = null; draft = null; render(); return; }
     const sb = t.closest('[data-sb]');
     if (sb) { sbUnit = sb.dataset.sb; salesPage(); return; }
+    const cof = t.closest('[data-counter]'); if (cof) { const o = data.offers.find((x) => x.id === cof.dataset.counter); if (o) openCounter(o); return; }
     if (t.closest('[data-scroll-top]')) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (t.closest('[data-stmts]')) { openStatements(); return; }
     if (t.matches('img.prof-thumb[data-full]')) { photoPeek(t.dataset.full); return; }
@@ -1586,7 +1623,7 @@ function mount(main, { store, navigate, query }) {
     if (t.matches('[data-pub]')) { await A.patchProduct(t.dataset.pub, { published: t.checked }); refreshStore(); t.nextElementSibling.textContent = t.checked ? 'Published' : 'Hidden'; toast(t.checked ? 'Published' : 'Hidden from store'); }
     if (t.matches('[data-of]')) { orderFilter = t.value; orders(); }
     if (t.matches('[data-order-status]')) { const id = t.dataset.orderStatus; try { await A.updateOrder(id, { status: t.value }); } catch (ex) { toast(ex.message || 'Could not update the order'); await loadAll(); if (tab === 'orders') orders(); return; } if ((data.orders.find((x) => x.id === id) || {}).stockHeld === false && t.value !== 'cancelled') refreshStore(); toast('Order status updated'); await loadAll(); const dlg = $('#order-dlg'); if (dlg && dlg.open) { orders(); openOrder(id); } else if (tab === 'orders') { const was = [...main.querySelectorAll('.ord-row[open]')].map((d) => d.dataset.oid); orders(); was.forEach((x) => { const d = main.querySelector(`.ord-row[data-oid="${x}"]`); if (d) d.open = true; }); } if (t.value === 'shipped') openTracking(id); }
-    if (t.matches('[data-offer-status]')) { await A.updateOffer(t.dataset.offerStatus, { status: t.value }); toast('Offer updated'); await loadAll(); }
+    if (false && t.matches('[data-offer-status]')) { await A.updateOffer(t.dataset.offerStatus, { status: t.value }); toast('Offer updated'); await loadAll(); }
     if (t.matches('[data-msg-status]')) { await A.updateInquiry(t.dataset.msgStatus, { status: t.value }); await loadAll(); toast('Updated'); if (tab === 'requests' || tab === 'orders') orders(); }
     if (t.matches('[data-import]') && t.files[0]) { try { await A.importData(await t.files[0].text()); refreshStore(); toast('Backup imported'); render(); } catch (ex) { toast(ex.message, 'err'); } }
   };

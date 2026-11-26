@@ -1558,3 +1558,32 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .inv-sum.inv-pro .lbl { color: #1d7a36; }
 .inv-note { color: var(--mute); font-size: 12px; }
 .inv-note .link { font-size: 12px; }
+.tbl td.offer-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+/* Admin offers: counter status */
+.ofr-counter { display: block; margin-top: 4px; font-size: 12px; color: var(--mute); }
+.ofr-yes { color: #1d7a36; font-weight: 700; }
+.ofr-no { color: #b3261e; font-weight: 700; }
+.ofr-text-too { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 4px 0 8px; }
+.ofr-text-too input { width: 18px; height: 18px; accent-color: var(--ink); }
+/* My account: profile + offers */
+.acct-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.profile-kv { display: grid; gap: 12px; padding: 18px 20px 20px; }
+.profile-kv dt { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.profile-kv dd { margin: 2px 0 0; word-break: break-word; }
+.my-offers { list-style: none; display: grid; gap: 12px; }
+.my-offer { border: 1px solid var(--line); background: #fff; padding: 14px; display: grid; gap: 12px; }
+.my-offer-top { display: flex; gap: 12px; align-items: center; }
+.my-offer-top img { width: 64px; height: 64px; object-fit: cover; border: 1px solid var(--hair); flex: none; }
+.my-offer-top small { display: block; color: var(--mute); font-size: 13px; margin-top: 2px; }
+.my-offer-wait { color: var(--mute); font-size: 14px; }
+.my-counter { border: 1.5px solid var(--ink); padding: 12px; display: grid; gap: 8px; background: #fafaf7; }
+.my-counter.is-accepted { border-color: #2fa24c; background: #eefaf1; }
+.my-counter.is-declined { opacity: .7; }
+.my-counter-head { display: flex; justify-content: space-between; align-items: baseline; }
+.my-counter-head span { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.my-counter-head b { font-size: 22px; }
+.my-counter p { font-size: 14px; }
+.my-counter-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.my-counter-st { font-weight: 600; }
+.my-counter-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.offer-history { display: grid; gap: 12px; }

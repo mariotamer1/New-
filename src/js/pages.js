@@ -806,10 +806,13 @@ export function account() {
     html: `<div class="page-head"><div class="wrap"><h1>My account</h1><p>Accounts are optional — you can always check out as a guest.</p></div></div><div class="wrap" data-acct style="padding-block:28px 64px;max-width:760px"></div>`,
     async mount(root) {
       const box = $('[data-acct]', root);
-      const draw = async (tab = 'login') => {
+      let draw = async (tab = 'login') => {
         const me = await store.account.me();
         if (me) {
-          box.innerHTML = `<div style="display:grid;gap:20px"><div class="info-card"><h2>${esc(me.name || 'Welcome back')}</h2><p class="muted">${esc(me.email)}${me.phone ? ' · ' + esc(me.phone) : ''}</p>${me.address && me.address.line1 ? `<p class="muted">${icon('truck', 'icon-sm')} ${esc(me.address.line1)}${me.address.line2 ? ', ' + esc(me.address.line2) : ''}, ${esc(me.address.city)}, ${esc(me.address.state)} ${esc(me.address.zip)}</p>` : ''}<div><button class="btn btn-sm" type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button></div></div>
+          box.innerHTML = `<div style="display:grid;gap:20px"><div class="info-card"><h2>${esc(me.name || 'Welcome back')}</h2><p class="muted">${esc(me.email)}${me.phone ? ' · ' + esc(me.phone) : ''}</p>${me.address && me.address.line1 ? `<p class="muted">${icon('truck', 'icon-sm')} ${esc(me.address.line1)}${me.address.line2 ? ', ' + esc(me.address.line2) : ''}, ${esc(me.address.city)}, ${esc(me.address.state)} ${esc(me.address.zip)}</p>` : ''}<div class="acct-actions"><button class="btn btn-sm" type="button" data-logout>${icon('logout', 'icon-sm')} Sign out</button><button class="btn btn-sm btn-primary" type="button" data-profile>${icon('user', 'icon-sm')} View profile</button></div></div>
+          <dialog class="modal" id="profile-dlg" aria-labelledby="pf-title"><div class="modal-head"><h2 id="pf-title">My profile</h2><button class="icon-btn" type="button" aria-label="Close" data-pf-close>${icon('close')}</button></div>
+            <dl class="profile-kv"><div><dt>Name</dt><dd>${esc(me.name || '—')}</dd></div><div><dt>Email</dt><dd>${esc(me.email)}</dd></div><div><dt>Phone</dt><dd>${esc(me.phone || '—')}</dd></div><div><dt>Address</dt><dd>${me.address && me.address.line1 ? `${esc(me.address.line1)}${me.address.line2 ? ', ' + esc(me.address.line2) : ''}<br>${esc(me.address.city)}, ${esc(me.address.state)} ${esc(me.address.zip)}` : '—'}</dd></div><div><dt>Orders</dt><dd>${me.orders.length}</dd></div></dl>
+            ${me.phone ? '' : '<p class="muted" style="padding:0 20px 20px;font-size:13px">Add a phone number to see counter offers on items you made offers on.</p>'}</dialog>
           <h2 class="display" style="font-size:26px">Order history</h2>
           ${me.orders.length ? `<div class="table-wrap"><table class="tbl"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th>Delivery</th><th>Total</th></tr></thead><tbody>${me.orders.map((o) => `<tr><td><a href="${href('/order/' + o.id)}" class="mono"><b>#${o.number}</b></a></td><td>${new Date(o.createdAt).toLocaleDateString()}</td><td><span class="status s-${o.status}">${esc(o.status)}</span></td><td>${o.fulfillment === 'pickup' ? 'Pickup' : 'Shipping'}</td><td class="tabnum">${money(o.total)}</td></tr>${o.tracking && o.tracking.number ? `<tr class="track-row"><td colspan="5">${trackingHTML(o)}</td></tr>` : ''}`).join('')}</tbody></table></div>` : '<p class="muted">No orders yet.</p>'}</div>`;
           return;
@@ -837,8 +840,28 @@ export function account() {
       box.addEventListener('click', async (e) => {
         const t = e.target.closest('[data-tab]'); if (t) draw(t.dataset.tab);
         if (e.target.closest('[data-logout]')) { await store.account.logout(); toast('Signed out'); draw(); }
+        if (e.target.closest('[data-profile]')) { const d = $('#profile-dlg', box); if (d) d.showModal(); }
+        if (e.target.closest('[data-pf-close]') || e.target.id === 'profile-dlg') { const d = $('#profile-dlg', box); if (d) d.close(); }
+        const oc = e.target.closest('[data-offer-counter]');
+        if (oc) { const f = $(`[data-counter-form="${oc.dataset.offerCounter}"]`, box); if (f) { f.hidden = false; oc.hidden = true; f.querySelector('input').focus(); } return; }
+        const rs = e.target.closest('[data-offer-reply]');
+        if (rs) {
+          const accept = rs.dataset.offerReply === 'yes';
+          if (!accept && !confirm('Decline this counter offer?')) return;
+          rs.closest('.my-offer').querySelectorAll('[data-offer-reply]').forEach((b) => { b.disabled = true; });
+          try { await store.account.offerRespond(rs.dataset.id, accept); toast(accept ? 'Counter offer accepted' : 'Counter offer declined'); drawOffers(); }
+          catch (ex) { toast(ex.message || 'Could not send your answer'); rs.closest('.my-offer').querySelectorAll('[data-offer-reply]').forEach((b) => { b.disabled = false; }); }
+        }
       });
       box.addEventListener('submit', async (e) => {
+        if (e.target.matches('[data-counter-form]')) {
+          e.preventDefault(); const f = e.target; const amt = Number(f.elements.amount.value);
+          if (!(amt > 0)) { toast('Enter your price'); return; }
+          const b = f.querySelector('button'); b.disabled = true; b.textContent = 'Sending…';
+          try { await store.account.offerCounter(f.dataset.counterForm, amt); toast('Counter offer sent'); drawOffers(); }
+          catch (ex) { toast(ex.message || 'Could not send your counter offer'); b.disabled = false; b.textContent = 'Send'; }
+          return;
+        }
         e.preventDefault(); const f = e.target; const d = Object.fromEntries(new FormData(f)); const err = $('[data-err]', f);
         if (f.matches('[data-lookup]')) {
           const out = $('[data-lookup-results]', box); const digits = String(d.ref || '').replace(/\D/g, '');
@@ -855,6 +878,27 @@ export function account() {
         try { if (f.dataset.acctForm === 'register') await store.account.register(d); else await store.account.login(d); toast('Signed in'); draw(); }
         catch (ex) { err.textContent = ex.message; err.hidden = false; }
       });
+      // Offers this customer made (matched to their phone number), with any counter offer to accept or decline.
+      async function drawOffers() {
+        const grid = box.firstElementChild; if (!grid || !$('[data-profile]', box)) return;
+        let sec = $('[data-my-offers]', box);
+        if (!sec) { sec = document.createElement('section'); sec.dataset.myOffers = ''; sec.className = 'offer-history'; sec.innerHTML = '<h2 class="display" style="font-size:26px">Offer history</h2><div data-my-offers-list></div>'; grid.appendChild(sec); }
+        const out = $('[data-my-offers-list]', sec);
+        let list = []; try { list = await store.account.offers(); } catch { return; }
+        if (!list.length) { out.innerHTML = '<p class="muted">No offers yet. Tap “Make Offer” on any item to send one.</p>'; return; }
+        out.innerHTML = `<ul class="my-offers">${list.map((o) => `<li class="my-offer">
+          <div class="my-offer-top">${o.productImage ? `<img src="${esc(img(o.productImage.sm || o.productImage.lg))}" alt="" width="64" height="64">` : ''}<div><a href="${href('/products/' + o.productSlug)}"><b>${esc(o.productTitle)}</b></a><small>You offered ${money(o.amount)} · list ${money(o.listPrice)} · ${new Date(o.createdAt).toLocaleDateString()}</small></div></div>
+          ${o.counterAmount != null ? `<div class="my-counter${o.response ? ' is-' + o.response : ''}"><div class="my-counter-head"><span>Counter offer</span><b>${money(o.counterAmount)}</b></div>${o.counterMessage ? `<p>${esc(o.counterMessage)}</p>` : ''}
+            ${o.response === 'accepted' ? `<p class="my-counter-st">You accepted this offer. We’ll contact you to set up pickup.</p>` : o.response === 'declined' ? '<p class="my-counter-st">You declined this offer.</p>'
+              : o.response === 'countered' ? `<p class="my-counter-st">You countered with ${money(o.customerCounter)}. Waiting for a reply from ML Group.</p>`
+              : `<div class="my-counter-btns"><button class="btn btn-primary" type="button" data-offer-reply="yes" data-id="${o.id}">Accept ${money(o.counterAmount)}</button><button class="btn" type="button" data-offer-reply="no" data-id="${o.id}">Decline</button></div>
+                <button class="btn btn-block" type="button" data-offer-counter="${o.id}">Send a counter offer</button>
+                <form class="my-counter-form" data-counter-form="${o.id}" hidden><label class="sr-only" for="cc-${o.id}">Your price</label><div class="money-input"><span>$</span><input id="cc-${o.id}" name="amount" type="number" inputmode="decimal" min="1" step="0.01" placeholder="Your price" required></div><button class="btn btn-primary" type="submit">Send</button></form>`}</div>`
+            : `<p class="my-offer-wait">${o.status === 'accepted' ? 'Your offer was accepted.' : o.status === 'declined' ? 'Your offer was declined.' : 'Waiting for a reply from ML Group.'}</p>`}
+        </li>`).join('')}</ul>`;
+      }
+      const origDraw = draw;
+      draw = async (t) => { await origDraw(t); drawOffers(); };
       draw();
     },
   };
