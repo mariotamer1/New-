@@ -537,9 +537,23 @@ function mount(main, { store, navigate, query }) {
     const missing = P.filter((p) => p.inventory > 0 && costOf(p) == null).length;
     return { units, costVal, retail, missing };
   }
+  // Search total: cost × stock of the items found, or only the checked ones when any are checked.
+  const invSel = new Set();
+  const invMatches = () => { const q = invQ.trim().toLowerCase(); const qd = upcKey(invQ); return data.products.filter((p) => !q || p.title.toLowerCase().includes(q) || (qd && upcKey(p.upc).includes(qd))); };
+  function updateInvSum() {
+    const box = $('[data-inv-sum]', main); if (!box) return;
+    const list = invMatches(); const picked = list.filter((p) => invSel.has(p.id));
+    const use = picked.length ? picked : list;
+    if (!invQ.trim() && !picked.length) { box.hidden = true; return; }
+    const total = round2(use.reduce((t, p) => t + (costOf(p) != null ? costOf(p) * Math.max(0, p.inventory) : 0), 0));
+    box.innerHTML = `<b>Cost: <span class="tabnum">${money(total)}</span></b><small>${picked.length ? `${picked.length} selected` : `${list.length} item${list.length === 1 ? '' : 's'} found`}</small>${picked.length ? '<button type="button" class="link" data-inv-clear>Clear</button>' : ''}`;
+    box.hidden = false;
+  }
+  let invSumT = 0; const invSumSoon = () => { clearTimeout(invSumT); invSumT = setTimeout(updateInvSum, 450); };
   function invRow(p) {
     const c = costOf(p); const tot = c != null ? money(c * Math.max(0, p.inventory)) : '—';
-    return `<li class="inv-row${p.inventory <= 0 ? ' is-out' : ''}" data-inv="${p.id}">
+    return `<li class="inv-row${p.inventory <= 0 ? ' is-out' : ''}${invSel.has(p.id) ? ' is-picked' : ''}" data-inv="${p.id}">
+      <input type="checkbox" class="inv-pick" data-inv-pick="${p.id}" ${invSel.has(p.id) ? 'checked' : ''} aria-label="Select ${esc(p.title)} for the cost total">
       ${p.images[0] ? `<img src="${esc(img(p.images[0].sm))}" alt="" width="52" height="52" loading="lazy">` : '<span class="adm-noimg"></span>'}
       <div><div class="inv-title">${esc(p.title)}</div><div class="inv-meta">${p.upc ? 'UPC ' + esc(p.upc) : 'No UPC'}${p.published ? '' : ' · Hidden'}</div></div>
       <div class="inv-nums">
@@ -551,8 +565,7 @@ function mount(main, { store, navigate, query }) {
   }
   // Rows for the current search. Typing only swaps these rows, so the search box keeps focus and the page doesn't jump.
   function invRowsHTML() {
-    const q = invQ.trim().toLowerCase(); const qd = upcKey(invQ);
-    const list = sortInv(data.products.filter((p) => !q || p.title.toLowerCase().includes(q) || (qd && upcKey(p.upc).includes(qd))));
+    const list = sortInv(invMatches());
     return list.map(invRow).join('') || '<li class="inv-row"><span></span><span class="muted">No matching items.</span></li>';
   }
   function inventory() {
@@ -565,8 +578,10 @@ function mount(main, { store, navigate, query }) {
         <button type="button" class="adm-tile inv-ship-btn" data-tab="shipments"><span class="inv-ship-ic">${icon('truck')}</span><b>Check incoming shipments</b><span class="muted">${shipList ? `${shipList.filter((x) => !x.delivered).length} on the way` : 'Track your packages'}</span></button>
       </div>
       <div class="inv-tools"><input type="search" placeholder="Search by name or UPC" value="${esc(invQ)}" data-inv-q aria-label="Search inventory"><div class="select"><label class="sr-only" for="inv-sort">Sort inventory</label><select id="inv-sort" data-inv-sort>${INV_SORTS.map(([v, l]) => `<option value="${v}" ${invSort === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div></div>
+      <div class="inv-sum" data-inv-sum hidden></div>
       <ul class="inv-list">${invRowsHTML()}</ul>`, 'Inventory', `<button class="btn btn-primary" type="button" data-inv-scan>${icon('camera', 'icon-sm')} Scan</button>`);
     fitTiles();
+    updateInvSum();
     if (!shipList) loadShipments().then(() => { const el = $('.inv-ship-btn .muted', main); if (el && shipList) el.textContent = `${shipList.filter((x) => !x.delivered).length} on the way`; });
   }
   // Update tiles and one row in place (no re-render, so typing and scrolling aren't interrupted).
@@ -1570,9 +1585,16 @@ function mount(main, { store, navigate, query }) {
     if (tab === 'sales') salesPage(); else if (tab === 'lorena') lorena(); else profit();
   });
   main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
+  main.addEventListener('change', (e) => {
+    const c = e.target.closest('[data-inv-pick]'); if (!c) return;
+    if (c.checked) invSel.add(c.dataset.invPick); else invSel.delete(c.dataset.invPick);
+    c.closest('.inv-row').classList.toggle('is-picked', c.checked); updateInvSum();
+  });
+  main.addEventListener('click', (e) => { if (!e.target.closest('[data-inv-clear]')) return; invSel.clear(); main.querySelectorAll('[data-inv-pick]').forEach((x) => { x.checked = false; x.closest('.inv-row').classList.remove('is-picked'); }); updateInvSum(); });
   const onInput = (e) => {
     if (e.target.matches('[data-ord-q]')) { orderQ = e.target.value; applyOrderSearch(); return; }
-    if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; $('.inv-list').innerHTML = invRowsHTML(); return; }
+    if (e.target.matches('[data-inv-q]')) { invQ = e.target.value; $('.inv-list').innerHTML = invRowsHTML(); invSumSoon(); return; }
+    if (tab === 'inventory' && e.target.matches('[data-cost], [data-inv-setstock]')) invSumSoon();
     if (e.target.matches('[data-cost]')) {
       const id = e.target.dataset.cost; const v = e.target.value; const p = data.products.find((x) => x.id === id);
       data.costs = data.costs || {}; if (v === '') delete data.costs[id]; else data.costs[id] = Number(v);

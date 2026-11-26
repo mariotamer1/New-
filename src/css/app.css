@@ -1534,3 +1534,12 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .prod-float.is-on { opacity: 1; transform: none; pointer-events: auto; }
 .prod-float-up { width: 48px; height: 48px; display: grid; place-items: center; background: #fff; border: 1px solid var(--ink); cursor: pointer; color: var(--ink); }
 .prod-float-up .icon { width: 22px; height: 22px; }
+/* Inventory: search cost total + select boxes */
+.inv-row { position: relative; }
+.inv-row > div:not(.inv-nums) { padding-right: 34px; }
+.inv-pick { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; margin: 0; accent-color: var(--ink); cursor: pointer; }
+.inv-row.is-picked { background: #f6f5f1; }
+.inv-sum { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 12px; padding: 10px 14px; background: #fff; border: 1px solid var(--ink); }
+.inv-sum b { font-size: 16px; }
+.inv-sum small { color: var(--mute); font-size: 12.5px; }
+.inv-sum .link { margin-left: auto; font-size: 13px; }
