@@ -1615,3 +1615,6 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .ord-table td.ord-title { font-size: 14px; }
 .ord-table td.ord-when .prof-thumb { margin-right: 6px; }
 .ord-table td.ord-when .prof-qty { min-width: 0; }
+.ord-table .ord-q { display: inline-block; width: 30px; font-size: 12px; font-weight: 500; color: var(--mute); }
+.ord-table td.ord-when .prof-thumb { margin-left: 0; }
+.ord-table td.ord-qcell { width: 34px; padding-left: 0; padding-right: 4px; text-align: right; font-size: 12px; color: var(--mute); white-space: nowrap; }
