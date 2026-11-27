@@ -1618,3 +1618,13 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .ord-table .ord-q { display: inline-block; width: 30px; font-size: 12px; font-weight: 500; color: var(--mute); }
 .ord-table td.ord-when .prof-thumb { margin-left: 0; }
 .ord-table td.ord-qcell { width: 34px; padding-left: 0; padding-right: 4px; text-align: right; font-size: 12px; color: var(--mute); white-space: nowrap; }
+.ord-drop-info { display: grid; gap: 2px; font-size: 13px; line-height: 1.35; }
+.ord-drop-info small { color: var(--mute); font-size: 12px; }
+.ord-drop-info small .link { font-size: 12px; }
+.ord-drop-kv { margin-bottom: 8px; }
+/* compact order dropdown */
+.ord-table tr.ord-drop td { padding: 2px 10px 10px; }
+.ord-drop-kv { gap: 6px; margin-bottom: 6px; }
+.ord-drop-kv div { padding: 5px 8px; }
+.ord-drop-kv dt { font-size: 9.5px; }
+.ord-drop-kv dd { font-size: 13.5px; margin-top: 0; }
