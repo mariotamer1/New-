@@ -1608,3 +1608,10 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .ord-table .ord-pick-td { width: 30px; padding-right: 0; }
 .ord-pick { width: 20px; height: 20px; margin: 0; accent-color: var(--ink); cursor: pointer; vertical-align: middle; }
 .ord-table tr.ord-tr.is-picked td { background: #f6f5f1; }
+.ord-table td.ord-title { font-weight: 600; white-space: nowrap; }
+.ord-table td.ord-when { white-space: nowrap; }
+.ord-table .ord-date { font-size: 13.5px; }
+.ord-table th, .ord-table td { padding-left: 8px; padding-right: 8px; }
+.ord-table td.ord-title { font-size: 14px; }
+.ord-table td.ord-when .prof-thumb { margin-right: 6px; }
+.ord-table td.ord-when .prof-qty { min-width: 0; }
