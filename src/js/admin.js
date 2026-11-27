@@ -1275,7 +1275,9 @@ function mount(main, { store, navigate, query }) {
   function updateOrdSum() {
     const box = $('[data-ord-sums]', main); if (!box) return;
     const rows = Array.from(main.querySelectorAll('tr.ord-tr')).filter((tr) => !tr.hidden).map((tr) => data.orders.find((o) => o.id === tr.dataset.swipe)).filter(Boolean);
-    const picked = rows.filter((o) => ordSel.has(o.id)); const use = picked.length ? picked : rows;
+    const picked = rows.filter((o) => ordSel.has(o.id)); const use = picked;
+    // Totals only show while orders are checked.
+    box.hidden = !picked.length; if (!picked.length) { box.innerHTML = ''; return; }
     let rev = 0, cost = 0, pro = 0, miss = 0;
     use.forEach((o) => { const r = ordMoney(o); rev += r.revenue; cost += r.cost; pro += r.profit; miss += r.missing ? 1 : 0; });
     const m = (v) => (v < 0 ? '-' : '') + money(Math.abs(round2(v)));
@@ -1302,7 +1304,7 @@ function mount(main, { store, navigate, query }) {
       <div class="rv-periods" role="group" aria-label="Time period">${REV_PERIODS.map(([k, l]) => `<button type="button" class="chip${ordPeriod === k ? ' is-on' : ''}" data-ord-period="${k}" aria-pressed="${ordPeriod === k}">${l}</button>`).join('')}</div>
       <input type="search" class="ord-search" placeholder="Search order #, item or amount" value="${esc(orderQ)}" data-ord-q aria-label="Search orders" autocomplete="off">
       <p class="muted adm-empty" data-ord-none hidden>No orders match your search.</p>
-      ${list.length ? `<div class="inv-sums ord-sums" data-ord-sums></div><section class="adm-card"><table class="rv-table ord-table"><thead><tr><th><span class="sr-only">Select</span></th><th>Item</th><th><span class="sr-only">Quantity</span></th><th>Date</th><th class="num">Revenue</th></tr></thead><tbody>${list.map((o) => {
+      ${list.length ? `<div class="inv-sums ord-sums" data-ord-sums hidden></div><section class="adm-card"><table class="rv-table ord-table"><thead><tr><th><span class="sr-only">Select</span></th><th>Item</th><th><span class="sr-only">Quantity</span></th><th>Date</th><th class="num">Revenue</th></tr></thead><tbody>${list.map((o) => {
         const n = qtyOf(o); const im = o.items[0] && o.items[0].image;
         const r = profitRows(new Date(o.createdAt), new Date(o.createdAt), 'all').find((x) => x.o.id === o.id) || { revenue: o.total, cost: 0, profit: o.total, missing: 0 };
         return `<tr class="ord-tr" data-swipe="${o.id}" data-ord-toggle="${o.id}" aria-expanded="false"><td class="ord-pick-td"><input type="checkbox" class="ord-pick" data-ord-pick="${o.id}" ${ordSel.has(o.id) ? 'checked' : ''} aria-label="Select order ${o.number}"></td><td class="ord-title" title="${esc((o.items[0] || {}).title || '')}">${esc(shortTitle((o.items[0] || {}).title))}${needsConfirm(o) ? ' <span class="adm-needs">Confirm</span>' : ''}</td><td class="ord-qcell tabnum">${n > 1 ? n + 'x' : ''}</td><td class="ord-when">${im ? `<img class="prof-thumb" src="${esc(img(im.sm || im.lg))}" alt="" width="30" height="30" loading="lazy">` : '<span class="prof-thumb"></span>'}<span class="ord-date">${new Date(o.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></td><td class="num tabnum">${money(r.revenue)}</td></tr>
