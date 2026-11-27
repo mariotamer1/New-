@@ -1267,6 +1267,19 @@ function mount(main, { store, navigate, query }) {
   // ------------------------------------------------------------ orders
   let orderFilter = 'all';
   let orderQ = '';
+  let ordPeriod = 'all'; const ordSel = new Set();
+  const ordMoney = (o) => profitRows(new Date(o.createdAt), new Date(o.createdAt), 'all').find((x) => x.o.id === o.id) || { revenue: o.total, cost: 0, profit: o.total, missing: 0 };
+  // Totals for the orders on screen, or only the checked ones when any are checked.
+  function updateOrdSum() {
+    const box = $('[data-ord-sums]', main); if (!box) return;
+    const rows = Array.from(main.querySelectorAll('tr.ord-tr')).filter((tr) => !tr.hidden).map((tr) => data.orders.find((o) => o.id === tr.dataset.swipe)).filter(Boolean);
+    const picked = rows.filter((o) => ordSel.has(o.id)); const use = picked.length ? picked : rows;
+    let rev = 0, cost = 0, pro = 0, miss = 0;
+    use.forEach((o) => { const r = ordMoney(o); rev += r.revenue; cost += r.cost; pro += r.profit; miss += r.missing ? 1 : 0; });
+    const m = (v) => (v < 0 ? '-' : '') + money(Math.abs(round2(v)));
+    box.innerHTML = `<div class="inv-sum"><span class="lbl">Revenue</span><b class="tabnum">${m(rev)}</b></div><div class="inv-sum"><span class="lbl">Cost</span><b class="tabnum">${m(cost)}</b></div><div class="inv-sum inv-pro"><span class="lbl">Profit</span><b class="tabnum">${m(pro)}</b></div>
+      <small class="inv-note">${picked.length ? `${picked.length} selected · <button type="button" class="link" data-ord-clear>Clear</button>` : `${use.length} order${use.length === 1 ? '' : 's'}`}${miss ? ` · ${miss} missing a cost` : ''}</small>`;
+  }
   // Live order search: order number, item name or amount. Hides rows that don't match, so the search box keeps focus.
   function applyOrderSearch() {
     const q = orderQ.trim().toLowerCase(); const qn = q.replace(/[#$,\s]/g, '');
@@ -1278,18 +1291,21 @@ function mount(main, { store, navigate, query }) {
       const dr = $(`[data-ord-drop="${o.id}"]`, main); if (dr && !hit) { dr.hidden = true; row.setAttribute('aria-expanded', 'false'); }
     });
     const none = $('[data-ord-none]', main); if (none) none.hidden = !(q && !shown);
+    updateOrdSum();
   }
   function orders() {
-    const list = data.orders.filter((o) => orderFilter === 'all' || o.status === orderFilter);
+    const [pf, pt] = revRange(ordPeriod);
+    const list = data.orders.filter((o) => (orderFilter === 'all' || o.status === orderFilter) && new Date(o.createdAt) >= pf && new Date(o.createdAt) <= pt);
     main.innerHTML = shell(`
+      <div class="rv-periods" role="group" aria-label="Time period">${REV_PERIODS.map(([k, l]) => `<button type="button" class="chip${ordPeriod === k ? ' is-on' : ''}" data-ord-period="${k}" aria-pressed="${ordPeriod === k}">${l}</button>`).join('')}</div>
       <input type="search" class="ord-search" placeholder="Search order #, item or amount" value="${esc(orderQ)}" data-ord-q aria-label="Search orders" autocomplete="off">
       <p class="muted adm-empty" data-ord-none hidden>No orders match your search.</p>
       <div class="adm-toolbar"><div class="select"><label class="sr-only" for="of-f">Status</label><select id="of-f" data-of>${[['all', 'All orders'], ...ORDER_STATUS].map(([v, l]) => `<option value="${v}" ${orderFilter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div><span class="muted" style="font-size:14px">${list.length} order${list.length === 1 ? '' : 's'}</span></div>
-      ${list.length ? `<section class="adm-card"><table class="rv-table ord-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Revenue</th></tr></thead><tbody>${list.map((o) => {
+      ${list.length ? `<div class="inv-sums ord-sums" data-ord-sums></div><section class="adm-card"><table class="rv-table ord-table"><thead><tr><th><span class="sr-only">Select</span></th><th>Date</th><th>Order</th><th class="num">Revenue</th></tr></thead><tbody>${list.map((o) => {
         const n = qtyOf(o); const im = o.items[0] && o.items[0].image;
         const r = profitRows(new Date(o.createdAt), new Date(o.createdAt), 'all').find((x) => x.o.id === o.id) || { revenue: o.total, cost: 0, profit: o.total, missing: 0 };
-        return `<tr class="ord-tr" data-swipe="${o.id}" data-ord-toggle="${o.id}" aria-expanded="false"><td>${fmtDate(o.createdAt)}</td><td><span class="prof-qty tabnum">${n > 1 ? n + 'x' : ''}</span>${im ? `<img class="prof-thumb" src="${esc(img(im.sm || im.lg))}" alt="" width="30" height="30" loading="lazy">` : '<span class="prof-thumb"></span>'}<span class="mono ord-num">#${o.number}</span>${needsConfirm(o) ? ' <span class="adm-needs">Confirm</span>' : ''}</td><td class="num tabnum">${money(r.revenue)}</td></tr>
-          <tr class="ord-drop" data-ord-drop="${o.id}" hidden><td colspan="3"><dl class="ord-drop-kv"><div><dt>Revenue</dt><dd class="tabnum">${money(r.revenue)}</dd></div><div><dt>Cost</dt><dd class="tabnum">${r.missing ? 'Missing' : money(r.cost)}</dd></div><div class="is-pro"><dt>Profit</dt><dd class="tabnum">${r.missing ? '—' : money(r.profit)}</dd></div></dl><button class="btn btn-sm" type="button" data-open-order="${o.id}">View full order</button></td></tr>`; }).join('')}</tbody></table></section>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
+        return `<tr class="ord-tr" data-swipe="${o.id}" data-ord-toggle="${o.id}" aria-expanded="false"><td class="ord-pick-td"><input type="checkbox" class="ord-pick" data-ord-pick="${o.id}" ${ordSel.has(o.id) ? 'checked' : ''} aria-label="Select order ${o.number}"></td><td>${fmtDate(o.createdAt)}</td><td><span class="prof-qty tabnum">${n > 1 ? n + 'x' : ''}</span>${im ? `<img class="prof-thumb" src="${esc(img(im.sm || im.lg))}" alt="" width="30" height="30" loading="lazy">` : '<span class="prof-thumb"></span>'}<span class="mono ord-num">#${o.number}</span>${needsConfirm(o) ? ' <span class="adm-needs">Confirm</span>' : ''}</td><td class="num tabnum">${money(r.revenue)}</td></tr>
+          <tr class="ord-drop" data-ord-drop="${o.id}" hidden><td colspan="4"><dl class="ord-drop-kv"><div><dt>Revenue</dt><dd class="tabnum">${money(r.revenue)}</dd></div><div><dt>Cost</dt><dd class="tabnum">${r.missing ? 'Missing' : money(r.cost)}</dd></div><div class="is-pro"><dt>Profit</dt><dd class="tabnum">${r.missing ? '—' : money(r.profit)}</dd></div></dl><button class="btn btn-sm" type="button" data-open-order="${o.id}">View full order</button></td></tr>`; }).join('')}</tbody></table></section>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
       <h2 class="adm-sub" id="pickup-requests">Pickup requests</h2>
       ${requestsHTML()}
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Orders');
@@ -1565,6 +1581,9 @@ function mount(main, { store, navigate, query }) {
       btn.disabled = false;
       return;
     }
+    const opd = t.closest('[data-ord-period]'); if (opd) { ordPeriod = opd.dataset.ordPeriod; orders(); return; }
+    if (t.closest('[data-ord-clear]')) { ordSel.clear(); main.querySelectorAll('[data-ord-pick]').forEach((c) => { c.checked = false; c.closest('tr').classList.remove('is-picked'); }); updateOrdSum(); return; }
+    if (t.closest('[data-ord-pick]')) return;
     const otg = !t.closest('[data-open-order]') && t.closest('[data-ord-toggle]');
     if (otg) { const dr = $(`[data-ord-drop="${otg.dataset.ordToggle}"]`, main); if (dr) { dr.hidden = !dr.hidden; otg.setAttribute('aria-expanded', String(!dr.hidden)); otg.classList.toggle('is-open', !dr.hidden); } return; }
     const tk = t.closest('[data-track]');
@@ -1633,6 +1652,11 @@ function mount(main, { store, navigate, query }) {
     if (tab === 'sales') salesPage(); else if (tab === 'lorena') lorena(); else profit();
   });
   main.addEventListener('change', (e) => { if (!e.target.matches('[data-inv-sort]')) return; invSort = e.target.value; inventory(); });
+  main.addEventListener('change', (e) => {
+    const c = e.target.closest('[data-ord-pick]'); if (!c) return;
+    if (c.checked) ordSel.add(c.dataset.ordPick); else ordSel.delete(c.dataset.ordPick);
+    c.closest('tr').classList.toggle('is-picked', c.checked); updateOrdSum();
+  });
   main.addEventListener('change', (e) => {
     const c = e.target.closest('[data-inv-pick]'); if (!c) return;
     if (c.checked) invSel.add(c.dataset.invPick); else invSel.delete(c.dataset.invPick);

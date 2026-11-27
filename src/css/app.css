@@ -1604,3 +1604,7 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .ord-drop-kv dd { margin: 2px 0 0; font-weight: 800; font-size: 15px; }
 .ord-drop-kv .is-pro { background: #eefaf1; border-color: #2fa24c; }
 .ord-drop-kv .is-pro dd, .ord-drop-kv .is-pro dt { color: #1d7a36; }
+.ord-sums { margin: 0 0 12px; }
+.ord-table .ord-pick-td { width: 30px; padding-right: 0; }
+.ord-pick { width: 20px; height: 20px; margin: 0; accent-color: var(--ink); cursor: pointer; vertical-align: middle; }
+.ord-table tr.ord-tr.is-picked td { background: #f6f5f1; }
