@@ -1591,3 +1591,16 @@ img.ship-badge { object-fit: cover; display: block; box-shadow: 0 0 0 1px rgba(0
 .profile-row { display: grid; grid-template-columns: 1.4fr .6fr 1fr; gap: 8px; }
 .offer-as { font-size: 14px; color: var(--mute); margin: 0; }
 .offer-as b { color: var(--ink); }
+/* Orders list (same look as Profit by sale) */
+.ord-table tr.ord-tr { cursor: pointer; }
+.ord-table tr.ord-tr:hover td { background: var(--paper-2); }
+.ord-table .adm-needs { vertical-align: middle; }
+.od-delete { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.ord-table tr.ord-tr.is-open td { background: var(--paper-2); border-bottom-color: transparent; }
+.ord-table tr.ord-drop td { background: var(--paper-2); padding: 4px 16px 14px; }
+.ord-drop-kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.ord-drop-kv div { background: #fff; border: 1px solid var(--line); padding: 8px 10px; }
+.ord-drop-kv dt { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.ord-drop-kv dd { margin: 2px 0 0; font-weight: 800; font-size: 15px; }
+.ord-drop-kv .is-pro { background: #eefaf1; border-color: #2fa24c; }
+.ord-drop-kv .is-pro dd, .ord-drop-kv .is-pro dt { color: #1d7a36; }

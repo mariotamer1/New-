@@ -1275,6 +1275,7 @@ function mount(main, { store, navigate, query }) {
       const row = $(`[data-swipe="${o.id}"]`, main); if (!row) return;
       const hit = !q || String(o.number).includes(qn) || o.items.some((i) => String(i.title || '').toLowerCase().includes(q)) || (qn && [o.total, o.subtotal].some((v) => Number(v || 0).toFixed(2).includes(qn)));
       row.hidden = !hit; if (hit) shown++;
+      const dr = $(`[data-ord-drop="${o.id}"]`, main); if (dr && !hit) { dr.hidden = true; row.setAttribute('aria-expanded', 'false'); }
     });
     const none = $('[data-ord-none]', main); if (none) none.hidden = !(q && !shown);
   }
@@ -1284,22 +1285,11 @@ function mount(main, { store, navigate, query }) {
       <input type="search" class="ord-search" placeholder="Search order #, item or amount" value="${esc(orderQ)}" data-ord-q aria-label="Search orders" autocomplete="off">
       <p class="muted adm-empty" data-ord-none hidden>No orders match your search.</p>
       <div class="adm-toolbar"><div class="select"><label class="sr-only" for="of-f">Status</label><select id="of-f" data-of>${[['all', 'All orders'], ...ORDER_STATUS].map(([v, l]) => `<option value="${v}" ${orderFilter === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${icon('down')}</div><span class="muted" style="font-size:14px">${list.length} order${list.length === 1 ? '' : 's'}</span></div>
-      ${list.length ? `<div class="ord-list">${list.map((o) => {
-        const first = o.items[0] || {}; const more = o.items.length - 1;
-        return `<div class="ord-swipe" data-swipe="${o.id}"><button class="ord-del-btn" type="button" data-del-order="${o.id}">${icon('trash', 'icon-sm')} Delete</button><details class="ord-row" data-oid="${o.id}">
-          <summary>
-            <span class="ord-main"><b class="ord-name">${esc(o.customer.name)}</b><span class="ord-del ${o.fulfillment === 'pickup' ? 'is-pickup' : 'is-ship'}">${o.fulfillment === 'pickup' ? 'Pick up' : 'Shipping'}</span>${needsConfirm(o) ? `<span class="adm-needs ord-confirm-tap" role="button" tabindex="0" data-confirm-order="${o.id}" title="Tap to confirm this order">Confirm</span>` : ''}</span>
-            <span class="ord-item">${esc(first.title || '')}${more > 0 ? ` <small>+${more} more</small>` : ''}</span>
-            <span class="ord-chev" aria-hidden="true">${icon('down', 'icon-sm')}</span>
-          </summary>
-          <div class="ord-body">
-            <dl class="ord-kv"><div><dt>Order</dt><dd class="mono">#${o.number}</dd></div><div><dt>Date</dt><dd>${fmtDate(o.createdAt, true)}</dd></div><div><dt>Phone</dt><dd>${esc(o.customer.phone || '—')}</dd></div><div><dt>Items</dt><dd>${o.items.reduce((s, i) => s + i.qty, 0)}</dd></div><div><dt>Total</dt><dd class="tabnum"><b>${money(o.total)}</b></dd></div></dl>
-            <div class="ord-status"><label class="sr-only" for="os-${o.id}">Status</label><select id="os-${o.id}" class="adm-status" data-order-status="${o.id}">${ORDER_STATUS.map(([v, l]) => `<option value="${v}" ${o.status === v ? 'selected' : ''}>${l}</option>`).join('')}</select>${needsConfirm(o) ? `<small><button class="btn btn-sm btn-primary adm-confirm-btn" type="button" data-confirm-order="${o.id}">Confirm</button></small>` : ''}${o.tracking && o.tracking.number ? `<small class="adm-track">${esc(carrierName(o.tracking.carrier))} · <a class="mono" href="${esc(trackUrl(o.tracking.carrier, o.tracking.number))}" target="_blank" rel="noopener">${esc(o.tracking.number)}</a></small>` : o.status === 'shipped' ? `<small><button class="link" type="button" data-track="${o.id}">+ Add tracking</button></small>` : ''}</div>
-            <button class="btn btn-sm" type="button" data-open-order="${o.id}">View full order</button>
-            <button class="btn btn-sm adm-danger ord-del-inline" type="button" data-del-order="${o.id}">${icon('trash', 'icon-sm')} Delete order</button>
-            ${(() => { const im = o.items[0] && o.items[0].image; return im ? `<img class="ord-body-img" src="${esc(img(im.sm || im.lg))}" alt="${esc(o.items[0].title)}" width="120" height="120" loading="lazy">` : ''; })()}
-          </div>
-        </details></div>`; }).join('')}</div>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
+      ${list.length ? `<section class="adm-card"><table class="rv-table ord-table"><thead><tr><th>Date</th><th>Order</th><th class="num">Revenue</th></tr></thead><tbody>${list.map((o) => {
+        const n = qtyOf(o); const im = o.items[0] && o.items[0].image;
+        const r = profitRows(new Date(o.createdAt), new Date(o.createdAt), 'all').find((x) => x.o.id === o.id) || { revenue: o.total, cost: 0, profit: o.total, missing: 0 };
+        return `<tr class="ord-tr" data-swipe="${o.id}" data-ord-toggle="${o.id}" aria-expanded="false"><td>${fmtDate(o.createdAt)}</td><td><span class="prof-qty tabnum">${n > 1 ? n + 'x' : ''}</span>${im ? `<img class="prof-thumb" src="${esc(img(im.sm || im.lg))}" alt="" width="30" height="30" loading="lazy">` : '<span class="prof-thumb"></span>'}<span class="mono ord-num">#${o.number}</span>${needsConfirm(o) ? ' <span class="adm-needs">Confirm</span>' : ''}</td><td class="num tabnum">${money(r.revenue)}</td></tr>
+          <tr class="ord-drop" data-ord-drop="${o.id}" hidden><td colspan="3"><dl class="ord-drop-kv"><div><dt>Revenue</dt><dd class="tabnum">${money(r.revenue)}</dd></div><div><dt>Cost</dt><dd class="tabnum">${r.missing ? 'Missing' : money(r.cost)}</dd></div><div class="is-pro"><dt>Profit</dt><dd class="tabnum">${r.missing ? '—' : money(r.profit)}</dd></div></dl><button class="btn btn-sm" type="button" data-open-order="${o.id}">View full order</button></td></tr>`; }).join('')}</tbody></table></section>` : '<div class="empty"><h2>No orders</h2><p class="muted">New orders from checkout appear here instantly.</p></div>'}
       <h2 class="adm-sub" id="pickup-requests">Pickup requests</h2>
       ${requestsHTML()}
       <dialog class="modal adm-order-dlg" id="order-dlg" aria-labelledby="od-title"></dialog>`, 'Orders');
@@ -1362,6 +1352,7 @@ function mount(main, { store, navigate, query }) {
         ${canRefund(o) ? `<div class="adm-confirm" data-od-confirm="partial" hidden><p><b>Partial refund</b> Enter how much to send back to the customer. Up to ${money(refundLeft(o))}. The order stays open and nothing is restocked.</p>
           <div class="field"><label for="od-partial">Refund amount ($)</label><input id="od-partial" type="number" inputmode="decimal" min="0.01" max="${refundLeft(o)}" step="0.01" placeholder="0.00" data-od-amount></div>
           <div><button class="btn btn-sm adm-danger" type="button" data-od-partial="${o.id}">Refund this amount</button><button class="btn btn-sm" type="button" data-od-back>Go back</button></div></div>` : ''}` : ''}
+        <div class="od-delete"><button class="btn btn-sm adm-danger" type="button" data-del-order="${o.id}">${icon('trash', 'icon-sm')} Delete order</button></div>
       </div>`;
     dlg.showModal();
   }
@@ -1574,6 +1565,8 @@ function mount(main, { store, navigate, query }) {
       btn.disabled = false;
       return;
     }
+    const otg = !t.closest('[data-open-order]') && t.closest('[data-ord-toggle]');
+    if (otg) { const dr = $(`[data-ord-drop="${otg.dataset.ordToggle}"]`, main); if (dr) { dr.hidden = !dr.hidden; otg.setAttribute('aria-expanded', String(!dr.hidden)); otg.classList.toggle('is-open', !dr.hidden); } return; }
     const tk = t.closest('[data-track]');
     if (tk) { openTracking(tk.dataset.track); return; }
     const dl = t.closest('[data-del-order]');
@@ -1581,7 +1574,7 @@ function mount(main, { store, navigate, query }) {
       const o = data.orders.find((x) => x.id === dl.dataset.delOrder); if (!o) return;
       const back = o.stockHeld !== false && ['new', 'processing', 'ready'].includes(o.status);
       if (!confirm(`Delete order #${o.number} for ${o.customer.name}?${back ? ' The items go back in stock.' : ''} This can't be undone.`)) { closeSwipes(); return; }
-      try { await A.deleteOrder(o); refreshStore(); toast(`Order #${o.number} deleted`); await loadAll(); orders(); }
+      try { await A.deleteOrder(o); const od = $('#order-dlg'); if (od && od.open) od.close(); refreshStore(); toast(`Order #${o.number} deleted`); await loadAll(); orders(); }
       catch (ex) { toast(ex.message || 'Could not delete the order'); }
       return;
     }
